@@ -13,9 +13,6 @@
   <material name="Orange">
     <color rgba="1.0 0.423529411765 0.0392156862745 1.0"/>
   </material>
-  <material name="Blue">
-    <color rgba="0.5 0.7 1.0 1.0"/>      
-  </material>
   <link name="iiwa_link_0">
     <inertial>
       <origin rpy="0 0 0" xyz="-0.1 0 0.07"/>
@@ -25,15 +22,15 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="../meshes/iiwa14/visual/link_0.gltf"/>
+        <mesh filename="../../../assets/iiwa/visual/link_0.obj"/>
       </geometry>
+      <material name="Grey"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="../meshes/iiwa14/collision/link_0.obj"/>
+        <mesh filename="../../../assets/iiwa/collision/link_0.obj"/>
       </geometry>
-      <material name="Grey"/>
     </collision>
   </link>
   <joint name="iiwa_joint_1" type="revolute">
@@ -52,15 +49,15 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="../meshes/iiwa14/visual/link_1.gltf"/>
+        <mesh filename="../../../assets/iiwa/visual/link_1.obj"/>
       </geometry>
+      <material name="Silver"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="../meshes/iiwa14/collision/link_1.obj"/>
+        <mesh filename="../../../assets/iiwa/collision/link_1.obj"/>
       </geometry>
-      <material name="Grey"/>
     </collision>
   </link>
   <joint name="iiwa_joint_2" type="revolute">
@@ -81,21 +78,15 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="../meshes/iiwa14/visual/link_2_orange.gltf"/>
+        <mesh filename="../../../assets/iiwa/visual/link_2.obj"/>
       </geometry>
-    </visual>
-    <visual>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <mesh filename="../meshes/iiwa14/visual/link_2_grey.gltf"/>
-      </geometry>
+      <material name="Silver"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="../meshes/iiwa14/collision/link_2.obj"/>
+        <mesh filename="../../../assets/iiwa/collision/link_2.obj"/>
       </geometry>
-      <material name="Orange"/>
     </collision>
   </link>
   <joint name="iiwa_joint_3" type="revolute">
@@ -116,27 +107,15 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="../meshes/iiwa14/visual/link_3.gltf"/>
+        <mesh filename="../../../assets/iiwa/visual/link_3.obj"/>
       </geometry>
-    </visual>
-    <visual>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <mesh filename="../meshes/iiwa14/visual/kuka.gltf"/>
-      </geometry>
-    </visual>
-    <visual>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <mesh filename="../meshes/iiwa14/visual/band.gltf"/>
-      </geometry>
+      <material name="Orange"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="../meshes/iiwa14/collision/link_3.obj"/>
+        <mesh filename="../../../assets/iiwa/collision/link_3.obj"/>
       </geometry>
-      <material name="Grey"/>
     </collision>
   </link>
   <joint name="iiwa_joint_4" type="revolute">
@@ -157,22 +136,15 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="../meshes/iiwa14/visual/link_4_orange.gltf"/>
+        <mesh filename="../../../assets/iiwa/visual/link_4.obj"/>
       </geometry>
-    </visual>
-    <visual>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <mesh filename="../meshes/iiwa14/visual/link_4_grey.gltf"/>
-      </geometry>
-      <material name="Grey"/>
+      <material name="Silver"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="../meshes/iiwa14/collision/link_4.obj"/>
+        <mesh filename="../../../assets/iiwa/collision/link_4.obj"/>
       </geometry>
-      <material name="Orange"/>
     </collision>
   </link>
   <joint name="iiwa_joint_5" type="revolute">
@@ -193,27 +165,15 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="../meshes/iiwa14/visual/link_5.gltf"/>
+        <mesh filename="../../../assets/iiwa/visual/link_5.obj"/>
       </geometry>
-    </visual>
-    <visual>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <mesh filename="../meshes/iiwa14/visual/kuka.gltf"/>
-      </geometry>
-    </visual>
-    <visual>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <mesh filename="../meshes/iiwa14/visual/band.gltf"/>
-      </geometry>
+      <material name="Silver"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="../meshes/iiwa14/collision/link_5.obj"/>
+        <mesh filename="../../../assets/iiwa/collision/link_5.obj"/>
       </geometry>
-      <material name="Grey"/>
     </collision>
   </link>
   <joint name="iiwa_joint_6" type="revolute">
@@ -234,21 +194,15 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="../meshes/iiwa14/visual/link_6_grey.gltf"/>
+        <mesh filename="../../../assets/iiwa/visual/link_6.obj"/>
       </geometry>
-    </visual>
-    <visual>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <mesh filename="../meshes/iiwa14/visual/link_6_orange.gltf"/>
-      </geometry>
+      <material name="Orange"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="../meshes/iiwa14/collision/link_6.obj"/>
+        <mesh filename="../../../assets/iiwa/collision/link_6.obj"/>
       </geometry>
-      <material name="Orange"/>
     </collision>
   </link>
   <joint name="iiwa_joint_7" type="revolute">
@@ -269,15 +223,15 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="../meshes/iiwa14/visual/link_7.gltf"/>
+        <mesh filename="../../../assets/iiwa/visual/link_7.obj"/>
       </geometry>
+      <material name="Grey"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="../meshes/iiwa14/collision/link_7.obj"/>
+        <mesh filename="../../../assets/iiwa/collision/link_7.obj"/>
       </geometry>
-      <material name="Grey"/>
     </collision>
   </link>
   <!-- <joint name="iiwa_joint_ee" type="fixed"> -->
