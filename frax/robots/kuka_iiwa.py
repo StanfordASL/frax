@@ -25,13 +25,12 @@ link_ordering = tuple(joint_to_child_mapping.values())
 kuka_sc_data = (
     # [first link], [first link sphere idx], [second link], [second link sphere idx], [tol]
     ("iiwa_link_0", 0, "iiwa_link_6", 1, 0.0),
-    # ("iiwa_link_1", 0, "iiwa_link_6", 1, 0.0),
-    # ("iiwa_link_1", 2, "iiwa_link_6", 1, 0.0),
-    # ("iiwa_link_2", 0, "iiwa_link_6", 1, 0.0),
+    ("iiwa_link_1", 0, "iiwa_link_6", 1, 0.0),
+    ("iiwa_link_1", 1, "iiwa_link_6", 1, 0.0),
+    ("iiwa_link_1", 2, "iiwa_link_6", 1, 0.0),
+    ("iiwa_link_2", 0, "iiwa_link_6", 1, 0.0),
     # ("iiwa_link_5", 0, "iiwa_link_6", 1, 0.0),
     # ("iiwa_link_5", 2, "iiwa_link_1", 2, 0.0),
-    # ("iiwa_link_5", 3, "iiwa_link_1", 2, 0.0),
-    # NOT DONE!
 )
 
 
