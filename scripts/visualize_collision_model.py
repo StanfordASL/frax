@@ -15,8 +15,8 @@ import numpy as np
 import viser
 from viser.extras import ViserUrdf
 
-from frax import load_g1, load_panda, Robot
-from frax.assets import G1_ASSETS_DIR, FRANKA_ASSETS_DIR
+from frax import Robot, load_g1, load_panda, load_iiwa
+from frax.assets import G1_ASSETS_DIR, FRANKA_ASSETS_DIR, KUKA_ASSETS_DIR
 from frax.utils.rotation_utils import intrinsic_euler_xyz_to_quat_wxyz
 
 
@@ -318,6 +318,13 @@ def panda_main():
     visualize_collision_model(urdf_path, robot, q)
 
 
+def iiwa_main():
+    robot = load_iiwa()
+    q = np.array([0.0, np.pi / 6, 0.0, -np.pi / 2, 0.0, np.pi / 3, 0.0])
+    urdf_path = KUKA_ASSETS_DIR / "iiwa14.urdf"
+    visualize_collision_model(urdf_path, robot, q)
+
+
 def g1_main():
     robot = load_g1()
     q = np.zeros(robot.num_joints)
@@ -331,11 +338,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Visualize robot collision model in viser"
     )
-    parser.add_argument("--robot", choices=["panda", "g1"], default="panda")
+    parser.add_argument("--robot", choices=["panda", "g1", "iiwa"], default="panda")
     parser.add_argument("--port", type=int, default=8080, help="Viser server port")
     args = parser.parse_args()
 
     if args.robot == "panda":
         panda_main()
+    elif args.robot == "iiwa":
+        iiwa_main()
     else:
         g1_main()
