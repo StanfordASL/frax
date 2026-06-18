@@ -33,8 +33,7 @@ dev = ["mkdocs-material", "mkdocstrings[python]", "ruff"]
 examples = [
     "mujoco",
     "cbfpy",
-    "viser",
-    "yourdfpy", # For viser-based collision model visualization
+    "viser[urdf]",
 ]
 test = ["pin"]
 all = ["mkdocs-material", "mkdocstrings[python]", "ruff", "pin", "mujoco", "cbfpy"]
