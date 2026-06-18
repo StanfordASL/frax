@@ -30,7 +30,12 @@ cuda12 = ["jax[cuda12]"]
 cuda13 = ["jax[cuda13]"]
 tpu = ["jax[tpu]"]
 dev = ["mkdocs-material", "mkdocstrings[python]", "ruff"]
-examples = ["mujoco", "cbfpy"]
+examples = [
+    "mujoco",
+    "cbfpy",
+    "viser",
+    "yourdfpy", # For viser-based collision model visualization
+]
 test = ["pin"]
 all = ["mkdocs-material", "mkdocstrings[python]", "ruff", "pin", "mujoco", "cbfpy"]
 
