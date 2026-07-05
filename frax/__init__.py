@@ -54,7 +54,10 @@ def check_env_vars():
                 + "Recommendation: set OPENBLAS_NUM_THREADS=1"
             )
         should_warn = (
-            not before_jax_0_4_32 or not x64_enabled or not single_thread_eigen
+            not before_jax_0_4_32
+            or not x64_enabled
+            or not single_thread_eigen
+            or not single_thread_blas
         )
         if should_warn:
             warnings.warn(msg, stacklevel=2)
