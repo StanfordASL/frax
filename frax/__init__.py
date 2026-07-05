@@ -25,9 +25,8 @@ def check_env_vars():
     ):
         x64_enabled = os.environ.get("JAX_ENABLE_X64", "").lower() in ("1", "true")
         xla_flags = os.environ.get("XLA_FLAGS", "").split()
-        has_eigen_flag = "--xla_cpu_multi_thread_eigen=false" in xla_flags
-        has_threads_flag = "intra_op_parallelism_threads=1" in xla_flags
-        single_thread_enabled = has_eigen_flag and has_threads_flag
+        single_thread_eigen = "--xla_cpu_multi_thread_eigen=false" in xla_flags
+        single_thread_blas = os.environ.get("OPENBLAS_NUM_THREADS", "") == "1"
         before_jax_0_4_32 = version.parse(jax_version) < version.parse("0.4.32")
 
         msg = (
@@ -44,13 +43,18 @@ def check_env_vars():
             msg += (
                 "\n- JAX_ENABLE_X64 not detected. Recommendation: set JAX_ENABLE_X64=1"
             )
-        if not single_thread_enabled:
+        if not single_thread_eigen:
             msg += (
-                "\n- Single threaded XLA configuration not detected. "
-                + "Recommendation: set XLA_FLAGS='--xla_cpu_multi_thread_eigen=false intra_op_parallelism_threads=1'"
+                "\n- Single threaded Eigen configuration not detected. "
+                + "Recommendation: set XLA_FLAGS='--xla_cpu_multi_thread_eigen=false'"
+            )
+        if not single_thread_blas:
+            msg += (
+                "\n- Single threaded BLAS configuration not detected. "
+                + "Recommendation: set OPENBLAS_NUM_THREADS=1"
             )
         should_warn = (
-            not before_jax_0_4_32 or not x64_enabled or not single_thread_enabled
+            not before_jax_0_4_32 or not x64_enabled or not single_thread_eigen
         )
         if should_warn:
             warnings.warn(msg, stacklevel=2)

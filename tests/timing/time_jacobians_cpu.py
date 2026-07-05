@@ -5,9 +5,8 @@ This script: Jacobians and derivatives on CPU
 
 import os
 
-os.environ["XLA_FLAGS"] = (
-    "--xla_cpu_multi_thread_eigen=false intra_op_parallelism_threads=1"
-)
+os.environ["XLA_FLAGS"] = "--xla_cpu_multi_thread_eigen=false"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["JAX_ENABLE_X64"] = "True"
 os.environ["JAX_PLATFORMS"] = "cpu"
 
