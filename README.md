@@ -73,8 +73,8 @@ More advanced and interactive demos are included in the `examples` directory, as
 > Remember to install from source with the `[examples]` dependencies
 
 Examples of using `frax` for typical robot controllers:
-- Differential inverse kinematics: `examples/panda_diff_ik_demo.py`
-- Operational space control: `examples/panda_osc_demo.py`
+- Differential inverse kinematics: `examples/diff_ik_demo.py`
+- Operational space control: `examples/osc_demo.py`
 
 When these scripts are launched in `trajectory` mode, you'll see the following sinusoidal tracking demo:
 
@@ -82,7 +82,7 @@ https://github.com/user-attachments/assets/7b471496-2124-4063-953a-d7f25776ed5b
 
 This can also be launched in `manual` mode, for interactive mouse control of the target.
 
-However, these controllers are fairly simple, and Pinocchio or MuJoCo could have been used to give the same Jacobians and inertial values. The real benefit of `frax` comes from the automatic differentiation through the kinematics and dynamics for flexible controller design with minimal manual Jacobian derivations. In the below demo (`examples/panda_oscbf_demo.py`), I've reimplemented [OSCBF](https://github.com/StanfordASL/oscbf), which uses JAX's autodiff under the hood to form the CBF constraints.
+However, these controllers are fairly simple, and Pinocchio or MuJoCo could have been used to give the same Jacobians and inertial values. The real benefit of `frax` comes from the automatic differentiation through the kinematics and dynamics for flexible controller design with minimal manual Jacobian derivations. In the below demo (`examples/oscbf_demo.py`), I've reimplemented [OSCBF](https://github.com/StanfordASL/oscbf), which uses JAX's autodiff under the hood to form the CBF constraints.
 
 https://github.com/user-attachments/assets/5ea84ec0-6b67-40fd-a974-5850499df15d
 
