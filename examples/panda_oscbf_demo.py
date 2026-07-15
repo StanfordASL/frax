@@ -1,4 +1,6 @@
-"""Operational space control demo with the Franka Panda and FRAX kinematics + dynamics"""
+"""Operational space control demo with FRAX kinematics + dynamics"""
+
+import argparse
 
 import numpy as np
 import jax
@@ -6,9 +8,9 @@ import jax.numpy as jnp
 from jax.typing import ArrayLike
 
 from frax.core.manipulator import Manipulator
-from frax.robots.franka_panda import load_panda
+from frax import load_panda, load_iiwa
 from frax.utils.rotation_utils import orientation_error_3D
-from example_utils import PandaEnv
+from example_utils import ManipulatorEnv
 from cbf_utils import OSCBFTorqueConfig
 from cbfpy import CBF
 
@@ -113,12 +115,18 @@ class DemoOSCBFConfig(OSCBFTorqueConfig):
         return 10.0 * h_2
 
 
-def main():
-    print(STARTUP_MSG)
-    env = PandaEnv(control_mode="torque", real_time=True, load_obstacle=True)
+def main(robot_name):
+    assert robot_name in {"panda", "iiwa"}
 
-    # Load FRAX robot model
-    robot = load_panda()
+    print(STARTUP_MSG)
+    env = ManipulatorEnv(
+        robot=robot_name, control_mode="torque", real_time=True, load_obstacle=True
+    )
+
+    if robot_name == "panda":
+        robot = load_panda()
+    else:  # iiwa
+        robot = load_iiwa()
 
     # Define gains
     kp_pos = 50.0 * np.ones(3)
@@ -132,8 +140,8 @@ def main():
 
     # Define nullspace posture task
     is_redundant = True  # 6DOF task, 7DOF robot
-    des_q = np.array([0.0, -np.pi / 6, 0.0, -3 * np.pi / 4, 0.0, 5 * np.pi / 9, 0.0])
-    des_qdot = np.zeros(7)
+    des_q = env.q_init
+    des_qdot = np.zeros(robot.num_joints)
 
     # Define acceleration terms for EE task
     des_accel = np.zeros(3)
@@ -148,8 +156,8 @@ def main():
     @jax.jit
     def operational_space_control(z, z_ee_des):
         # Extract state info
-        q = z[:7]
-        qdot = z[7:14]
+        q = z[: robot.num_joints]
+        qdot = z[robot.num_joints :]
         des_pos = z_ee_des[:3]
         des_rot = jnp.reshape(z_ee_des[3:12], (3, 3))
         des_vel = z_ee_des[12:15]
@@ -220,4 +228,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--robot", choices=["panda", "iiwa"], default="panda")
+    args = parser.parse_args()
+    main(args.robot)

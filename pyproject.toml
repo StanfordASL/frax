@@ -31,7 +31,7 @@ cuda13 = ["jax[cuda13]"]
 tpu = ["jax[tpu]"]
 dev = ["mkdocs-material", "mkdocstrings[python]", "ruff"]
 examples = [
-    "mujoco",
+    "mujoco>=3.3.1", # Require newer mujoco versions for MjSpec URDF loading
     "cbfpy",
     "viser[urdf]",
 ]
