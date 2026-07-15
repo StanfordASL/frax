@@ -33,15 +33,18 @@ kuka_sc_data = (
     # ("iiwa_link_5", 2, "iiwa_link_1", 2, 0.0),
 )
 
+default_q = np.array([0.0, np.pi / 6, 0.0, -np.pi / 2, 0.0, np.pi / 3, 0.0])
+
 
 def load_iiwa() -> Manipulator:
     """Create a Manipulator object for the Kuka iiwa"""
 
     return Manipulator(
         KUKA_ASSETS_DIR / "iiwa14.urdf",
+        # TODO: Consider tuning the EE offset more
         ee_offset=np.block(
             [
-                [np.eye(3), np.reshape(np.array([0.0, 0.0, 0.0]), (-1, 1))],
+                [np.eye(3), np.reshape(np.array([0.0, 0.0, 0.05]), (-1, 1))],
                 [0.0, 0.0, 0.0, 1.0],
             ]
         ),
@@ -58,16 +61,15 @@ def load_iiwa() -> Manipulator:
 
 def main():
     robot = load_iiwa()
-    # Reasonable starting joint position for the iiwa
-    q = np.array([0.0, np.pi / 6, 0.0, -np.pi / 2, 0.0, np.pi / 3, 0.0])
     qd = 0.1 * np.ones(robot.num_joints)
-    transforms = robot.joint_to_world_transforms(q)
+    transforms = robot.joint_to_world_transforms(default_q)
     M = robot._mass_matrix(transforms)
     c = robot._centrifugal_coriolis_vector(qd, transforms)
     g = robot._gravity_vector(transforms)
     J_rh = robot._ee_jacobian(transforms)
     coll_pos, coll_rad = robot._link_collision_data(transforms)
     mu_rh = robot._ee_manipulability_index(transforms)
+    ee_tf = robot._ee_transform(transforms)
     np.set_printoptions(suppress=True, precision=3, linewidth=300, threshold=1e5)
     print(f"\nMass Matrix:\n{M}")
     print(f"\nCentrifugal/Coriolis Vector:\n{c}")
@@ -77,6 +79,7 @@ def main():
     print(f"\nCollision positions: \n{coll_pos}")
     print(f"\nCollision radii: \n{coll_rad}")
     print(f"\nEE manipulability index: {mu_rh}")
+    print(f"\nEE transform: \n{ee_tf}")
 
 
 if __name__ == "__main__":

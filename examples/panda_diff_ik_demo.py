@@ -1,4 +1,4 @@
-"""Differential inverse kinematics demo with the Franka Panda and FRAX kinematics + dynamics"""
+"""Differential inverse kinematics demo with FRAX kinematics + dynamics"""
 
 import argparse
 
@@ -6,9 +6,9 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 
-from frax.robots.franka_panda import load_panda
+from frax import load_panda, load_iiwa
 from frax.utils.rotation_utils import orientation_error_3D
-from example_utils import PandaEnv, SinusoidalTaskTrajectory
+from example_utils import ManipulatorEnv, SinusoidalTaskTrajectory
 
 jax.config.update("jax_enable_x64", True)
 jax.config.update("jax_platforms", "cpu")
@@ -46,19 +46,24 @@ with the --mode manual flag
 """
 
 
-def main(demo_mode):
+def main(robot_name, demo_mode):
     assert demo_mode in {"trajectory", "manual"}
+    assert robot_name in {"panda", "iiwa"}
+
+    # TODO: move this somewhere else
+    # Also, update these to match the FK result at q init
+    if robot_name == "panda":
+        robot = load_panda()
+        init_rot = np.array([[1, 0, 0], [0, -1, 0], [0, 0, -1]])
+    else:  # iiwa
+        robot = load_iiwa()
+        init_rot = np.array([[-1, 0, 0], [0, 1, 0], [0, 0, -1]])
+
     if demo_mode == "trajectory":
         print(TRAJ_MODE_MSG)
         traj = SinusoidalTaskTrajectory(
             init_pos=(0.4, 0, 0.4),
-            init_rot=np.array(
-                [
-                    [1, 0, 0],
-                    [0, -1, 0],
-                    [0, 0, -1],
-                ]
-            ),
+            init_rot=init_rot,
             amplitude=(0, 0.25, 0),
             angular_freq=(0, 2, 0),
             phase=(0, 0, 0),
@@ -67,10 +72,9 @@ def main(demo_mode):
         print(MANUAL_MODE_MSG)
         traj = None
 
-    env = PandaEnv(control_mode="velocity", traj=traj, real_time=True)
-
-    # Load FRAX robot model
-    robot = load_panda()
+    env = ManipulatorEnv(
+        robot=robot_name, control_mode="velocity", traj=traj, real_time=True
+    )
 
     # Define gains
     kp_pos = 5.0 * np.ones(3)
@@ -80,7 +84,7 @@ def main(demo_mode):
 
     # Define nullspace posture task
     is_redundant = True  # 6DOF task, 7DOF robot
-    des_q = np.array([0.0, -np.pi / 6, 0.0, -3 * np.pi / 4, 0.0, 5 * np.pi / 9, 0.0])
+    des_q = env.q_init
 
     @jax.jit
     def differential_ik(q, z_ee_des):
@@ -133,7 +137,7 @@ def main(demo_mode):
         while env.viewer.is_running():
             z = env.get_joint_state()
             z_ee_des = env.get_desired_ee_state()
-            q = z[:7]
+            q = z[: robot.num_joints]
             u = differential_ik(q, z_ee_des)
             env.apply_control(u)
             env.step()
@@ -143,8 +147,9 @@ def main(demo_mode):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--robot", choices=["panda", "iiwa"], default="panda")
     parser.add_argument(
         "--mode", choices=["trajectory", "manual"], default="trajectory"
     )
     args = parser.parse_args()
-    main(args.mode)
+    main(args.robot, args.mode)

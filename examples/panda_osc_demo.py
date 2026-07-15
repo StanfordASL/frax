@@ -1,4 +1,4 @@
-"""Operational space control demo with the Franka Panda and FRAX kinematics + dynamics"""
+"""Operational space control demo with FRAX kinematics + dynamics"""
 
 import argparse
 
@@ -6,9 +6,9 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 
-from frax.robots.franka_panda import load_panda
+from frax import load_panda, load_iiwa
 from frax.utils.rotation_utils import orientation_error_3D
-from example_utils import PandaEnv, SinusoidalTaskTrajectory
+from example_utils import ManipulatorEnv, SinusoidalTaskTrajectory
 
 jax.config.update("jax_enable_x64", True)
 jax.config.update("jax_platforms", "cpu")
@@ -47,19 +47,24 @@ with the --mode manual flag
 """
 
 
-def main(demo_mode):
+def main(robot_name, demo_mode):
     assert demo_mode in {"trajectory", "manual"}
+    assert robot_name in {"panda", "iiwa"}
+
+    # TODO: move this somewhere else
+    # Also, update these to match the FK result at q init
+    if robot_name == "panda":
+        robot = load_panda()
+        init_rot = np.array([[1, 0, 0], [0, -1, 0], [0, 0, -1]])
+    else:  # iiwa
+        robot = load_iiwa()
+        init_rot = np.array([[-1, 0, 0], [0, 1, 0], [0, 0, -1]])
+
     if demo_mode == "trajectory":
         print(TRAJ_MODE_MSG)
         traj = SinusoidalTaskTrajectory(
             init_pos=(0.4, 0, 0.4),
-            init_rot=np.array(
-                [
-                    [1, 0, 0],
-                    [0, -1, 0],
-                    [0, 0, -1],
-                ]
-            ),
+            init_rot=init_rot,
             amplitude=(0, 0.25, 0),
             angular_freq=(0, 2, 0),
             phase=(0, 0, 0),
@@ -68,10 +73,9 @@ def main(demo_mode):
         print(MANUAL_MODE_MSG)
         traj = None
 
-    env = PandaEnv(control_mode="torque", traj=traj, real_time=True)
-
-    # Load FRAX robot model
-    robot = load_panda()
+    env = ManipulatorEnv(
+        robot=robot_name, control_mode="torque", traj=traj, real_time=True
+    )
 
     # Define gains
     kp_pos = 50.0 * np.ones(3)
@@ -85,8 +89,8 @@ def main(demo_mode):
 
     # Define nullspace posture task
     is_redundant = True  # 6DOF task, 7DOF robot
-    des_q = np.array([0.0, -np.pi / 6, 0.0, -3 * np.pi / 4, 0.0, 5 * np.pi / 9, 0.0])
-    des_qdot = np.zeros(7)
+    des_q = env.q_init
+    des_qdot = np.zeros(robot.num_joints)
 
     # Define acceleration terms for EE task
     des_accel = np.zeros(3)
@@ -95,8 +99,8 @@ def main(demo_mode):
     @jax.jit
     def operational_space_control(z, z_ee_des):
         # Extract state info
-        q = z[:7]
-        qdot = z[7:14]
+        q = z[: robot.num_joints]
+        qdot = z[robot.num_joints :]
         des_pos = z_ee_des[:3]
         des_rot = jnp.reshape(z_ee_des[3:12], (3, 3))
         des_vel = z_ee_des[12:15]
@@ -167,8 +171,9 @@ def main(demo_mode):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--robot", choices=["panda", "iiwa"], default="panda")
     parser.add_argument(
         "--mode", choices=["trajectory", "manual"], default="trajectory"
     )
     args = parser.parse_args()
-    main(args.mode)
+    main(args.robot, args.mode)
