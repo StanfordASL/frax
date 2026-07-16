@@ -1,5 +1,12 @@
 """Operational space control demo with FRAX kinematics + dynamics"""
 
+import os
+
+os.environ["XLA_FLAGS"] = "--xla_cpu_multi_thread_eigen=false"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["JAX_ENABLE_X64"] = "True"
+os.environ["JAX_PLATFORMS"] = "cpu"
+
 import argparse
 
 import numpy as np
@@ -9,9 +16,6 @@ import jax.numpy as jnp
 from frax import load_panda, load_iiwa
 from frax.utils.rotation_utils import orientation_error_3D
 from example_utils import ManipulatorEnv, SinusoidalTaskTrajectory
-
-jax.config.update("jax_enable_x64", True)
-jax.config.update("jax_platforms", "cpu")
 
 
 MANUAL_MODE_MSG = """
