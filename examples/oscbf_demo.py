@@ -1,4 +1,4 @@
-"""Operational space control demo with FRAX kinematics + dynamics"""
+"""OSCBF safe manipulation demo with FRAX kinematics + dynamics"""
 
 import os
 
