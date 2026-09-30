@@ -26,8 +26,12 @@ def check_env_vars():
         x64_enabled = os.environ.get("JAX_ENABLE_X64", "").lower() in ("1", "true")
         xla_flags = os.environ.get("XLA_FLAGS", "").split()
         single_thread_eigen = "--xla_cpu_multi_thread_eigen=false" in xla_flags
+        memory_optimized_scheduler = (
+            "--xla_cpu_scheduler_type=CPU_SCHEDULER_TYPE_MEMORY_OPTIMIZED" in xla_flags
+        )
         single_thread_blas = os.environ.get("OPENBLAS_NUM_THREADS", "") == "1"
         before_jax_0_4_32 = version.parse(jax_version) < version.parse("0.4.32")
+        before_jax_0_9_1 = version.parse(jax_version) < version.parse("0.9.1")
 
         msg = (
             "[frax] CPU backend detected but some performance settings are not configured.\n"
@@ -53,11 +57,18 @@ def check_env_vars():
                 "\n- Single threaded BLAS configuration not detected. "
                 + "Recommendation: set OPENBLAS_NUM_THREADS=1"
             )
+        if not before_jax_0_9_1 and not memory_optimized_scheduler:
+            msg += (
+                "\n- Memory-optimized XLA CPU scheduler not detected. Recommendation: add "
+                + "'--xla_cpu_scheduler_type=CPU_SCHEDULER_TYPE_MEMORY_OPTIMIZED' to XLA_FLAGS "
+                + "(requires jax>=0.9.1)"
+            )
         should_warn = (
             not before_jax_0_4_32
             or not x64_enabled
             or not single_thread_eigen
             or not single_thread_blas
+            or (not before_jax_0_9_1 and not memory_optimized_scheduler)
         )
         if should_warn:
             warnings.warn(msg, stacklevel=2)
