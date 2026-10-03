@@ -37,7 +37,7 @@ def sample_qs(num_joints, n: int):
 def main():
     robot = load_g1()
     n_evals = 10000
-    inputs = sample_qs(robot.nv, n_evals)
+    inputs = sample_qs(robot.nq, n_evals)
 
     print("Testing forward kinematics")
     jit_dur, avg_dur = test_speed(robot.joint_to_world_transforms, inputs)

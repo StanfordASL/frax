@@ -192,12 +192,12 @@ def load_fixed_root_g1() -> Humanoid:
     )
 
 
-def load_g1(floating_base: str = "euler") -> Humanoid:
+def load_g1(floating_base: str = "quaternion") -> Humanoid:
     """Load the Unitree G1 humanoid with a free-floating base
 
     Args:
         floating_base (str, optional): Floating base representation, "euler" or "quaternion".
-            See Robot for details. Defaults to "euler".
+            See Robot for details. Defaults to "quaternion".
     """
     assert floating_base in ("euler", "quaternion")
     return Humanoid(

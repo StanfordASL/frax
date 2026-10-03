@@ -45,7 +45,7 @@ def main():
     print("Steps per second: ", 1 / avg_time)
 
     # Initial state and dummy control input
-    q_g1 = np.random.uniform(-0.1, 0.1, g1.nv)
+    q_g1 = np.random.uniform(-0.1, 0.1, g1.nq)
     qd_g1 = np.zeros(g1.nv)
     tau_g1 = np.random.uniform(-0.1, 0.1, g1.nv)
     g1_args = (q_g1, qd_g1, tau_g1)

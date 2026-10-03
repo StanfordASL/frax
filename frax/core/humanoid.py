@@ -35,7 +35,7 @@ class Humanoid(Robot):
         joint_ordering (Optional[list[str]]): A specific joint ordering to use.
             Defaults to None (infer ordering from URDF)
         floating_base (Optional[str]): How to model the free-floating base: None (fixed base),
-            "quaternion", or "euler". See Robot for details. Defaults to "euler".
+            "quaternion", or "euler". See Robot for details. Defaults to "quaternion".
     """
 
     def __init__(
@@ -51,7 +51,7 @@ class Humanoid(Robot):
         right_foot_ee_offset: Optional[ArrayLike] = None,
         collision_data: Optional[dict] = None,
         joint_ordering: Optional[list[str]] = None,
-        floating_base: Optional[str] = "euler",
+        floating_base: Optional[str] = "quaternion",
     ):
         super().__init__(
             urdf_filename, collision_data, joint_ordering, floating_base

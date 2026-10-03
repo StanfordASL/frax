@@ -17,7 +17,7 @@ jax.config.update("jax_enable_x64", True)
 class TestJacobiansAndDerivatives(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.robot = load_g1()
+        cls.robot = load_g1(floating_base="euler")
         cls.nq = cls.robot.nq
         cls.nv = cls.robot.nv
         np.random.seed(42)

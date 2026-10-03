@@ -117,10 +117,10 @@ class TestMInv(unittest.TestCase):
 
     def test_floating_base_speed(self):
         num_tests = 100
-        qs = [np.random.rand(35) for _ in range(num_tests)]
+        qs = [np.random.rand(self.floating_root_robot.nq) for _ in range(num_tests)]
 
         # Dummy solves for jit compilation
-        q_jit = np.random.rand(35)
+        q_jit = np.random.rand(self.floating_root_robot.nq)
         M = self.floating_root_robot.mass_matrix(q_jit)
         minv_reg_result = minv_regular(self.floating_root_robot, q_jit)
         minv_spd_result = minv_spd(self.floating_root_robot, q_jit)

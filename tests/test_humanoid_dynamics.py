@@ -357,7 +357,7 @@ class FreeflyerRootDynamicsTest(unittest.TestCase):
         print("Testing floating root dynamics against Pinocchio's freeflyer joint")
         cls.model = pin.buildModelFromUrdf(fixed_root_urdf, pin.JointModelFreeFlyer())
         cls.data = pin.Data(cls.model)
-        cls.robot = load_g1()
+        cls.robot = load_g1(floating_base="euler")
         cls.num_joints = cls.robot.nv
         cls.num_actuated_joints = cls.num_joints - 6
         np.random.seed(0)
@@ -426,7 +426,7 @@ class FloatingRootDynamicsTest(unittest.TestCase):
         print("Testing floating root dynamics against Pinocchio")
         cls.model = pin.buildModelFromUrdf(floating_root_urdf)
         cls.data = pin.Data(cls.model)
-        cls.robot = load_g1()
+        cls.robot = load_g1(floating_base="euler")
         cls.num_joints = cls.robot.nv
         np.random.seed(0)
 
@@ -458,7 +458,7 @@ class FloatingRootSpeedTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         print("Testing floating root dynamics speed")
-        cls.robot = load_g1()
+        cls.robot = load_g1(floating_base="euler")
         cls.num_joints = cls.robot.nv
         np.random.seed(0)
 

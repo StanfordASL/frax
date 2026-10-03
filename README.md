@@ -99,7 +99,7 @@ Here, we're enforcing
 
 - If you would like to use `frax`'s collision methods, you must first define a spherized collision model of your robot (or, use our pre-built collision models for the Franka Panda/FR3 and the Unitree G1). Check out [this page](docs/modeling_collision.md) for more info!
 - For now, if you have joints in your URDF that are not part of the primary kinematic chain/tree being controlled (for instance, gripper joints), please set these as `fixed` so that they can be ignored, and so their child links' inertias can be fused into the parent. In the future, we will allow for fixing joints programmatically.
-- Free-floating bases (e.g. humanoids) can be represented in two ways, via `floating_base="quaternion"` or `floating_base="euler"`:
+- Free-floating bases (e.g. humanoids) can be represented in two ways, via `floating_base="quaternion"` (the default for `Humanoid` and `load_g1`) or `floating_base="euler"`:
   - `"quaternion"`: A free joint matching MuJoCo's conventions. The configuration is `q = [position, WXYZ quaternion, joints]` and the velocity is `qd = [world-frame linear velocity, body-frame angular velocity, joint velocities]`, so `robot.nq = robot.nv + 1`. You can pass MuJoCo's `qpos`/`qvel` directly. Use `robot.integrate(q, qd, dt)` rather than `q + qd * dt`, and if you differentiate a function `f(q)` with autodiff, map the result back to velocity space with `jax.jacobian(f)(q) @ robot.configuration_velocity_map(q)`.
   - `"euler"`: 6 virtual joints (3 prismatic, 3 revolute: intrinsic XYZ euler angles), as described in the paper. Here, `nq = nv`, and `qd` is simply the time derivative of `q`, but there is a singularity at a pitch of +/- 90 degrees.
 
