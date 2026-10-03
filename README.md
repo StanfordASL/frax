@@ -65,7 +65,7 @@ print(M)
 ```
 See the [Performance Tips](#performance-tips) section below for more advice on making your code *fast*.
 
-Many more kinematics and dynamics terms are available (joint/link/frame transforms and Jacobians, gravity vector, centrifugal/coriolis forces, and many other values relevant to robot control). We also provide `Manipulator` and `Humanoid` classes for useful helper functions based on your robot's form-factor, and `frax` comes pre-loaded with the Franka Panda and Unitree G1. 
+Many more kinematics and dynamics terms are available (joint/link/frame transforms and Jacobians, gravity vector, centrifugal/coriolis forces, and many other values relevant to robot control). We also provide `Manipulator`, `Humanoid`, and `Quadruped` classes for useful helper functions based on your robot's form-factor, and `frax` comes pre-loaded with the Franka Panda, Unitree G1, and Unitree A2. 
 
 More advanced and interactive demos are included in the `examples` directory, as seen below
 

@@ -7,9 +7,11 @@ import jax
 from frax.core.robot import Robot
 from frax.core.manipulator import Manipulator
 from frax.core.humanoid import Humanoid
+from frax.core.quadruped import Quadruped
 from frax.robots.franka_panda import load_panda
 from frax.robots.unitree_g1 import load_g1
 from frax.robots.kuka_iiwa import load_iiwa
+from frax.robots.unitree_a2 import load_a2
 
 
 def check_env_vars():
