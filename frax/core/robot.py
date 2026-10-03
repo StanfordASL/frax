@@ -6,6 +6,7 @@
 # - Also, see if we can use some of the spatial axes computation for the jacobians
 
 from typing import Tuple, Optional
+import warnings
 
 import jax
 from jax import Array
@@ -29,6 +30,15 @@ from frax.utils.spatial_utils import (
     spatial_motion_cross,
     spatial_force_cross,
 )
+from frax.utils.rotation_utils import (
+    quat_wxyz_to_rmat,
+    quat_wxyz_multiply,
+    quat_wxyz_conjugate,
+    quat_wxyz_exp,
+    quat_wxyz_log,
+)
+
+FLOATING_BASE_TYPES = (None, "quaternion", "euler")
 
 
 @jax.tree_util.register_static
@@ -42,8 +52,23 @@ class Robot:
             See collision_utils for more detail. Defaults to None.
         joint_ordering (Optional[list[str]]): A specific joint ordering to use.
             Defaults to None (infer ordering from URDF)
-        add_floating_base (bool, optional): Whether to add a 6DOF floating base to the model.
-            Defaults to False.
+        floating_base (Optional[str]): How to model a free-floating base. Defaults to None
+            (base is fixed to the world). Options:
+            - "quaternion": A 6DOF free joint with MuJoCo's conventions. The configuration is
+                q = [position (world), WXYZ quaternion (world), actuated joints], so nq = nv + 1,
+                and the velocity is qd = [linear velocity (world), angular velocity (body),
+                actuated joint velocities]. Singularity-free.
+            - "euler": 6 virtual joints (3 prismatic, then 3 revolute, i.e. intrinsic XYZ euler
+                angles). The configuration is q = [position, euler angles, actuated joints], and the
+                velocity is its time derivative, so nq = nv. Singular at pitch = +/- pi/2.
+
+    Dimensions:
+        nq: Size of the configuration vector q
+        nv: Size of the velocity vector qd (and qdd, tau, Jacobian columns, mass matrix, ...)
+
+    Note: Internally, a floating base is always expanded into 6 single-DOF "virtual" bodies
+    (the last of which carries the base link's inertia), so all per-body arrays such as the
+    joint transforms have nv rows, regardless of the floating base representation.
     """
 
     def __init__(
@@ -51,12 +76,16 @@ class Robot:
         urdf_filename: str,
         collision_data: Optional[dict] = None,
         joint_ordering: Optional[list[str]] = None,
-        add_floating_base: bool = False,
+        floating_base: Optional[str] = None,
     ):
+        if floating_base not in FLOATING_BASE_TYPES:
+            raise ValueError(
+                f"Invalid floating_base: {floating_base}. Options: {FLOATING_BASE_TYPES}"
+            )
         data = parse_urdf(
             urdf_filename,
             joint_ordering=joint_ordering,
-            add_floating_base=add_floating_base,
+            add_floating_base=floating_base is not None,
         )
 
         assert isinstance(collision_data, dict) or collision_data is None
@@ -79,7 +108,7 @@ class Robot:
             body_sc_pairs = ()
             body_sc_tols = ()
         # fmt: off
-        self.num_joints = data["num_joints"]
+        self.nv = data["num_joints"]
         self.joint_types = np.asarray(data["joint_types"], dtype=int)
         self.joint_names = data["joint_names"]
         self.joint_lower_limits = np.asarray(data["joint_lower_limits"], dtype=float)
@@ -94,7 +123,8 @@ class Robot:
         self.link_local_inertia_positions = np.asarray(data["link_local_inertia_positions"], dtype=float)
         self.link_local_inertia_rotations = np.asarray(data["link_local_inertia_rotations"], dtype=float)
         self.parent_idxs = np.asarray(data["parent_idxs"], dtype=int)
-        self.includes_floating_dof = add_floating_base  # TODO rename this
+        self.floating_base = floating_base
+        self.includes_floating_dof = floating_base is not None  # TODO rename this
         self.collision_positions = collision_positions # RAGGED
         self.collision_radii = collision_radii # RAGGED
         self.root_collision_positions = np.asarray(root_collision_positions, dtype=float)
@@ -105,9 +135,12 @@ class Robot:
         self.body_sc_tols = np.asarray(body_sc_tols, dtype=float)
         # fmt: on
 
-        self.num_actuated_joints = (
-            self.num_joints - 6 if self.includes_floating_dof else self.num_joints
-        )
+        self.is_quaternion_base = floating_base == "quaternion"
+        # Dimensions of the floating base's configuration and velocity
+        self.nv_floating = 6 if self.includes_floating_dof else 0
+        self.nq_floating = 7 if self.is_quaternion_base else self.nv_floating
+        self.nq = self.nv + self.nq_floating - self.nv_floating
+        self.num_actuated_joints = self.nv - self.nv_floating
         self.has_collision_data = len(collision_positions) > 0
         self.has_root_collision_data = len(root_collision_positions) > 0
         self.has_sc_data = len(body_sc_pairs) > 0
@@ -144,8 +177,9 @@ class Robot:
         self.revolute_mask = ~self.prismatic_mask
 
         self.ancestor_mask = self._compute_ancestor_mask()
+        self.velocity_mask = self._compute_velocity_mask()
         self.is_pure_kinematic_chain = np.array_equal(
-            self.ancestor_mask, np.tril(np.ones((self.num_joints, self.num_joints)))
+            self.ancestor_mask, np.tril(np.ones((self.nv, self.nv)))
         )
 
         self.joint_name_to_index = {name: i for i, name in enumerate(self.joint_names)}
@@ -166,7 +200,7 @@ class Robot:
 
         Returns:
             Tuple[np.ndarray, np.ndarray]:
-                padded_positions: Positions, shape (num_joints, max_spheres_per_link, 3)
+                padded_positions: Positions, shape (nv, max_spheres_per_link, 3)
                 slice_indices: Indices of the *flattened* padded positions to select,
                     corresponding to the non-padded data
         """
@@ -176,11 +210,11 @@ class Robot:
             return (), ()
         sphere_counts = tuple(len(rs) for rs in radii)
         max_spheres_per_link = max(sphere_counts)
-        padded_positions = np.zeros((self.num_joints, max_spheres_per_link, 3))
-        for link_idx in range(self.num_joints):
+        padded_positions = np.zeros((self.nv, max_spheres_per_link, 3))
+        for link_idx in range(self.nv):
             for sphere_idx in range(sphere_counts[link_idx]):
                 padded_positions[link_idx, sphere_idx] = positions[link_idx][sphere_idx]
-        # mask: (num_joints, max_spheres) - True for non-padded spheres
+        # mask: (nv, max_spheres) - True for non-padded spheres
         sphere_mask = (
             np.arange(max_spheres_per_link) < np.asarray(sphere_counts)[:, None]
         )
@@ -193,9 +227,9 @@ class Robot:
         """Computes the connectivity matrix for the tree structure.
 
         Returns:
-            np.ndarray: Shape (num_joints, num_joints). Mask[i, j] = 1 if j is an ancestor of i
+            np.ndarray: Shape (nv, nv). Mask[i, j] = 1 if j is an ancestor of i
         """
-        N = self.num_joints
+        N = self.nv
         mask = np.zeros((N, N), dtype=bool)
 
         # Based on how we've parsed the URDF, the base (pelvis) link is assigned idx = 0
@@ -212,14 +246,120 @@ class Robot:
 
         return mask
 
+    def _compute_velocity_mask(self) -> np.ndarray:
+        """Computes the mask describing which DOFs contribute to each body's spatial velocity.
+
+        For single-DOF joints, this is just the ancestor mask. However, a quaternion-based free
+        joint is a single 6-DOF joint: its 6 virtual bodies are not a serial chain, but rather
+        all coincide with the base. Each translational virtual body (identity rotation, at the
+        base position) moves with all 3 translational DOFs, and each rotational virtual body moves
+        with the full base velocity. This matters for the velocity-product (S_dot @ qd) terms.
+
+        Returns:
+            np.ndarray: Shape (nv, nv). Mask[i, j] = 1 if DOF j contributes to the velocity of body i
+        """
+        mask = self.ancestor_mask.copy()
+        if self.is_quaternion_base:
+            mask[0:3, 0:3] = True
+            mask[3:6, 0:6] = True
+        return mask
+
+    @property
+    def num_joints(self) -> int:
+        """Deprecated: use `nv` (velocity dimension) or `nq` (configuration dimension)"""
+        warnings.warn(
+            "Robot.num_joints is deprecated. Use Robot.nv (velocity dimension) "
+            + "or Robot.nq (configuration dimension) instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.nv
+
+    # CONFIGURATION SPACE
+
+    def neutral_configuration(self) -> np.ndarray:
+        """The neutral (zero) configuration: identity floating base pose, all joints at zero
+
+        Returns:
+            np.ndarray: Configuration, shape (nq,)
+        """
+        q = np.zeros(self.nq)
+        if self.is_quaternion_base:
+            q[3] = 1.0
+        return q
+
+    def integrate(self, q: Array, qd: Array, dt: float = 1.0) -> Array:
+        """Integrates a configuration forward in time with a constant velocity
+
+        For a quaternion floating base, this matches MuJoCo's position integration
+        (world-frame linear velocity, body-frame angular velocity)
+
+        Args:
+            q (Array): Configuration, shape (nq,)
+            qd (Array): Velocity, shape (nv,)
+            dt (float, optional): Timestep. Defaults to 1.0.
+
+        Returns:
+            Array: Configuration after dt, shape (nq,)
+        """
+        if not self.is_quaternion_base:
+            return q + qd * dt
+        pos = q[:3] + qd[:3] * dt
+        quat = quat_wxyz_multiply(q[3:7], quat_wxyz_exp(qd[3:6] * dt))
+        quat = quat / jnp.linalg.norm(quat)
+        q_act = q[7:] + qd[6:] * dt
+        return jnp.concatenate([pos, quat, q_act])
+
+    def difference(self, q0: Array, q1: Array) -> Array:
+        """Computes the velocity which takes q0 to q1 in unit time (the inverse of `integrate`)
+
+        Args:
+            q0 (Array): Starting configuration, shape (nq,)
+            q1 (Array): Ending configuration, shape (nq,)
+
+        Returns:
+            Array: Velocity, shape (nv,)
+        """
+        if not self.is_quaternion_base:
+            return q1 - q0
+        quat_rel = quat_wxyz_multiply(quat_wxyz_conjugate(q0[3:7]), q1[3:7])
+        return jnp.concatenate([q1[:3] - q0[:3], quat_wxyz_log(quat_rel), q1[7:] - q0[7:]])
+
+    def configuration_velocity_map(self, q: Array) -> Array:
+        """Matrix E(q) mapping velocities to the time derivative of the configuration: q_dot = E(q) @ qd
+
+        This is useful when combining autodiff w.r.t. q with velocities, e.g.
+        dh/dt = (dh/dq) @ E(q) @ qd. When nq == nv, this is the identity.
+
+        Args:
+            q (Array): Configuration, shape (nq,)
+
+        Returns:
+            Array: Velocity map, shape (nq, nv)
+        """
+        if not self.is_quaternion_base:
+            return jnp.eye(self.nv)
+        w, x, y, z = q[3:7]
+        # q_dot = 0.5 * quat ⊗ [0, omega_body]
+        quat_map = 0.5 * jnp.array(
+            [[-x, -y, -z], [w, -z, y], [z, w, -x], [-y, x, w]]
+        )
+        E = jnp.zeros((self.nq, self.nv))
+        E = E.at[:3, :3].set(jnp.eye(3))
+        E = E.at[3:7, 3:6].set(quat_map)
+        E = E.at[7:, 6:].set(jnp.eye(self.num_actuated_joints))
+        return E
+
+    # KINEMATICS
+
     def joint_to_world_transforms(self, q: Array) -> Array:
         """Computes the transformation matrices for all joints (Joint frame --> world frame)
 
         Args:
-            q (Array): Joint positions, shape (num_joints,)
+            q (Array): Joint positions, shape (nq,)
 
         Returns:
-            Array: Transformation matrices, shape (num_joints, 4, 4)
+            Array: Transformation matrices, shape (nv, 4, 4)
         """
         # Note about different FK methods:
         # Jax's associative scan is O(log(N)) complexity whereas just unrolling
@@ -231,22 +371,48 @@ class Robot:
         return self._unrolled_fk(q)
 
     def _local_joint_transforms(self, q: Array) -> Array:
-        """Helper function: Computes each joint's transform in parent frame"""
+        """Helper function: Computes each single-DOF joint's transform in parent frame
+
+        Note: For a quaternion floating base, this only includes the actuated joints
+        """
+        i = self.nv_floating if self.is_quaternion_base else 0
         # Calculate each joint's transformation matrix
-        transforms = jax.vmap(joint_transform)(q, self.joint_axes, self.joint_types)
+        transforms = jax.vmap(joint_transform)(
+            q[self.nq - self.nv + i :], self.joint_axes[i:], self.joint_types[i:]
+        )
         # Multiply the transform by its corresponding link offset
-        return self.joint_to_prev_joint_tfs @ transforms
+        return self.joint_to_prev_joint_tfs[i:] @ transforms
+
+    def _quaternion_base_transforms(self, q: Array) -> Array:
+        """Helper function: Computes the world transforms of the 6 virtual bodies of the
+        quaternion floating base. The translational DOFs have frames at the base position with
+        identity rotation (so, their axes are world-aligned), and the rotational DOFs have the
+        frame of the base (so, their axes are body-aligned)
+
+        Returns:
+            Array: Transformation matrices, shape (6, 4, 4)
+        """
+        pos = q[:3]
+        R = quat_wxyz_to_rmat(q[3:7])
+        bottom_row = jnp.array([[0.0, 0.0, 0.0, 1.0]])
+        T_pos = jnp.block([[jnp.eye(3), pos[:, None]], [bottom_row]])
+        T_base = jnp.block([[R, pos[:, None]], [bottom_row]])
+        return jnp.stack([T_pos, T_pos, T_pos, T_base, T_base, T_base])
 
     def _unrolled_fk(self, q: Array) -> Array:
         """Compute the forward kinematics via unrolling the loop over the joints"""
         # Compute local joint transforms in parent frame
         local_tfs = self._local_joint_transforms(q)
         # Unrolled FK loop. Assumes topological sort of parent-child relationship
-        world_tfs = jnp.zeros((self.num_joints, 4, 4))
-        for i in range(self.num_joints):
+        world_tfs = jnp.zeros((self.nv, 4, 4))
+        start = 0
+        if self.is_quaternion_base:
+            start = self.nv_floating
+            world_tfs = world_tfs.at[:start].set(self._quaternion_base_transforms(q))
+        for i in range(start, self.nv):
             parent = self.parent_idxs[i]
             parent_tf = world_tfs[parent] if parent != -1 else jnp.eye(4)
-            world_tfs = world_tfs.at[i].set(parent_tf @ local_tfs[i])
+            world_tfs = world_tfs.at[i].set(parent_tf @ local_tfs[i - start])
         return world_tfs
 
     def _scanned_fk(self, q: Array) -> Array:
@@ -255,16 +421,22 @@ class Robot:
         # Compute local joint transforms in parent frame
         local_tfs = self._local_joint_transforms(q)
         # Return the cumulative product of the transformations
-        return jax.lax.associative_scan(jnp.matmul, local_tfs, reverse=False, axis=0)
+        world_tfs = jax.lax.associative_scan(
+            jnp.matmul, local_tfs, reverse=False, axis=0
+        )
+        if not self.is_quaternion_base:
+            return world_tfs
+        base_tfs = self._quaternion_base_transforms(q)
+        return jnp.concatenate([base_tfs, base_tfs[-1] @ world_tfs])
 
     def link_to_world_transforms(self, q: Array) -> Array:
         """Compute the transformation matrices for all link inertial frames (link inertial frame --> world frame)
 
         Args:
-            q (Array): Joint positions, shape (num_joints,)
+            q (Array): Joint positions, shape (nq,)
 
         Returns:
-            Array: Transformation matrices, shape (num_joints, 4, 4)
+            Array: Transformation matrices, shape (nv, 4, 4)
         """
         joint_transforms = self.joint_to_world_transforms(q)
         return self._link_to_world_transforms(joint_transforms)
@@ -281,7 +453,7 @@ class Robot:
         """Compute the positions of all link COMs in world frame
 
         Args:
-            q (Array): Joint angles, shape (num_joints,)
+            q (Array): Joint angles, shape (nq,)
 
         Returns:
             Array: Link COM positions in world frame, shape (num_links, 3)
@@ -291,10 +463,10 @@ class Robot:
 
     def _link_com_positions(self, joint_transforms: Array) -> Array:
         """Helper function: Compute the positions of all link COMs in world frame, given the joint transforms"""
-        # Determine the positions of the link COMs in world frame. Shape (num_joints, 3)
+        # Determine the positions of the link COMs in world frame. Shape (nv, 3)
         # Position in world frame = joint-to-world transform x position in joint frame
         homogeneous_pos = jnp.column_stack(
-            [self.link_local_inertia_positions, jnp.ones(self.num_joints)]
+            [self.link_local_inertia_positions, jnp.ones(self.nv)]
         )
         return jnp.einsum("qij,qj->qi", joint_transforms, homogeneous_pos)[:, :3]
 
@@ -302,7 +474,7 @@ class Robot:
         """Compute the center of mass of the robot, in world frame
 
         Args:
-            q (Array): Joint positions, shape (num_joints,)
+            q (Array): Joint positions, shape (nq,)
 
         Returns:
             Array: Position of the center of mass, shape (3,)
@@ -323,10 +495,10 @@ class Robot:
         """Computes the linear Jacobian (Jv) for the motion of the COM
 
         Args:
-            q (Array): Joint positions, shape (num_joints,)
+            q (Array): Joint positions, shape (nq,)
 
         Returns:
-            Array: Jv_COM, shape (3, num_joints)
+            Array: Jv_COM, shape (3, nv)
         """
         joint_transforms = self.joint_to_world_transforms(q)
         return self._center_of_mass_jacobian(joint_transforms)
@@ -351,7 +523,7 @@ class Robot:
         attached to a link with a specified parent joint
 
         Args:
-            joint_transforms (Array): Transformation matrices for every joint, shape (num_joints, 4, 4)
+            joint_transforms (Array): Transformation matrices for every joint, shape (nv, 4, 4)
             frame_transform (Array): Transformation matrix of interest in its local frame, shape (4, 4)
             parent_index (int): Index of the frame's parent joint
 
@@ -366,12 +538,12 @@ class Robot:
         """Computes the jacobian of a frame attached to a link with a specified parent chain
 
         Args:
-            joint_transforms (Array): Transformation matrices for every joint, shape (num_joints, 4, 4)
+            joint_transforms (Array): Transformation matrices for every joint, shape (nv, 4, 4)
             frame_transform (Array): Transformation matrix of interest in its local frame, shape (4, 4)
             parent_chain (Array): Ancestor joint indices of the frame's link
 
         Returns:
-            Array: Jacobian, shape (6, num_joints). The first 3 rows are the linear Jacobian,
+            Array: Jacobian, shape (6, nv). The first 3 rows are the linear Jacobian,
                 and the last 3 rows are the angular Jacobian
         """
         # Get transform of the frame w.r.t the root
@@ -380,20 +552,20 @@ class Robot:
         )
         frame_pos = frame_to_root_tf[:3, 3]
 
-        # Positions of all parent joints in root frame. Shape (num_joints, 3)
+        # Positions of all parent joints in root frame. Shape (nv, 3)
         parent_pos = joint_transforms[parent_chain, :3, 3]
 
-        # Axes of all parent joints in root frame. Shape (num_joints, 3)
+        # Axes of all parent joints in root frame. Shape (nv, 3)
         parent_axes = (
             joint_transforms[parent_chain, :3, :3]
             @ self.joint_axes[parent_chain, :, jnp.newaxis]
         ).squeeze(axis=2)
 
-        # Position of frame, with respect to joint j. Shape (num_joints, 3).
+        # Position of frame, with respect to joint j. Shape (nv, 3).
         frame_wrt_joints = frame_pos[jnp.newaxis, :] - parent_pos
 
         # Cross products between joint axis j and frame position with respect to joint j.
-        # Shape (num_joints, 3)
+        # Shape (nv, 3)
         lever_arms = jnp.cross(parent_axes, frame_wrt_joints)
 
         # Linear jacobian has a prismatic contribution and revolute contribution
@@ -410,10 +582,10 @@ class Robot:
         ).T
         J = jnp.vstack([Jv, Jw])
         # Fast path: if parents are all joints, then we can just return directly
-        if len(parent_chain) == self.num_joints:  # Note: this is static
+        if len(parent_chain) == self.nv:  # Note: this is static
             return J
         # Otherwise, reconstruct full jacobian from parent computations
-        J_full = jnp.zeros((6, self.num_joints)).at[:, parent_chain].set(J)
+        J_full = jnp.zeros((6, self.nv)).at[:, parent_chain].set(J)
         return J_full
 
     # TODO: See if using more spatial algebra would simplify some of the operations here
@@ -431,15 +603,15 @@ class Robot:
         computations between J and Jdot in that case
 
         Args:
-            qd (Array): Joint velocities, shape (num_joints,)
-            joint_transforms (Array): Transformation matrices for every joint, shape (num_joints, 4, 4)
+            qd (Array): Joint velocities, shape (nv,)
+            joint_transforms (Array): Transformation matrices for every joint, shape (nv, 4, 4)
             frame_transform (Array): Transformation matrix of interest in its local frame, shape (4, 4)
             parent_chain (Array): Ancestor joint indices of the frame's link
 
         Returns:
             Tuple[Array, Array]:
-                J (Array): Jacobian, shape (6, num_joints)
-                Jdot (Array): Time derivative of the Jacobian, shape (6, num_joints)
+                J (Array): Jacobian, shape (6, nv)
+                Jdot (Array): Time derivative of the Jacobian, shape (6, nv)
         """
         # TODO: Create a version of _joint_jacobians that allows us to just compute it for the parent chain?
         joint_Jvs, joint_Jws = self._joint_jacobians(joint_transforms)
@@ -489,11 +661,11 @@ class Robot:
         J_dot = jnp.vstack([Jv_dot, Jw_dot])
 
         # Fast path: if parents are all joints, then we can just return directly
-        if len(parent_chain) == self.num_joints:  # Note: this is static
+        if len(parent_chain) == self.nv:  # Note: this is static
             return J, J_dot
         # Otherwise, reconstruct full Jacobian and derivative from parent computations
-        J_full = jnp.zeros((6, self.num_joints)).at[:, parent_chain].set(J)
-        J_dot_full = jnp.zeros((6, self.num_joints)).at[:, parent_chain].set(J_dot)
+        J_full = jnp.zeros((6, self.nv)).at[:, parent_chain].set(J)
+        J_dot_full = jnp.zeros((6, self.nv)).at[:, parent_chain].set(J_dot)
         return J_full, J_dot_full
 
     def _manipulability_index_helper(self, J_full: Array, chain_idxs: Array) -> float:
@@ -506,7 +678,7 @@ class Robot:
         """Compute collision data for all links given the joint configuration
 
         Args:
-            q (Array): Joint positions, shape (num_joints,)
+            q (Array): Joint positions, shape (nq,)
 
         Returns:
             Tuple[Array, Array]:
@@ -529,7 +701,7 @@ class Robot:
         """Compute the positions of all collision spheres in world frame
 
         Args:
-            q (Array): Joint positions, shape (num_joints,)
+            q (Array): Joint positions, shape (nq,)
 
         Returns:
             Array: Collision positions, shape (num_collision_spheres, 3)
@@ -542,12 +714,12 @@ class Robot:
     def _link_collision_positions(self, joint_transforms: Array) -> Array:
         """Helper function: Compute all collision positions given joint transforms"""
         # Compute collision body positions in world frame
-        # Shape (num_joints, max_spheres, 3)
+        # Shape (nv, max_spheres, 3)
         transformed_pts_padded = jax.vmap(transform_points)(
             joint_transforms, self.padded_collision_positions
         )
         # Flatten and select only the non-padded collision data
-        # Flat points shape (num_joints * max_spheres, 3)
+        # Flat points shape (nv * max_spheres, 3)
         all_pts_flat = transformed_pts_padded.reshape(-1, 3)
         pts_unpadded = all_pts_flat[self.collision_slice_indices]
         return pts_unpadded
@@ -606,38 +778,38 @@ class Robot:
         jacobians for every joint origin (w.r.t the world)
 
         Args:
-            joint_transforms (Array): Transformation matrices for every joint, shape (num_joints, 4, 4)
+            joint_transforms (Array): Transformation matrices for every joint, shape (nv, 4, 4)
 
         Returns:
             Tuple[Array, Array]:
-                Jv_joints (Array): Linear jacobians for every joint, shape (num_joints, 3, num_joints)
-                Jw_joints (Array): Angular jacobians for every joint, shape (num_joints, 3, num_joints)
+                Jv_joints (Array): Linear jacobians for every joint, shape (nv, 3, nv)
+                Jw_joints (Array): Angular jacobians for every joint, shape (nv, 3, nv)
         """
-        # Positions of all joints in world frame. Shape (num_joints, 3)
+        # Positions of all joints in world frame. Shape (nv, 3)
         joint_pos = joint_transforms[:, :3, 3]
 
-        # Axes of all joints in world frame. Shape (num_joints, 3)
+        # Axes of all joints in world frame. Shape (nv, 3)
         joint_axes_world_frame = jnp.einsum(
             "qij,qj->qi", joint_transforms[:, :3, :3], self.joint_axes
         )
 
-        # Positions of joint origin i, with respect to joint j. Shape (num_joints, num_joints, 3).
+        # Positions of joint origin i, with respect to joint j. Shape (nv, nv, 3).
         joint_origin_wrt_joints = (
             joint_pos[:, jnp.newaxis, :] - joint_pos[jnp.newaxis, :, :]
         )
 
         # Cross products between joint axis j and joint origin i's position with respect to joint j.
-        # Shape (num_joints, num_joints, 3)
+        # Shape (nv, nv, 3)
         lever_arms = jnp.cross(joint_axes_world_frame, joint_origin_wrt_joints)
 
-        # The ancestor mask zeros out the contributions from any joint that is not an ancestor
+        # The velocity mask zeros out the contributions from any joint that is not an ancestor
         # of the joint of interest
-        Jv_joints = self.ancestor_mask[:, None, :] * jnp.where(
+        Jv_joints = self.velocity_mask[:, None, :] * jnp.where(
             self.revolute_mask[:, None], lever_arms, joint_axes_world_frame[None, :]
         ).transpose(0, 2, 1)
 
         # Angular jacobian only has a contribution from revolute joints (their axes)
-        Jw_joints = self.ancestor_mask[:, None, :] * jnp.where(
+        Jw_joints = self.velocity_mask[:, None, :] * jnp.where(
             self.revolute_mask[:, None],
             joint_axes_world_frame[None, :],
             jnp.zeros_like(joint_axes_world_frame[None, :]),
@@ -651,19 +823,19 @@ class Robot:
         using the precomputed transforms and jacobians for the joints
 
         Args:
-            joint_transforms (Array): Transformation matrices for every joint, shape (num_joints, 4, 4)
-            joint_Jvs (Array): Linear jacobians for every joint, shape (num_joints, 3, num_joints)
-            joint_Jws (Array): Angular jacobians for every joint, shape (num_joints, 3, num_joints)
+            joint_transforms (Array): Transformation matrices for every joint, shape (nv, 4, 4)
+            joint_Jvs (Array): Linear jacobians for every joint, shape (nv, 3, nv)
+            joint_Jws (Array): Angular jacobians for every joint, shape (nv, 3, nv)
 
         Returns:
             Tuple[Array, Array]:
-                link_Jvs (Array): Linear jacobians for every link, shape (num_links, 3, num_joints)
-                link_Jws (Array): Angular jacobians for every link, shape (num_links, 3, num_joints)
+                link_Jvs (Array): Linear jacobians for every link, shape (num_links, 3, nv)
+                link_Jws (Array): Angular jacobians for every link, shape (num_links, 3, nv)
         """
-        # Determine the positions of the link COMs in world frame. Shape (num_joints, 3)
+        # Determine the positions of the link COMs in world frame. Shape (nv, 3)
         link_com_pos = self._link_com_positions(joint_transforms)
 
-        # Positions of all joints in world frame. Shape (num_joints, 3)
+        # Positions of all joints in world frame. Shape (nv, 3)
         joint_pos = joint_transforms[:, :3, 3]
 
         # Shift the linear jacobians from the joint origin to the link COM
@@ -681,34 +853,34 @@ class Robot:
         """Helper function: Compute an array containing the linear jacobians Jv for every link
 
         Args:
-            joint_transforms (Array): Transformation matrices for every joint, shape (num_joints, 4, 4)
+            joint_transforms (Array): Transformation matrices for every joint, shape (nv, 4, 4)
 
         Returns:
-            Array: Linear jacobians for every link, shape (num_links, 3, num_joints)
+            Array: Linear jacobians for every link, shape (num_links, 3, nv)
         """
-        # Determine the positions of the link COMs in world frame. Shape (num_joints, 3)
+        # Determine the positions of the link COMs in world frame. Shape (nv, 3)
         link_com_pos = self._link_com_positions(joint_transforms)
 
-        # Positions of all joints in world frame. Shape (num_joints, 3)
+        # Positions of all joints in world frame. Shape (nv, 3)
         joint_pos = joint_transforms[:, :3, 3]
 
-        # Axes of all joints in world frame. Shape (num_joints, 3)
+        # Axes of all joints in world frame. Shape (nv, 3)
         joint_axes_world_frame = jnp.einsum(
             "qij,qj->qi", joint_transforms[:, :3, :3], self.joint_axes
         )
 
-        # Positions of link COM i, with respect to joint j. Shape (num_joints, num_joints, 3).
+        # Positions of link COM i, with respect to joint j. Shape (nv, nv, 3).
         link_com_wrt_joints = (
             link_com_pos[:, jnp.newaxis, :] - joint_pos[jnp.newaxis, :, :]
         )
 
         # Cross products between joint axis j and link COM i's position with respect to joint j.
-        # Shape (num_joints, num_joints, 3)
+        # Shape (nv, nv, 3)
         lever_arms = jnp.cross(joint_axes_world_frame, link_com_wrt_joints)
 
-        # The ancestor mask zeros out the contributions from any joint that is not an ancestor
+        # The velocity mask zeros out the contributions from any joint that is not an ancestor
         # of the link of interest
-        return self.ancestor_mask[:, None, :] * jnp.where(
+        return self.velocity_mask[:, None, :] * jnp.where(
             self.revolute_mask[:, None], lever_arms, joint_axes_world_frame[None, :]
         ).transpose(0, 2, 1)
 
@@ -716,12 +888,12 @@ class Robot:
         """Helper function: Compute an array containing the angular jacobians Jw for every link
 
         Args:
-            transforms (Array): Transformation matrices for every joint, shape (num_joints, 4, 4)
+            transforms (Array): Transformation matrices for every joint, shape (nv, 4, 4)
 
         Returns:
-            Array: Angular jacobians for every link, shape (num_links, 3, num_joints)
+            Array: Angular jacobians for every link, shape (num_links, 3, nv)
         """
-        # Axes of all joints in world frame. Shape (num_joints, 3)
+        # Axes of all joints in world frame. Shape (nv, 3)
         joint_axes_world_frame = jnp.einsum(
             "qij,qj->qi", joint_transforms[:, :3, :3], self.joint_axes
         )
@@ -729,7 +901,7 @@ class Robot:
         # to the angular jacobian) and then mask out the non-ancestor joints
         return jnp.einsum(
             "lj,j,jd->ldj",
-            self.ancestor_mask,
+            self.velocity_mask,
             self.revolute_mask,
             joint_axes_world_frame,
         )
@@ -738,10 +910,10 @@ class Robot:
         """Compute the mass matrix for a given joint configuration
 
         Args:
-            q (Array): Array of joint angles, shape (num_joints,)
+            q (Array): Array of joint angles, shape (nq,)
 
         Returns:
-            Array: The mass matrix, shape (num_joints, num_joints)
+            Array: The mass matrix, shape (nv, nv)
         """
         joint_transforms = self.joint_to_world_transforms(q)
         return self._mass_matrix(joint_transforms)
@@ -757,10 +929,10 @@ class Robot:
         """Compute the inverse of the mass matrix
 
         Args:
-            M (Array): Mass matrix, shape (num_joints, num_joints)
+            M (Array): Mass matrix, shape (nv, nv)
 
         Returns:
-            Array: Inverse of the mass matrix, shape (num_joints, num_joints)
+            Array: Inverse of the mass matrix, shape (nv, nv)
         """
         # NOTE: It seems like for floating-base robots, if we compute the inverse
         # using the schur complement (accounting for the structure induced by the
@@ -776,10 +948,10 @@ class Robot:
         """Compute the gravity vector for a given joint configuration
 
         Args:
-            q (Array): Array of joint angles, shape (num_joints,)
+            q (Array): Array of joint angles, shape (nq,)
 
         Returns:
-            Array: The gravity vector, shape (num_joints,)
+            Array: The gravity vector, shape (nv,)
         """
         joint_transforms = self.joint_to_world_transforms(q)
         return self._gravity_vector(joint_transforms)
@@ -829,11 +1001,11 @@ class Robot:
         """Compute the centrifugal and coriolis vector for a given joint configuration
 
         Args:
-            q (Array): Array of joint angles, shape (num_joints,)
-            qd (Array): Array of joint velocities, shape (num_joints,)
+            q (Array): Array of joint angles, shape (nq,)
+            qd (Array): Array of joint velocities, shape (nv,)
 
         Returns:
-            Array: The centrifugal and coriolis vector, shape (num_joints,)
+            Array: The centrifugal and coriolis vector, shape (nv,)
         """
         joint_transforms = self.joint_to_world_transforms(q)
         return self._centrifugal_coriolis_vector(qd, joint_transforms)
@@ -854,11 +1026,11 @@ class Robot:
         ```
 
         Args:
-            q (Array): Joint positions, shape (num_joints,)
-            qd (Array): Joint velocities, shape (num_joints,)
+            q (Array): Joint positions, shape (nq,)
+            qd (Array): Joint velocities, shape (nv,)
 
         Returns:
-            Array: The nonlinear bias vector, shape (num_joints,)
+            Array: The nonlinear bias vector, shape (nv,)
         """
         joint_transforms = self.joint_to_world_transforms(q)
         return self._nonlinear_bias(qd, joint_transforms)
@@ -889,18 +1061,18 @@ class Robot:
         """Recursive Newton-Euler Algorithm (vectorized form)
 
         Args:
-            q (Array): Joint positions, shape (num_joints,)
-            qd (Optional[Array]): Joint velocities, shape (num_joints,). None if not considering
+            q (Array): Joint positions, shape (nq,)
+            qd (Optional[Array]): Joint velocities, shape (nv,). None if not considering
                 joint velocities (as is done to compute gravity)
-            qdd (Optional[Array]): Joint accelerations, shape (num_joints,). This is currently not used
+            qdd (Optional[Array]): Joint accelerations, shape (nv,). This is currently not used
                 for most methods and can be set to None.
             gravity_accel (Optional[Array]): Spatial acceleration from gravity, shape (6,). None if
                 not considering gravity (as is done to compute centrifugal/coriolis)
             F_ext (Optional[Array]): External wrenches on each link (expressed in the root/world frame),
-                shape (num_joints, 6). This is currently not used for most methods and can be set to None.
+                shape (nv, 6). This is currently not used for most methods and can be set to None.
 
         Returns:
-            Array: Joint torques, shape (num_joints,)
+            Array: Joint torques, shape (nv,)
         """
         joint_transforms = self.joint_to_world_transforms(q)
         spatial_axes, spatial_inertias = self._spatial_axes_and_inertias(
@@ -923,23 +1095,23 @@ class Robot:
 
         # FORWARD PASS
 
-        spatial_accel = jnp.zeros((self.num_joints, 6))
+        spatial_accel = jnp.zeros((self.nv, 6))
         if gravity_accel is not None:
             spatial_accel += gravity_accel[None, :]
 
         if qd is not None:
             s_qd = spatial_axes * qd[:, None]  # Helper
             # Spatial velocities for every link, summed over contributions from ancestors
-            spatial_vel = self.ancestor_mask @ s_qd
+            spatial_vel = self.velocity_mask @ s_qd
             # Spatial accelerations for every link, summed over contributions from ancestors
-            spatial_accel += self.ancestor_mask @ spatial_motion_cross(
+            spatial_accel += self.velocity_mask @ spatial_motion_cross(
                 spatial_vel, s_qd
             )
         else:
-            spatial_vel = jnp.zeros((self.num_joints, 6))
+            spatial_vel = jnp.zeros((self.nv, 6))
 
         if qdd is not None:
-            spatial_accel += self.ancestor_mask @ (spatial_axes * qdd[:, None])
+            spatial_accel += self.velocity_mask @ (spatial_axes * qdd[:, None])
 
         # Newton-Euler (part 1): I * a term
         link_forces = jnp.einsum("ijk,ik->ij", spatial_inertias, spatial_accel)
@@ -964,10 +1136,10 @@ class Robot:
         """Composite Rigid Body Algorithm (vectorized form)
 
         Args:
-            q (Array): Joint positions, shape (num_joints,)
+            q (Array): Joint positions, shape (nq,)
 
         Returns:
-            Array: Mass matrix, shape (num_joints, num_joints)
+            Array: Mass matrix, shape (nv, nv)
         """
         joint_transforms = self.joint_to_world_transforms(q)
         spatial_axes, spatial_inertias = self._spatial_axes_and_inertias(
@@ -1003,12 +1175,12 @@ class Robot:
         """Helper function for CRBA and RNEA: Computes the spatial joint axes and link inertias from FK
 
         Args:
-            joint_transforms (Array): Transformation matrices for every joint, shape (num_joints, 4, 4)
+            joint_transforms (Array): Transformation matrices for every joint, shape (nv, 4, 4)
 
         Returns:
             Tuple[Array, Array]:
-                spatial_axes (Array): shape (num_joints, 6)
-                spatial_inertias (Array): shape (num_joints, 6, 6)
+                spatial_axes (Array): shape (nv, 6)
+                spatial_inertias (Array): shape (nv, 6, 6)
         """
         spatial_axes = get_spatial_joint_axes(
             joint_transforms, self.joint_axes, self.revolute_mask
@@ -1028,14 +1200,14 @@ class Robot:
         Note: gravity is assumed always applied (for now)
 
         Args:
-            q (Array): Joint positions, shape (num_joints,)
-            qd (Array): Joint velocities, shape (num_joints,)
-            tau (Array): Joint torques, shape (num_joints,)
+            q (Array): Joint positions, shape (nq,)
+            qd (Array): Joint velocities, shape (nv,)
+            tau (Array): Joint torques, shape (nv,)
             fext (Optional[Array]): External wrenches on each link (expressed in the root/world frame),
-                shape (num_joints, 6). Set to None if no external forces are applied
+                shape (nv, 6). Set to None if no external forces are applied
 
         Returns:
-            Array: Joint accelerations, shape (num_joints,)
+            Array: Joint accelerations, shape (nv,)
         """
         joint_transforms = self.joint_to_world_transforms(q)
         return self._forward_dynamics(joint_transforms, qd, tau, fext)

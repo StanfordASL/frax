@@ -18,12 +18,12 @@ def get_spatial_joint_axes(
     """Computes the spatial joint axes, expressed in the root frame.
 
     Args:
-        joint_transforms (Array): Transformation matrices for every joint, shape (num_joints, 4, 4)
-        joint_axes_local (Array): Local joint axes, shape (num_joints, 3)
-        revolute_mask (Array): Mask for revolute joints, shape (num_joints,)
+        joint_transforms (Array): Transformation matrices for every joint, shape (nv, 4, 4)
+        joint_axes_local (Array): Local joint axes, shape (nv, 3)
+        revolute_mask (Array): Mask for revolute joints, shape (nv,)
 
     Returns:
-        Array: Spatial joint axes, shape (num_joints, 6)
+        Array: Spatial joint axes, shape (nv, 6)
     """
     joint_axes_rot = jnp.einsum(
         "qij,qj->qi", joint_transforms[:, :3, :3], joint_axes_local
@@ -49,12 +49,12 @@ def get_spatial_inertias(
     """Computes the spatial inertias for each link, expressed in the root frame.
 
     Args:
-        link_masses (Array): Mass of each link, shape (num_joints,)
-        link_local_inertias (Array): Local inertia matrices, shape (num_joints, 3, 3)
-        link_transforms (Array): Transformation matrices for every link, shape (num_joints, 4, 4)
+        link_masses (Array): Mass of each link, shape (nv,)
+        link_local_inertias (Array): Local inertia matrices, shape (nv, 3, 3)
+        link_transforms (Array): Transformation matrices for every link, shape (nv, 4, 4)
 
     Returns:
-        Array: Spatial inertia matrices, shape (num_joints, 6, 6)
+        Array: Spatial inertia matrices, shape (nv, 6, 6)
     """
     m = link_masses
     R_i = link_transforms[:, :3, :3]

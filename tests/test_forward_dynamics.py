@@ -22,7 +22,7 @@ class ForwardDynamicsTest(unittest.TestCase):
         cls.model = pin.buildModelFromUrdf(FRANKA_ASSETS_DIR / "panda.urdf")
         cls.data = pin.Data(cls.model)
         cls.robot = load_panda()
-        cls.num_joints = cls.robot.num_joints
+        cls.num_joints = cls.robot.nv
         np.random.seed(0)
 
     @jax.jit

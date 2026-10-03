@@ -179,7 +179,7 @@ def load_fixed_root_g1() -> Humanoid:
         right_hand_ee_offset=right_hand_offset,
         left_foot_ee_offset=left_foot_offset,
         right_foot_ee_offset=right_foot_offset,
-        add_floating_base=False,
+        floating_base=None,
         joint_ordering=fixed_root_joint_ordering,
         collision_data=bubblify_to_mine(
             collision_model_file,
@@ -192,7 +192,14 @@ def load_fixed_root_g1() -> Humanoid:
     )
 
 
-def load_g1() -> Humanoid:
+def load_g1(floating_base: str = "euler") -> Humanoid:
+    """Load the Unitree G1 humanoid with a free-floating base
+
+    Args:
+        floating_base (str, optional): Floating base representation, "euler" or "quaternion".
+            See Robot for details. Defaults to "euler".
+    """
+    assert floating_base in ("euler", "quaternion")
     return Humanoid(
         fixed_root_urdf,
         left_hand_parent_joint_name,
@@ -204,7 +211,7 @@ def load_g1() -> Humanoid:
         left_foot_ee_offset=left_foot_offset,
         right_foot_ee_offset=right_foot_offset,
         joint_ordering=fixed_root_joint_ordering,
-        add_floating_base=True,
+        floating_base=floating_base,
         collision_data=bubblify_to_mine(
             collision_model_file,
             joint_to_child_mapping,
@@ -220,8 +227,8 @@ def test_g1():
     # Quick validation that the humanoid class works
     print("\nTesting Unitree G1:")
     robot = load_g1()
-    q = 0.0 * np.ones(robot.num_joints)
-    qd = 0.1 * np.ones(robot.num_joints)
+    q = robot.neutral_configuration()
+    qd = 0.1 * np.ones(robot.nv)
     transforms = robot.joint_to_world_transforms(q)
     M = robot._mass_matrix(transforms)
     c = robot._centrifugal_coriolis_vector(qd, transforms)

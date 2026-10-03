@@ -62,7 +62,7 @@ def load_panda() -> Manipulator:
 def main():
     # Quick validation that the manipulator class works
     robot = load_panda()
-    qd = 0.1 * np.ones(robot.num_joints)
+    qd = 0.1 * np.ones(robot.nv)
     transforms = robot.joint_to_world_transforms(default_q)
     M = robot._mass_matrix(transforms)
     c = robot._centrifugal_coriolis_vector(qd, transforms)

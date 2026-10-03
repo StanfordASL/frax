@@ -54,7 +54,10 @@ def visualize_collision_model(
     # Update the root state of the robot in viser with quaternion convention
     if robot.includes_floating_dof:
         pos = q_initial[:3]
-        quat_wxyz = intrinsic_euler_xyz_to_quat_wxyz(q_initial[3:6])
+        if robot.is_quaternion_base:
+            quat_wxyz = q_initial[3:7]
+        else:
+            quat_wxyz = intrinsic_euler_xyz_to_quat_wxyz(q_initial[3:6])
         server.scene.add_frame(
             "/robot",
             position=tuple(pos),
@@ -75,15 +78,17 @@ def visualize_collision_model(
     urdf_joint_names = urdf_viz.get_actuated_joint_names()
     urdf_joint_limits = urdf_viz.get_actuated_joint_limits()
 
-    # Build mapping from frax joint index to yourdfpy joint index
+    # Build mapping from frax configuration (q) index to yourdfpy joint index
+    # Note: joint i (in velocity indexing) is at q[i + nq - nv], since a quaternion
+    # floating base has one more configuration coordinate than velocity coordinate
     frax_to_urdf_map = {}
-    start_idx = 6 if robot.includes_floating_dof else 0
-    for i in range(start_idx, robot.num_joints):
+    for i in range(robot.nv_floating, robot.nv):
         frax_name = robot.joint_names[i]
+        q_idx = i + robot.nq - robot.nv
         # Try direct match first
         if frax_name in urdf_joint_names:
             urdf_idx = urdf_joint_names.index(frax_name)
-            frax_to_urdf_map[i] = urdf_idx
+            frax_to_urdf_map[q_idx] = urdf_idx
         else:
             # Try stripping common prefixes
             for prefix in ["panda_", "g1_"]:
@@ -91,7 +96,7 @@ def visualize_collision_model(
                     stripped = frax_name[len(prefix) :]
                     if stripped in urdf_joint_names:
                         urdf_idx = urdf_joint_names.index(stripped)
-                        frax_to_urdf_map[i] = urdf_idx
+                        frax_to_urdf_map[q_idx] = urdf_idx
                         break
 
     # Set initial URDF pose
@@ -327,7 +332,7 @@ def iiwa_main():
 
 def g1_main():
     robot = load_g1()
-    q = np.zeros(robot.num_joints)
+    q = robot.neutral_configuration()
     # Move the robot up a bit so it's not in the floor
     q[2] = 0.8
     urdf_path = G1_ASSETS_DIR / "g1_29dof_rev_1_0.urdf"

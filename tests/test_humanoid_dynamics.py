@@ -233,7 +233,7 @@ def test_kinematics_and_jacobians(
         pin.updateFramePlacements(model, data)
         pin.computeJointJacobians(model, data, q_pin)
 
-        for my_idx in range(robot.num_joints):
+        for my_idx in range(robot.nv):
             # Note: pinocchio considers joint 0 as the connection to the universe, so we need to shift by 1
             # And if pinocchio is using their freeflyer joint, there will be a difference in the number of ff joints
             if pin_ff_joint and my_idx < 6:
@@ -358,7 +358,7 @@ class FreeflyerRootDynamicsTest(unittest.TestCase):
         cls.model = pin.buildModelFromUrdf(fixed_root_urdf, pin.JointModelFreeFlyer())
         cls.data = pin.Data(cls.model)
         cls.robot = load_g1()
-        cls.num_joints = cls.robot.num_joints
+        cls.num_joints = cls.robot.nv
         cls.num_actuated_joints = cls.num_joints - 6
         np.random.seed(0)
 
@@ -393,7 +393,7 @@ class FixedRootDynamicsTest(unittest.TestCase):
         cls.model = pin.buildModelFromUrdf(fixed_root_urdf)
         cls.data = pin.Data(cls.model)
         cls.robot = load_fixed_root_g1()
-        cls.num_joints = cls.robot.num_joints
+        cls.num_joints = cls.robot.nv
         np.random.seed(0)
 
     def test_mass_matrix(self):
@@ -427,7 +427,7 @@ class FloatingRootDynamicsTest(unittest.TestCase):
         cls.model = pin.buildModelFromUrdf(floating_root_urdf)
         cls.data = pin.Data(cls.model)
         cls.robot = load_g1()
-        cls.num_joints = cls.robot.num_joints
+        cls.num_joints = cls.robot.nv
         np.random.seed(0)
 
     def test_mass_matrix(self):
@@ -459,7 +459,7 @@ class FloatingRootSpeedTest(unittest.TestCase):
     def setUpClass(cls):
         print("Testing floating root dynamics speed")
         cls.robot = load_g1()
-        cls.num_joints = cls.robot.num_joints
+        cls.num_joints = cls.robot.nv
         np.random.seed(0)
 
     def test_cc_speed(self):
@@ -482,7 +482,7 @@ class FixedRootSpeedTest(unittest.TestCase):
     def setUpClass(cls):
         print("Testing fixed root dynamics speed")
         cls.robot = load_fixed_root_g1()
-        cls.num_joints = cls.robot.num_joints
+        cls.num_joints = cls.robot.nv
         np.random.seed(0)
 
     def test_cc_speed(self):

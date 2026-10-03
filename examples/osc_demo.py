@@ -88,8 +88,8 @@ def main(robot_name, demo_mode):
     kd_rot = 10.0 * np.ones(3)
     kp_task = np.concatenate([kp_pos, kp_rot])
     kd_task = np.concatenate([kd_pos, kd_rot])
-    kp_joint = 10.0 * np.ones(robot.num_joints)
-    kd_joint = 5.0 * np.ones(robot.num_joints)
+    kp_joint = 10.0 * np.ones(robot.nv)
+    kd_joint = 5.0 * np.ones(robot.nv)
 
     # Define nullspace posture task
     is_redundant = True  # 6DOF task, 7DOF robot
@@ -147,7 +147,7 @@ def main(robot_name, demo_mode):
 
         if is_redundant:
             # Nullspace projection
-            NT = jnp.eye(robot.num_joints) - J.T @ J_bar.T
+            NT = jnp.eye(robot.nv) - J.T @ J_bar.T
             # Add nullspace joint task
             q_error = q - des_q
             qdot_error = qdot - des_qdot

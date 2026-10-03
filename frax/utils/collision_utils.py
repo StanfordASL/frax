@@ -30,9 +30,9 @@ def bubblify_to_mine(
         dict[str, tuple]:
             Dictionary with entries (all tuples)
             - "positions": Positions of the spheres in each of the robot's joint frames.
-                Length = num_joints. positions[i] has length = num_spheres_for_joint_i
+                Length = nv. positions[i] has length = num_spheres_for_joint_i
             - "radii": Radii of the spheres associated with each robot joint.
-                Length = num_joints. radii[i] has length = num_spheres_for_joint_i
+                Length = nv. radii[i] has length = num_spheres_for_joint_i
             - "root_positions": Sphere positions for the fixed-to-world root in robot base frame.
             - "root_radii": Sphere radii for the fixed-to-world root
     """

@@ -18,8 +18,8 @@ class TestJacobiansAndDerivatives(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.robot = load_g1()
-        cls.nq = cls.robot.num_joints
-        cls.nv = cls.robot.num_joints
+        cls.nq = cls.robot.nq
+        cls.nv = cls.robot.nv
         np.random.seed(42)
 
     def _get_random_state(self):
@@ -158,7 +158,7 @@ class TestJacobiansAndDerivatives(unittest.TestCase):
 
             # Compare angular components for each link
             for link_idx in range(
-                self.robot.num_joints
+                self.robot.nv
             ):  # number of links usually equals num_joints for Humanoid
                 Jw_auto = self._compute_angular_jacobian_autodiff(
                     q, link_tf_func(link_idx)
@@ -202,7 +202,7 @@ class TestJacobiansAndDerivatives(unittest.TestCase):
 
                 return tf_func
 
-            for joint_idx in range(self.robot.num_joints):
+            for joint_idx in range(self.robot.nv):
                 Jw_auto = self._compute_angular_jacobian_autodiff(
                     q, joint_tf_func(joint_idx)
                 )

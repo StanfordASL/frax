@@ -23,7 +23,7 @@ class PinocchioDynamicsTest(unittest.TestCase):
         cls.model = pin.buildModelFromUrdf(URDF)
         cls.data = pin.Data(cls.model)
         cls.robot = Manipulator(URDF)
-        cls.num_joints = cls.robot.num_joints
+        cls.num_joints = cls.robot.nv
         np.random.seed(0)
 
     def test_mass_matrix(self):

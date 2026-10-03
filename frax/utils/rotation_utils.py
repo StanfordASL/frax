@@ -438,3 +438,48 @@ def wxyz_to_xyzw(quat: Array) -> Array:
         Array: XYZW quaternion, shape (4,)
     """
     return quat[jnp.array([1, 2, 3, 0])]
+
+
+def quat_wxyz_exp(rotvec: Array) -> Array:
+    """Exponential map: rotation vector (axis * angle) to a WXYZ quaternion
+
+    This is safe to differentiate through at zero rotation
+
+    Args:
+        rotvec (Array): Rotation vector, shape (3,)
+
+    Returns:
+        Array: WXYZ quaternion, shape (4,)
+    """
+    theta_sq = jnp.dot(rotvec, rotvec)
+    is_small = theta_sq < 1e-8
+    theta = jnp.sqrt(jnp.where(is_small, 1.0, theta_sq))
+    # Taylor expansions of cos(theta/2) and sin(theta/2)/theta for small angles
+    w = jnp.where(is_small, 1.0 - theta_sq / 8.0, jnp.cos(theta / 2.0))
+    s = jnp.where(is_small, 0.5 - theta_sq / 48.0, jnp.sin(theta / 2.0) / theta)
+    return jnp.concatenate([jnp.array([w]), s * rotvec])
+
+
+def quat_wxyz_log(quat_wxyz: Array) -> Array:
+    """Logarithmic map: WXYZ quaternion to a rotation vector (axis * angle), via the shortest path
+
+    This is safe to differentiate through at zero rotation
+
+    Args:
+        quat_wxyz (Array): WXYZ quaternion, shape (4,)
+
+    Returns:
+        Array: Rotation vector, shape (3,)
+    """
+    quat_wxyz = quat_wxyz / jnp.linalg.norm(quat_wxyz)
+    # Ensure shortest path (q and -q represent the same rotation)
+    quat_wxyz = jnp.where(quat_wxyz[0] < 0.0, -quat_wxyz, quat_wxyz)
+    w, v = quat_wxyz[0], quat_wxyz[1:]
+    s_sq = jnp.dot(v, v)
+    is_small = s_sq < 1e-8
+    s = jnp.sqrt(jnp.where(is_small, 1.0, s_sq))
+    # Taylor expansion of 2 * atan2(s, w) / s for small angles
+    scale = jnp.where(
+        is_small, 2.0 / w * (1.0 - s_sq / (3.0 * w * w)), 2.0 * jnp.atan2(s, w) / s
+    )
+    return scale * v

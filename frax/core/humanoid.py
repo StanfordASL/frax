@@ -34,8 +34,8 @@ class Humanoid(Robot):
             See collision_utils for more detail. Defaults to None.
         joint_ordering (Optional[list[str]]): A specific joint ordering to use.
             Defaults to None (infer ordering from URDF)
-        add_floating_base (bool, optional): Whether to add a 6DOF floating base to the model.
-            Defaults to True.
+        floating_base (Optional[str]): How to model the free-floating base: None (fixed base),
+            "quaternion", or "euler". See Robot for details. Defaults to "euler".
     """
 
     def __init__(
@@ -51,10 +51,10 @@ class Humanoid(Robot):
         right_foot_ee_offset: Optional[ArrayLike] = None,
         collision_data: Optional[dict] = None,
         joint_ordering: Optional[list[str]] = None,
-        add_floating_base: bool = True,
+        floating_base: Optional[str] = "euler",
     ):
         super().__init__(
-            urdf_filename, collision_data, joint_ordering, add_floating_base
+            urdf_filename, collision_data, joint_ordering, floating_base
         )
 
         self.left_hand_parent_chain = np.flatnonzero(
@@ -147,7 +147,7 @@ class Humanoid(Robot):
     # HANDS AND FEET JACOBIANS
 
     def left_hand_jacobian(self, q: Array) -> Array:
-        """Left hand Jacobian (w.r.t world), [Jv; Jw], shape (6, num_joints)"""
+        """Left hand Jacobian (w.r.t world), [Jv; Jw], shape (6, nv)"""
         transforms = self.joint_to_world_transforms(q)
         return self._left_hand_jacobian(transforms)
 
@@ -159,7 +159,7 @@ class Humanoid(Robot):
     def left_hand_jacobian_and_derivative(
         self, q: Array, qd: Array
     ) -> Tuple[Array, Array]:
-        """Left hand Jacobian and its time derivative (w.r.t world), both of shape (6, num_joints)"""
+        """Left hand Jacobian and its time derivative (w.r.t world), both of shape (6, nv)"""
         transforms = self.joint_to_world_transforms(q)
         return self._left_hand_jacobian_and_derivative(qd, transforms)
 
@@ -171,7 +171,7 @@ class Humanoid(Robot):
         )
 
     def right_hand_jacobian(self, q: Array) -> Array:
-        """Right hand Jacobian (w.r.t world), [Jv; Jw], shape (6, num_joints)"""
+        """Right hand Jacobian (w.r.t world), [Jv; Jw], shape (6, nv)"""
         transforms = self.joint_to_world_transforms(q)
         return self._right_hand_jacobian(transforms)
 
@@ -183,7 +183,7 @@ class Humanoid(Robot):
     def right_hand_jacobian_and_derivative(
         self, q: Array, qd: Array
     ) -> Tuple[Array, Array]:
-        """Right hand Jacobian and its time derivative (w.r.t world), both of shape (6, num_joints)"""
+        """Right hand Jacobian and its time derivative (w.r.t world), both of shape (6, nv)"""
         transforms = self.joint_to_world_transforms(q)
         return self._right_hand_jacobian_and_derivative(qd, transforms)
 
@@ -198,7 +198,7 @@ class Humanoid(Robot):
         )
 
     def left_foot_jacobian(self, q: Array) -> Array:
-        """Left foot Jacobian (w.r.t world), [Jv; Jw], shape (6, num_joints)"""
+        """Left foot Jacobian (w.r.t world), [Jv; Jw], shape (6, nv)"""
         transforms = self.joint_to_world_transforms(q)
         return self._left_foot_jacobian(transforms)
 
@@ -210,7 +210,7 @@ class Humanoid(Robot):
     def left_foot_jacobian_and_derivative(
         self, q: Array, qd: Array
     ) -> Tuple[Array, Array]:
-        """Left foot Jacobian and its time derivative (w.r.t world), both of shape (6, num_joints)"""
+        """Left foot Jacobian and its time derivative (w.r.t world), both of shape (6, nv)"""
         transforms = self.joint_to_world_transforms(q)
         return self._left_foot_jacobian_and_derivative(qd, transforms)
 
@@ -222,7 +222,7 @@ class Humanoid(Robot):
         )
 
     def right_foot_jacobian(self, q: Array) -> Array:
-        """Right foot Jacobian (w.r.t world), [Jv; Jw], shape (6, num_joints)"""
+        """Right foot Jacobian (w.r.t world), [Jv; Jw], shape (6, nv)"""
         transforms = self.joint_to_world_transforms(q)
         return self._right_foot_jacobian(transforms)
 
@@ -234,7 +234,7 @@ class Humanoid(Robot):
     def right_foot_jacobian_and_derivative(
         self, q: Array, qd: Array
     ) -> Tuple[Array, Array]:
-        """Right foot Jacobian and its time derivative (w.r.t world), both of shape (6, num_joints)"""
+        """Right foot Jacobian and its time derivative (w.r.t world), both of shape (6, nv)"""
         transforms = self.joint_to_world_transforms(q)
         return self._right_foot_jacobian_and_derivative(qd, transforms)
 

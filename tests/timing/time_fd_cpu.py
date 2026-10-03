@@ -33,9 +33,9 @@ def main():
 
     # Initial state and dummy control input
     np.random.seed(0)
-    q_panda = np.random.uniform(-0.1, 0.1, panda.num_joints)
-    qd_panda = np.zeros(panda.num_joints)
-    tau_panda = np.random.uniform(-0.1, 0.1, panda.num_joints)
+    q_panda = np.random.uniform(-0.1, 0.1, panda.nv)
+    qd_panda = np.zeros(panda.nv)
+    tau_panda = np.random.uniform(-0.1, 0.1, panda.nv)
     panda_args = (q_panda, qd_panda, tau_panda)
 
     avg_time, jit_time = benchmark_function(panda_fd, panda_args)
@@ -45,9 +45,9 @@ def main():
     print("Steps per second: ", 1 / avg_time)
 
     # Initial state and dummy control input
-    q_g1 = np.random.uniform(-0.1, 0.1, g1.num_joints)
-    qd_g1 = np.zeros(g1.num_joints)
-    tau_g1 = np.random.uniform(-0.1, 0.1, g1.num_joints)
+    q_g1 = np.random.uniform(-0.1, 0.1, g1.nv)
+    qd_g1 = np.zeros(g1.nv)
+    tau_g1 = np.random.uniform(-0.1, 0.1, g1.nv)
     g1_args = (q_g1, qd_g1, tau_g1)
 
     avg_time, jit_time = benchmark_function(g1_fd, g1_args)

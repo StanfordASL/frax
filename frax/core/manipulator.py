@@ -22,8 +22,8 @@ class Manipulator(Robot):
             See collision_utils for more detail. Defaults to None.
         joint_ordering (Optional[list[str]]): A specific joint ordering to use.
             Defaults to None (infer ordering from URDF)
-        add_floating_base (bool, optional): Whether to add a 6DOF floating base to the model.
-            Defaults to False.
+        floating_base (Optional[str]): How to model a free-floating base: None (fixed base),
+            "quaternion", or "euler". See Robot for details. Defaults to None.
         ee_offset (Optional[ArrayLike]): Transformation matrix specifying the end-effector
             offset from the last joint frame. Defaults to None.
     """
@@ -33,20 +33,20 @@ class Manipulator(Robot):
         urdf_filename: str,
         collision_data: Optional[dict] = None,
         joint_ordering: Optional[list[str]] = None,
-        add_floating_base: bool = False,
+        floating_base: Optional[str] = None,
         ee_offset: Optional[ArrayLike] = None,
     ):
         super().__init__(
             urdf_filename,
             collision_data,
             joint_ordering,
-            add_floating_base=add_floating_base,
+            floating_base=floating_base,
         )
         # TODO decide if floating base should be an input? Only makes sense for in-space manipulators...
         assert self.is_pure_kinematic_chain
 
         # TODO REORGANIZE ALL OF THIS BELOW
-        self.ee_parent_chain = np.arange(self.num_joints)
+        self.ee_parent_chain = np.arange(self.nv)
 
         if ee_offset is None:
             ee_offset = np.eye(4)
@@ -63,7 +63,7 @@ class Manipulator(Robot):
         """Transformation matrix of the end effector (EE frame --> world frame)
 
         Args:
-            q (Array): Joint positions, shape (num_joints,)
+            q (Array): Joint positions, shape (nq,)
 
         Returns:
             Array: Transformation matrix, shape (4, 4)
@@ -80,10 +80,10 @@ class Manipulator(Robot):
         """Jacobian [Jv; Jw] of the end effector given the joint configuration
 
         Args:
-            q (Array): Joint positions, shape (num_joints,)
+            q (Array): Joint positions, shape (nq,)
 
         Returns:
-            Array: Jacobian, shape (6, num_joints). The first 3 rows are the linear Jacobian,
+            Array: Jacobian, shape (6, nv). The first 3 rows are the linear Jacobian,
                 and the last 3 rows are the angular Jacobian
         """
         transforms = self.joint_to_world_transforms(q)
@@ -99,13 +99,13 @@ class Manipulator(Robot):
         """End-effector Jacobian and its time derivative (w.r.t world)
 
         Args:
-            q (Array): Joint positions, shape (num_joints,)
-            qd (Array): Joint velocities, shape (num_joints,)
+            q (Array): Joint positions, shape (nq,)
+            qd (Array): Joint velocities, shape (nv,)
 
         Returns:
             Tuple[Array, Array]:
-                J (Array): EE Jacobian, shape (6, num_joints)
-                Jdot (Array): Time derivative of the EE Jacobian, shape (6, num_joints)
+                J (Array): EE Jacobian, shape (6, nv)
+                Jdot (Array): Time derivative of the EE Jacobian, shape (6, nv)
         """
         transforms = self.joint_to_world_transforms(q)
         return self._ee_jacobian_and_derivative(qd, transforms)
@@ -122,7 +122,7 @@ class Manipulator(Robot):
         """Manipulability index of the end-effector Jacobian
 
         Args:
-            q (Array): Joint positions, shape (num_joints,)
+            q (Array): Joint positions, shape (nq,)
 
         Returns:
             float: Manipulability index
@@ -142,16 +142,16 @@ class Manipulator(Robot):
         with just a single evaluation of the kinematics
 
         Args:
-            q (Array): Joint positions, shape (num_joints,)
-            qd (Array): Joint velocities, shape (num_joints,)
+            q (Array): Joint positions, shape (nq,)
+            qd (Array): Joint velocities, shape (nv,)
 
         Returns:
             Tuple[Array, Array, Array, Array, Array, Array]:
-                M: Mass matrix, shape (num_joints, num_joints)
-                M_inv: Inverse of the mass matrix, shape (num_joints, num_joints)
-                G: Gravity vector, shape (num_joints,)
-                C: Centrifugal/coriolis vector, shape (num_joints,)
-                J: End effector basic Jacobian, shape (6, num_joints)
+                M: Mass matrix, shape (nv, nv)
+                M_inv: Inverse of the mass matrix, shape (nv, nv)
+                G: Gravity vector, shape (nv,)
+                C: Centrifugal/coriolis vector, shape (nv,)
+                J: End effector basic Jacobian, shape (6, nv)
                 T: End effector transformation matrix, shape (4, 4)
         """
         joint_transforms = self.joint_to_world_transforms(q)
@@ -168,11 +168,11 @@ class Manipulator(Robot):
         with just a single evaluation of the kinematics
 
         Args:
-            q (Array): Joint positions, shape (num_joints,)
+            q (Array): Joint positions, shape (nq,)
 
         Returns:
             Tuple[Array, Array]:
-                J: End effector basic Jacobian, shape (6, num_joints)
+                J: End effector basic Jacobian, shape (6, nv)
                 T: End effector transformation matrix, shape (4, 4)
         """
         joint_transforms = self.joint_to_world_transforms(q)
@@ -190,12 +190,12 @@ class Manipulator(Robot):
         to construct the dynamically-consistent generalized Jacobian inverse
 
         Args:
-            q (Array): Joint positions, shape (num_joints,)
+            q (Array): Joint positions, shape (nq,)
 
         Returns:
             Tuple[Array, Array, Array]:
-                M_inv: Inverse of the mass matrix, shape (num_joints, num_joints)
-                J: End effector basic Jacobian, shape (6, num_joints)
+                M_inv: Inverse of the mass matrix, shape (nv, nv)
+                J: End effector basic Jacobian, shape (6, nv)
                 T: End effector transformation matrix, shape (4, 4)
         """
         joint_transforms = self.joint_to_world_transforms(q)

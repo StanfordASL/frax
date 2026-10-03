@@ -54,9 +54,9 @@ class OSCBFTorqueConfig(CBFConfig):
         assert isinstance(joint_obj_weight, (tuple, float)) and joint_obj_weight >= 0
         assert isinstance(compensate_centrifugal_coriolis, bool)
         self.robot = robot
-        self.num_joints = self.robot.num_joints
+        self.num_joints = self.robot.nv
         self.task_dim = 6  # Pose
-        self.is_redundant = self.robot.num_joints > self.task_dim
+        self.is_redundant = self.robot.nv > self.task_dim
         self.compensate_centrifugal_coriolis = compensate_centrifugal_coriolis
         self.pos_obj_weight = float(pos_obj_weight)
         self.rot_obj_weight = float(rot_obj_weight)
@@ -162,9 +162,9 @@ class OSCBFVelocityConfig(CBFConfig):
         assert isinstance(rot_obj_weight, (tuple, float)) and rot_obj_weight >= 0
         assert isinstance(joint_obj_weight, (tuple, float)) and joint_obj_weight >= 0
         self.robot = robot
-        self.num_joints = self.robot.num_joints
+        self.num_joints = self.robot.nv
         self.task_dim = 6  # Pose
-        self.is_redundant = self.robot.num_joints > self.task_dim
+        self.is_redundant = self.robot.nv > self.task_dim
 
         self.pos_obj_weight = float(pos_obj_weight)
         self.rot_obj_weight = float(rot_obj_weight)
