@@ -10,6 +10,7 @@ import warnings
 
 import jax
 from jax import Array
+from jax.typing import ArrayLike
 import jax.numpy as jnp
 import jax.scipy as jsp
 import numpy as np
@@ -58,6 +59,9 @@ class Robot:
             - "euler": 6 virtual joints (3 prismatic, then 3 revolute, i.e. intrinsic XYZ euler
                 angles). The configuration is q = [position, euler angles, actuated joints], and the
                 velocity is its time derivative, so nq = nv. Singular at pitch = +/- pi/2.
+        default_configuration (Optional[ArrayLike]): The default configuration, shape (nq),
+            including the floating base pose (if any). Defaults to None (floating base at the
+            origin with identity orientation, all actuated joints at zero)
 
     Dimensions:
         nq: Size of the configuration vector q
@@ -83,6 +87,7 @@ class Robot:
         collision_data: Optional[dict] = None,
         joint_ordering: Optional[list[str]] = None,
         floating_base: Optional[str] = None,
+        default_configuration: Optional[ArrayLike] = None,
     ):
         if floating_base not in FLOATING_BASE_TYPES:
             raise ValueError(
@@ -154,6 +159,29 @@ class Robot:
             self.actuated_joint_max_velocities,
         ):
             assert len(limits) == self.num_actuated_joints
+        if default_configuration is None:
+            default_configuration = np.zeros(self.nq)
+            if self.is_quaternion_base:
+                default_configuration[3] = 1.0
+        else:
+            default_configuration = np.asarray(default_configuration, dtype=float)
+            if default_configuration.shape != (self.nq,):
+                raise ValueError(
+                    f"Expected default_configuration of shape ({self.nq},), "
+                    f"got {default_configuration.shape}"
+                )
+            q_act = default_configuration[self.nq_floating :]
+            if np.any(q_act < self.actuated_joint_lower_limits) or np.any(
+                q_act > self.actuated_joint_upper_limits
+            ):
+                raise ValueError(
+                    "default_configuration's actuated joints must be within the joint limits"
+                )
+            if self.is_quaternion_base and not np.isclose(
+                np.linalg.norm(default_configuration[3:7]), 1.0
+            ):
+                raise ValueError("default_configuration's quaternion must be unit norm")
+        self.default_configuration = default_configuration
         # Velocity index -> index into q of its configuration entry, for the velocities that are
         # the time derivative of a single configuration entry (q_dot = qd). A quaternion base's
         # angular velocity has no entry
@@ -298,17 +326,6 @@ class Robot:
         return self.nv
 
     # CONFIGURATION SPACE
-
-    def neutral_configuration(self) -> np.ndarray:
-        """The neutral (zero) configuration: identity floating base pose, all joints at zero
-
-        Returns:
-            np.ndarray: Configuration, shape (nq,)
-        """
-        q = np.zeros(self.nq)
-        if self.is_quaternion_base:
-            q[3] = 1.0
-        return q
 
     def integrate(self, q: Array, qd: Array, dt: float = 1.0) -> Array:
         """Integrates a configuration forward in time with a constant velocity

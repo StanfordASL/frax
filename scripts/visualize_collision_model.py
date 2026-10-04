@@ -318,35 +318,28 @@ def visualize_collision_model(
 
 def panda_main():
     robot = load_panda()
-    q = np.array([0.0, -np.pi / 6, 0.0, -3 * np.pi / 4, 0.0, 5 * np.pi / 9, 0.0])
+    q = robot.default_configuration
     urdf_path = FRANKA_ASSETS_DIR / "panda.urdf"
     visualize_collision_model(urdf_path, robot, q)
 
 
 def iiwa_main():
     robot = load_iiwa()
-    q = np.array([0.0, np.pi / 6, 0.0, -np.pi / 2, 0.0, np.pi / 3, 0.0])
+    q = robot.default_configuration
     urdf_path = KUKA_ASSETS_DIR / "iiwa14.urdf"
     visualize_collision_model(urdf_path, robot, q)
 
 
 def g1_main():
     robot = load_g1()
-    q = robot.neutral_configuration()
-    # Move the robot up a bit so it's not in the floor
-    q[2] = 0.8
+    q = robot.default_configuration
     urdf_path = G1_ASSETS_DIR / "g1_29dof_rev_1_0.urdf"
     visualize_collision_model(urdf_path, robot, q)
 
 
 def a2_main():
     robot = load_a2()
-    q = robot.neutral_configuration()
-    lower = robot.actuated_joint_lower_limits
-    upper = robot.actuated_joint_upper_limits
-    q[robot.nq_floating :] = lower + 0.5 * (upper - lower)
-    # Move the robot up a bit so it's not in the floor
-    q[2] = 0.5
+    q = robot.default_configuration
     urdf_path = A2_ASSETS_DIR / "a2.urdf"
     visualize_collision_model(urdf_path, robot, q)
 

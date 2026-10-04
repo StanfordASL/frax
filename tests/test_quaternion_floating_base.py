@@ -327,13 +327,56 @@ class TestVsEuler:
             qd_idxs = np.array(list(r.velocity_to_configuration_index.keys()))
             q_idxs = np.array(list(r.velocity_to_configuration_index.values()))
             # Entries with a configuration entry integrate componentwise (q_dot = qd)
-            q, qd = r.neutral_configuration(), np.random.uniform(-1.0, 1.0, r.nv)
+            q, qd = r.default_configuration, np.random.uniform(-1.0, 1.0, r.nv)
             q1 = np.asarray(r.integrate(q, qd, 0.1))
             np.testing.assert_allclose(q1[q_idxs], q[q_idxs] + 0.1 * qd[qd_idxs])
         assert euler_robot.velocity_to_configuration_index == {i: i for i in range(35)}
         assert robot.velocity_to_configuration_index == dict(
             zip([*range(3), *range(6, 35)], [*range(3), *range(7, 36)])
         )
+
+    def test_default_configuration(self, robot, euler_robot):
+        # The G1's default is standing at a nonzero height, with the same pose for both bases
+        q_quat, q_euler = (
+            robot.default_configuration,
+            euler_robot.default_configuration,
+        )
+        assert q_quat[2] > 0
+        np.testing.assert_array_equal(q_quat[:3], q_euler[:3])
+        np.testing.assert_array_equal(q_quat[3:7], [1, 0, 0, 0])
+        np.testing.assert_array_equal(q_euler[3:6], [0, 0, 0])
+        np.testing.assert_array_equal(q_quat[7:], q_euler[6:])
+        # Returns a copy
+        q_quat[2] += 1.0
+        assert robot.default_configuration[2] != q_quat[2]
+        # If unspecified: identity base pose at the origin, zero joints
+        urdf = str(FRANKA_ASSETS_DIR / "panda.urdf")
+        np.testing.assert_array_equal(
+            Manipulator(urdf, floating_base="quaternion").default_configuration,
+            np.r_[0, 0, 0, 1, np.zeros(10)],
+        )
+        # Specified on construction, including the base pose
+        q_joints = np.array([0.0, -0.5, 0.0, -2.0, 0.0, 1.5, 0.0])
+        q_default = np.r_[0.1, 0.2, 0.3, 0, 1, 0, 0, q_joints]
+        panda = Manipulator(
+            urdf, floating_base="quaternion", default_configuration=q_default
+        )
+        np.testing.assert_array_equal(panda.default_configuration, q_default)
+        # Wrong shape (missing the base pose)
+        with pytest.raises(ValueError):
+            Manipulator(
+                urdf, floating_base="quaternion", default_configuration=q_joints
+            )
+        # Joints must be within the joint limits
+        with pytest.raises(ValueError):
+            Manipulator(urdf, default_configuration=np.zeros(7))
+        # Quaternion must be unit norm
+        with pytest.raises(ValueError):
+            Manipulator(
+                urdf,
+                floating_base="quaternion",
+                default_configuration=np.r_[0, 0, 0, 2, 0, 0, 0, q_joints],
+            )
 
     def test_floating_base_limits(self, robot, euler_robot):
         for r in (robot, euler_robot):

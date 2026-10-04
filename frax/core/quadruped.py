@@ -35,6 +35,8 @@ class Quadruped(Robot):
             Defaults to None (infer ordering from URDF)
         floating_base (Optional[str]): How to model the free-floating base: None (fixed base),
             "quaternion", or "euler". See Robot for details. Defaults to "quaternion".
+        default_configuration (Optional[ArrayLike]): The default configuration, shape (nq,).
+            See Robot for details. Defaults to None (identity base pose, all joints at zero)
     """
 
     def __init__(
@@ -51,8 +53,15 @@ class Quadruped(Robot):
         collision_data: Optional[dict] = None,
         joint_ordering: Optional[list[str]] = None,
         floating_base: Optional[str] = "quaternion",
+        default_configuration: Optional[ArrayLike] = None,
     ):
-        super().__init__(urdf_filename, collision_data, joint_ordering, floating_base)
+        super().__init__(
+            urdf_filename,
+            collision_data,
+            joint_ordering,
+            floating_base,
+            default_configuration,
+        )
 
         self.front_left_foot_parent_chain = np.flatnonzero(
             self.ancestor_mask[

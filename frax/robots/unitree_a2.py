@@ -37,6 +37,9 @@ foot_offset = np.block(
     [[np.eye(3), np.array([0.0, 0.0, -0.275]).reshape(-1, 1)], [0.0, 0.0, 0.0, 1.0]]
 )
 
+default_q_act = np.array([0., 0.8, -1.5, 0., 0.8, -1.5, 0., 0.8, -1.5, 0., 0.8, -1.5])
+default_base_height = 0.434
+
 
 def load_a2(floating_base: str = "quaternion") -> Quadruped:
     """Load the Unitree A2 quadruped with a free-floating base
@@ -46,6 +49,8 @@ def load_a2(floating_base: str = "quaternion") -> Quadruped:
             See Robot for details. Defaults to "quaternion".
     """
     assert floating_base in ("euler", "quaternion")
+    orientation = [1.0, 0.0, 0.0, 0.0] if floating_base == "quaternion" else [0.0, 0.0, 0.0]
+    default_q = np.concatenate([[0.0, 0.0, default_base_height], orientation, default_q_act])
     return Quadruped(
         urdf,
         front_left_foot_parent_joint_name,
@@ -66,6 +71,7 @@ def load_a2(floating_base: str = "quaternion") -> Quadruped:
             sc_data=None, # TODO
             verbose=False,
         ),
+        default_configuration=default_q,
     )
 
 
@@ -73,7 +79,7 @@ def test_a2():
     # Quick validation that the quadruped class works
     print("\nTesting Unitree A2:")
     robot = load_a2()
-    q = robot.neutral_configuration()
+    q = robot.default_configuration
     qd = 0.1 * np.ones(robot.nv)
     transforms = robot.joint_to_world_transforms(q)
     M = robot._mass_matrix(transforms)

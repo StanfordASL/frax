@@ -26,6 +26,8 @@ class Manipulator(Robot):
             "quaternion", or "euler". See Robot for details. Defaults to None.
         ee_offset (Optional[ArrayLike]): Transformation matrix specifying the end-effector
             offset from the last joint frame. Defaults to None.
+        default_configuration (Optional[ArrayLike]): The default configuration, shape (nq,).
+            See Robot for details. Defaults to None (identity base pose, all joints at zero)
     """
 
     def __init__(
@@ -35,12 +37,14 @@ class Manipulator(Robot):
         joint_ordering: Optional[list[str]] = None,
         floating_base: Optional[str] = None,
         ee_offset: Optional[ArrayLike] = None,
+        default_configuration: Optional[ArrayLike] = None,
     ):
         super().__init__(
             urdf_filename,
             collision_data,
             joint_ordering,
             floating_base=floating_base,
+            default_configuration=default_configuration,
         )
         # TODO decide if floating base should be an input? Only makes sense for in-space manipulators...
         assert self.is_pure_kinematic_chain

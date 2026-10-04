@@ -60,7 +60,7 @@ import numpy as np
 jax.config.update("jax_enable_x64", True)  # Recommmended for high accuracy
 
 robot = frax.Robot("path/to/your/robot.urdf")
-q = robot.neutral_configuration()  # Shape (robot.nq,)
+q = robot.default_configuration
 M = robot.mass_matrix(q)
 print(M)
 ```

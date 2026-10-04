@@ -56,6 +56,7 @@ def load_iiwa() -> Manipulator:
             add_floating_base=False,
             verbose=False,
         ),
+        default_configuration=default_q,
     )
 
 
