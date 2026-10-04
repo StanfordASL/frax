@@ -53,9 +53,7 @@ class Humanoid(Robot):
         joint_ordering: Optional[list[str]] = None,
         floating_base: Optional[str] = "quaternion",
     ):
-        super().__init__(
-            urdf_filename, collision_data, joint_ordering, floating_base
-        )
+        super().__init__(urdf_filename, collision_data, joint_ordering, floating_base)
 
         self.left_hand_parent_chain = np.flatnonzero(
             self.ancestor_mask[self.joint_name_to_index[left_hand_parent_joint_name]]

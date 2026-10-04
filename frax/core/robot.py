@@ -320,7 +320,9 @@ class Robot:
         if not self.is_quaternion_base:
             return q1 - q0
         quat_rel = quat_wxyz_multiply(quat_wxyz_conjugate(q0[3:7]), q1[3:7])
-        return jnp.concatenate([q1[:3] - q0[:3], quat_wxyz_log(quat_rel), q1[7:] - q0[7:]])
+        return jnp.concatenate(
+            [q1[:3] - q0[:3], quat_wxyz_log(quat_rel), q1[7:] - q0[7:]]
+        )
 
     def configuration_velocity_map(self, q: Array) -> Array:
         """Matrix E(q) mapping velocities to the time derivative of the configuration: q_dot = E(q) @ qd
@@ -338,9 +340,7 @@ class Robot:
             return jnp.eye(self.nv)
         w, x, y, z = q[3:7]
         # q_dot = 0.5 * quat ⊗ [0, omega_body]
-        quat_map = 0.5 * jnp.array(
-            [[-x, -y, -z], [w, -z, y], [z, w, -x], [-y, x, w]]
-        )
+        quat_map = 0.5 * jnp.array([[-x, -y, -z], [w, -z, y], [z, w, -x], [-y, x, w]])
         E = jnp.zeros((self.nq, self.nv))
         E = E.at[:3, :3].set(jnp.eye(3))
         E = E.at[3:7, 3:6].set(quat_map)

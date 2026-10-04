@@ -52,21 +52,27 @@ class Quadruped(Robot):
         joint_ordering: Optional[list[str]] = None,
         floating_base: Optional[str] = "quaternion",
     ):
-        super().__init__(
-            urdf_filename, collision_data, joint_ordering, floating_base
-        )
+        super().__init__(urdf_filename, collision_data, joint_ordering, floating_base)
 
         self.front_left_foot_parent_chain = np.flatnonzero(
-            self.ancestor_mask[self.joint_name_to_index[front_left_foot_parent_joint_name]]
+            self.ancestor_mask[
+                self.joint_name_to_index[front_left_foot_parent_joint_name]
+            ]
         )
         self.front_right_foot_parent_chain = np.flatnonzero(
-            self.ancestor_mask[self.joint_name_to_index[front_right_foot_parent_joint_name]]
+            self.ancestor_mask[
+                self.joint_name_to_index[front_right_foot_parent_joint_name]
+            ]
         )
         self.hind_left_foot_parent_chain = np.flatnonzero(
-            self.ancestor_mask[self.joint_name_to_index[hind_left_foot_parent_joint_name]]
+            self.ancestor_mask[
+                self.joint_name_to_index[hind_left_foot_parent_joint_name]
+            ]
         )
         self.hind_right_foot_parent_chain = np.flatnonzero(
-            self.ancestor_mask[self.joint_name_to_index[hind_right_foot_parent_joint_name]]
+            self.ancestor_mask[
+                self.joint_name_to_index[hind_right_foot_parent_joint_name]
+            ]
         )
 
         if front_left_foot_offset is None:
