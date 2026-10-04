@@ -1,6 +1,8 @@
-"""Test cases for mass matrix inversion methods"""
+"""Test cases for mass matrix inversion methods
 
-import time
+See timing/time_matrix_inverses.py for a speed comparison of these methods
+"""
+
 import unittest
 from functools import partial
 
@@ -75,94 +77,22 @@ class TestMInv(unittest.TestCase):
         cls.fixed_root_robot = load_fixed_root_g1()
         np.random.seed(0)
 
-    def test_fixed_base_speed(self):
-        num_tests = 100
-        qs = [np.random.rand(29) for _ in range(num_tests)]
-
-        # Dummy solves for jit compilation
-        q_jit = np.random.rand(29)
-        M = self.fixed_root_robot.mass_matrix(q_jit)
-        minv_reg_result = minv_regular(self.fixed_root_robot, q_jit)
-        minv_spd_result = minv_spd(self.fixed_root_robot, q_jit)
-        minv_cho_result = minv_cho(self.fixed_root_robot, q_jit)
-        # Make sure that the results are the same
+    def _check_methods(self, robot, minv_funcs):
         atol = 1e-5
         rtol = 1e-5
-        check_inversion_accuracy(M, minv_reg_result, atol, rtol)
-        check_inversion_accuracy(M, minv_spd_result, atol, rtol)
-        check_inversion_accuracy(M, minv_cho_result, atol, rtol)
+        for _ in range(10):
+            q = np.random.rand(robot.nq)
+            M = robot.mass_matrix(q)
+            for minv in minv_funcs:
+                check_inversion_accuracy(M, minv(robot, q), atol, rtol)
 
-        start_time_fast_psd_inv = time.perf_counter()
-        for q in qs:
-            _m_inv = minv_spd(self.fixed_root_robot, q).block_until_ready()
-        duration_fast_psd_inv = time.perf_counter() - start_time_fast_psd_inv
-        avg_time_fast_psd_inv = duration_fast_psd_inv / num_tests
+    def test_fixed_base(self):
+        self._check_methods(self.fixed_root_robot, [minv_regular, minv_spd, minv_cho])
 
-        start_time_standard_inv = time.perf_counter()
-        for q in qs:
-            _m_inv = minv_regular(self.fixed_root_robot, q).block_until_ready()
-        duration_standard_inv = time.perf_counter() - start_time_standard_inv
-        avg_time_standard_inv = duration_standard_inv / num_tests
-
-        start_time_cho_inv = time.perf_counter()
-        for q in qs:
-            _m_inv = minv_cho(self.fixed_root_robot, q).block_until_ready()
-        duration_cho_inv = time.perf_counter() - start_time_cho_inv
-        avg_time_cho_inv = duration_cho_inv / num_tests
-
-        print("\nSpeed test for fixed-root")
-        print(f"Standard inverse: {avg_time_standard_inv * 1e6:.3f} µs")
-        print(f"Fast PSD inverse: {avg_time_fast_psd_inv * 1e6:.3f} µs")
-        print(f"Cholesky inverse: {avg_time_cho_inv * 1e6:.3f} µs")
-
-    def test_floating_base_speed(self):
-        num_tests = 100
-        qs = [np.random.rand(self.floating_root_robot.nq) for _ in range(num_tests)]
-
-        # Dummy solves for jit compilation
-        q_jit = np.random.rand(self.floating_root_robot.nq)
-        M = self.floating_root_robot.mass_matrix(q_jit)
-        minv_reg_result = minv_regular(self.floating_root_robot, q_jit)
-        minv_spd_result = minv_spd(self.floating_root_robot, q_jit)
-        minv_schur_result = minv_schur(self.floating_root_robot, q_jit)
-        minv_cho_result = minv_cho(self.floating_root_robot, q_jit)
-        # Make sure that the results are the same
-        atol = 1e-5
-        rtol = 1e-5
-        check_inversion_accuracy(M, minv_reg_result, atol, rtol)
-        check_inversion_accuracy(M, minv_spd_result, atol, rtol)
-        check_inversion_accuracy(M, minv_schur_result, atol, rtol)
-        check_inversion_accuracy(M, minv_cho_result, atol, rtol)
-
-        start_time_schur = time.perf_counter()
-        for q in qs:
-            _m_inv = minv_schur(self.floating_root_robot, q).block_until_ready()
-        duration_schur = time.perf_counter() - start_time_schur
-        avg_time_schur = duration_schur / num_tests
-
-        start_time_fast_psd_inv = time.perf_counter()
-        for q in qs:
-            _m_inv = minv_spd(self.floating_root_robot, q).block_until_ready()
-        duration_fast_psd_inv = time.perf_counter() - start_time_fast_psd_inv
-        avg_time_fast_psd_inv = duration_fast_psd_inv / num_tests
-
-        start_time_standard_inv = time.perf_counter()
-        for q in qs:
-            _m_inv = minv_regular(self.floating_root_robot, q).block_until_ready()
-        duration_standard_inv = time.perf_counter() - start_time_standard_inv
-        avg_time_standard_inv = duration_standard_inv / num_tests
-
-        start_time_cho_inv = time.perf_counter()
-        for q in qs:
-            _m_inv = minv_cho(self.floating_root_robot, q).block_until_ready()
-        duration_cho_inv = time.perf_counter() - start_time_cho_inv
-        avg_time_cho_inv = duration_cho_inv / num_tests
-
-        print("\nSpeed test for floating-root")
-        print(f"Standard inverse: {avg_time_standard_inv * 1e6:.3f} µs")
-        print(f"Fast PSD inverse: {avg_time_fast_psd_inv * 1e6:.3f} µs")
-        print(f"Schur inverse: {avg_time_schur * 1e6:.3f} µs")
-        print(f"Cholesky inverse: {avg_time_cho_inv * 1e6:.3f} µs")
+    def test_floating_base(self):
+        self._check_methods(
+            self.floating_root_robot, [minv_regular, minv_spd, minv_schur, minv_cho]
+        )
 
 
 if __name__ == "__main__":

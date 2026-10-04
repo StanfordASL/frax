@@ -1,28 +1,19 @@
 """Timing script comparing the floating base representations (euler vs quaternion)
 
-This script: G1 kinematics and dynamics on CPU, single-state and batched
+G1 kinematics and dynamics on CPU, single-state and batched
 """
 
-import os
-from importlib.metadata import version as package_version
-
-from packaging import version
-
-os.environ["XLA_FLAGS"] = "--xla_cpu_multi_thread_eigen=false"
-if version.parse(package_version("jax")) >= version.parse("0.9.1"):
-    os.environ["XLA_FLAGS"] += (
-        " --xla_cpu_scheduler_type=CPU_SCHEDULER_TYPE_MEMORY_OPTIMIZED"
-    )
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-os.environ["JAX_ENABLE_X64"] = "True"
-os.environ["JAX_PLATFORMS"] = "cpu"
+# ruff: noqa: E402 (jax must be imported after configure_env)
 
 import argparse
+
+from timing_utils import benchmark_function, configure_env, sample_state
+
+configure_env("cpu")
 
 import jax
 import numpy as np
 from frax import load_g1
-from timing_utils import benchmark_function
 
 
 def make_functions(robot):
@@ -62,16 +53,6 @@ def make_functions(robot):
     }
 
 
-def sample_state(robot, batch_size=None):
-    shape = () if batch_size is None else (batch_size,)
-    q = np.random.uniform(-0.5, 0.5, shape + (robot.nq,))
-    if robot.is_quaternion_base:
-        quat = np.random.randn(*shape, 4)
-        q[..., 3:7] = quat / np.linalg.norm(quat, axis=-1, keepdims=True)
-    qd = np.random.uniform(-0.5, 0.5, shape + (robot.nv,))
-    return q, qd
-
-
 def main(n_calls: int, n_trials: int, batch_size: int):
     np.random.seed(0)
     robots = {
@@ -85,7 +66,9 @@ def main(n_calls: int, n_trials: int, batch_size: int):
             print(f"\n=== Batched (vmap, batch size {batch_size}): time per batch ===")
         else:
             print("\n=== Single state: time per call ===")
-        header = f"{'Function':<18} {'euler (us)':>12} {'quat (us)':>12} {'quat/euler':>11}"
+        header = (
+            f"{'Function':<18} {'euler (us)':>12} {'quat (us)':>12} {'quat/euler':>11}"
+        )
         print(header)
         print("-" * len(header))
         for func_name in funcs["euler"]:

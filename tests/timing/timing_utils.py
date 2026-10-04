@@ -1,9 +1,36 @@
-"""Timing utilities"""
+"""Timing utilities
 
+NOTE: call `configure_env` before importing jax (or anything that imports jax), since some
+of these settings are only read when jax is first loaded
+"""
+
+import os
 import time
+from importlib.metadata import version as package_version
 from typing import Callable, Tuple
 
-import jax
+import numpy as np
+from packaging import version
+
+
+def configure_env(device: str = "cpu") -> None:
+    """Set the recommended environment variables for benchmarking frax on CPU or GPU
+
+    Args:
+        device (str, optional): "cpu" or "gpu". Defaults to "cpu".
+    """
+    assert device in ("cpu", "gpu")
+    os.environ["JAX_ENABLE_X64"] = "True"
+    if device == "gpu":
+        os.environ["JAX_PLATFORMS"] = "cuda"
+        return
+    os.environ["JAX_PLATFORMS"] = "cpu"
+    os.environ["OPENBLAS_NUM_THREADS"] = "1"
+    os.environ["XLA_FLAGS"] = "--xla_cpu_multi_thread_eigen=false"
+    if version.parse(package_version("jax")) >= version.parse("0.9.1"):
+        os.environ["XLA_FLAGS"] += (
+            " --xla_cpu_scheduler_type=CPU_SCHEDULER_TYPE_MEMORY_OPTIMIZED"
+        )
 
 
 def benchmark_function(
@@ -22,6 +49,8 @@ def benchmark_function(
             avg_time (float): Average time per function call after JIT
             jit_time (float): Time taken to JIT the function
     """
+    import jax  # Imported here so that configure_env can run first
+
     func_jit = jax.jit(func)
 
     # JIT timing
@@ -44,3 +73,14 @@ def benchmark_function(
     avg_time = elapsed / n_calls
 
     return avg_time, jit_time
+
+
+def sample_state(robot, batch_size: int | None = None) -> Tuple[np.ndarray, np.ndarray]:
+    """Sample a random (q, qd), with a leading batch dimension if batch_size is provided"""
+    shape = () if batch_size is None else (batch_size,)
+    q = np.random.uniform(-0.5, 0.5, shape + (robot.nq,))
+    if robot.is_quaternion_base:
+        quat = np.random.randn(*shape, 4)
+        q[..., 3:7] = quat / np.linalg.norm(quat, axis=-1, keepdims=True)
+    qd = np.random.uniform(-0.5, 0.5, shape + (robot.nv,))
+    return q, qd

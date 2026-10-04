@@ -1,6 +1,5 @@
 """Test cases for the Humanoid class"""
 
-import time
 import unittest
 from typing import Callable, Tuple
 
@@ -74,7 +73,7 @@ def sample_v(nq: int, nv: int) -> np.ndarray:
     return v
 
 
-def test_mass_matrix(
+def check_mass_matrix(
     model: pin.Model, data: pin.Data, mass_matrix_func: Callable
 ) -> None:
     jit_mass_matrix = jax.jit(mass_matrix_func)
@@ -89,7 +88,7 @@ def test_mass_matrix(
         np.testing.assert_array_almost_equal(M, Mpin, decimal=4)
 
 
-def test_gravity_vector(
+def check_gravity_vector(
     model: pin.Model, data: pin.Data, gravity_vector_func: Callable
 ) -> None:
     jit_gravity_vector = jax.jit(gravity_vector_func)
@@ -104,7 +103,7 @@ def test_gravity_vector(
         np.testing.assert_array_almost_equal(G, bias, decimal=4)
 
 
-def test_nonlinear_effects(
+def check_nonlinear_effects(
     model: pin.Model,
     data: pin.Data,
     gravity_vector_func: Callable,
@@ -137,65 +136,7 @@ def test_nonlinear_effects(
         np.testing.assert_array_almost_equal(my_bias_result, pin_bias, decimal=4)
 
 
-def test_cc_speed(nq: int, cc_vector_func: Callable) -> None:
-    print("Testing centrifugal and coriolis speed")
-    jit_cc_vector = jax.jit(cc_vector_func)
-    times = []
-    for i in range(10):
-        q = np.random.rand(nq)
-        dq = np.random.rand(nq)
-        start_time = time.perf_counter()
-        _ = jit_cc_vector(q, dq).block_until_ready()
-        times.append(time.perf_counter() - start_time)
-    print("JIT time: ", times[0])
-    avg_time = np.mean(times[1:])
-    print("Average time (milliseconds): ", avg_time * 1e3)
-
-
-def test_mass_matrix_speed(nq: int, mass_matrix_func: Callable) -> None:
-    print("Testing mass matrix speed")
-    jit_mm = jax.jit(mass_matrix_func)
-    times = []
-    for i in range(10):
-        q = np.random.rand(nq)
-        start_time = time.perf_counter()
-        _ = jit_mm(q).block_until_ready()
-        times.append(time.perf_counter() - start_time)
-    print("JIT time: ", times[0])
-    avg_time = np.mean(times[1:])
-    print("Average time (milliseconds): ", avg_time * 1e3)
-
-
-def test_gravity_vector_speed(nq: int, gravity_vector_func: Callable) -> None:
-    print("Testing gravity vector speed")
-    jit_gv = jax.jit(gravity_vector_func)
-    times = []
-    for i in range(10):
-        q = np.random.rand(nq)
-        start_time = time.perf_counter()
-        _ = jit_gv(q).block_until_ready()
-        times.append(time.perf_counter() - start_time)
-    print("JIT time: ", times[0])
-    avg_time = np.mean(times[1:])
-    print("Average time (milliseconds): ", avg_time * 1e3)
-
-
-def test_bias_speed(nq: int, bias_func: Callable) -> None:
-    print("Testing bias speed")
-    jit_bias = jax.jit(bias_func)
-    times = []
-    for i in range(10):
-        q = np.random.rand(nq)
-        dq = np.random.rand(nq)
-        start_time = time.perf_counter()
-        _ = jit_bias(q, dq).block_until_ready()
-        times.append(time.perf_counter() - start_time)
-    print("JIT time: ", times[0])
-    avg_time = np.mean(times[1:])
-    print("Average time (milliseconds): ", avg_time * 1e3)
-
-
-def test_kinematics_and_jacobians(
+def check_kinematics_and_jacobians(
     robot: Humanoid, model: pin.Model, data: pin.Data
 ) -> None:
 
@@ -286,7 +227,7 @@ def test_kinematics_and_jacobians(
             )
 
 
-def test_ee_tfs_and_jacobians(
+def check_ee_tfs_and_jacobians(
     robot: Humanoid, model: pin.Model, data: pin.Data
 ) -> None:
 
@@ -363,13 +304,13 @@ class FreeflyerRootDynamicsTest(unittest.TestCase):
         np.random.seed(0)
 
     def test_mass_matrix(self):
-        return test_mass_matrix(self.model, self.data, self.robot.mass_matrix)
+        return check_mass_matrix(self.model, self.data, self.robot.mass_matrix)
 
     def test_gravity_vector(self):
-        return test_gravity_vector(self.model, self.data, self.robot.gravity_vector)
+        return check_gravity_vector(self.model, self.data, self.robot.gravity_vector)
 
     def test_nonlinear_effects(self):
-        return test_nonlinear_effects(
+        return check_nonlinear_effects(
             self.model,
             self.data,
             self.robot.gravity_vector,
@@ -378,10 +319,10 @@ class FreeflyerRootDynamicsTest(unittest.TestCase):
         )
 
     def test_kinematics_and_jacobians(self):
-        return test_kinematics_and_jacobians(self.robot, self.model, self.data)
+        return check_kinematics_and_jacobians(self.robot, self.model, self.data)
 
     def test_ee(self):
-        return test_ee_tfs_and_jacobians(self.robot, self.model, self.data)
+        return check_ee_tfs_and_jacobians(self.robot, self.model, self.data)
 
 
 class FixedRootDynamicsTest(unittest.TestCase):
@@ -397,13 +338,13 @@ class FixedRootDynamicsTest(unittest.TestCase):
         np.random.seed(0)
 
     def test_mass_matrix(self):
-        return test_mass_matrix(self.model, self.data, self.robot.mass_matrix)
+        return check_mass_matrix(self.model, self.data, self.robot.mass_matrix)
 
     def test_gravity_vector(self):
-        return test_gravity_vector(self.model, self.data, self.robot.gravity_vector)
+        return check_gravity_vector(self.model, self.data, self.robot.gravity_vector)
 
     def test_nonlinear_effects(self):
-        return test_nonlinear_effects(
+        return check_nonlinear_effects(
             self.model,
             self.data,
             self.robot.gravity_vector,
@@ -412,10 +353,10 @@ class FixedRootDynamicsTest(unittest.TestCase):
         )
 
     def test_kinematics_and_jacobians(self):
-        return test_kinematics_and_jacobians(self.robot, self.model, self.data)
+        return check_kinematics_and_jacobians(self.robot, self.model, self.data)
 
     def test_ee(self):
-        return test_ee_tfs_and_jacobians(self.robot, self.model, self.data)
+        return check_ee_tfs_and_jacobians(self.robot, self.model, self.data)
 
 
 class FloatingRootDynamicsTest(unittest.TestCase):
@@ -431,13 +372,13 @@ class FloatingRootDynamicsTest(unittest.TestCase):
         np.random.seed(0)
 
     def test_mass_matrix(self):
-        return test_mass_matrix(self.model, self.data, self.robot.mass_matrix)
+        return check_mass_matrix(self.model, self.data, self.robot.mass_matrix)
 
     def test_gravity_vector(self):
-        return test_gravity_vector(self.model, self.data, self.robot.gravity_vector)
+        return check_gravity_vector(self.model, self.data, self.robot.gravity_vector)
 
     def test_nonlinear_effects(self):
-        return test_nonlinear_effects(
+        return check_nonlinear_effects(
             self.model,
             self.data,
             self.robot.gravity_vector,
@@ -446,56 +387,10 @@ class FloatingRootDynamicsTest(unittest.TestCase):
         )
 
     def test_kinematics_and_jacobians(self):
-        return test_kinematics_and_jacobians(self.robot, self.model, self.data)
+        return check_kinematics_and_jacobians(self.robot, self.model, self.data)
 
     def test_ee(self):
-        return test_ee_tfs_and_jacobians(self.robot, self.model, self.data)
-
-
-class FloatingRootSpeedTest(unittest.TestCase):
-    """Speed tests for my floating-root dynamics functions"""
-
-    @classmethod
-    def setUpClass(cls):
-        print("Testing floating root dynamics speed")
-        cls.robot = load_g1(floating_base="euler")
-        cls.num_joints = cls.robot.nv
-        np.random.seed(0)
-
-    def test_cc_speed(self):
-        return test_cc_speed(self.num_joints, self.robot.centrifugal_coriolis_vector)
-
-    def test_mass_matrix_speed(self):
-        return test_mass_matrix_speed(self.num_joints, self.robot.mass_matrix)
-
-    def test_gravity_vector_speed(self):
-        return test_gravity_vector_speed(self.num_joints, self.robot.gravity_vector)
-
-    def test_bias_speed(self):
-        return test_bias_speed(self.num_joints, self.robot.nonlinear_bias)
-
-
-class FixedRootSpeedTest(unittest.TestCase):
-    """Speed tests for my fixed-root dynamics functions"""
-
-    @classmethod
-    def setUpClass(cls):
-        print("Testing fixed root dynamics speed")
-        cls.robot = load_fixed_root_g1()
-        cls.num_joints = cls.robot.nv
-        np.random.seed(0)
-
-    def test_cc_speed(self):
-        return test_cc_speed(self.num_joints, self.robot.centrifugal_coriolis_vector)
-
-    def test_mass_matrix_speed(self):
-        return test_mass_matrix_speed(self.num_joints, self.robot.mass_matrix)
-
-    def test_gravity_vector_speed(self):
-        return test_gravity_vector_speed(self.num_joints, self.robot.gravity_vector)
-
-    def test_bias_speed(self):
-        return test_bias_speed(self.num_joints, self.robot.nonlinear_bias)
+        return check_ee_tfs_and_jacobians(self.robot, self.model, self.data)
 
 
 if __name__ == "__main__":

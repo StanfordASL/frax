@@ -35,8 +35,11 @@ examples = [
     "cbfpy",
     "viser[urdf]",
 ]
-test = ["pin"]
-all = ["mkdocs-material", "mkdocstrings[python]", "ruff", "pin", "mujoco", "cbfpy"]
+test = ["pin", "pytest>=9"]
+all = ["mkdocs-material", "mkdocstrings[python]", "ruff", "pin", "pytest>=9", "mujoco", "cbfpy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.setuptools]
 include-package-data = true
