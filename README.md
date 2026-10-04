@@ -15,6 +15,16 @@ On CPU, you can expect compute times for typical controllers in the *low microse
 > [!IMPORTANT]
 > `frax` is actively under development and internal operations may change between beta versions
 
+
+### New, breaking changes:
+
+I recently improved the handling of free-floating joints and added a position + WXYZ quaternion representation (following MuJoCo) rather than just position + intrinsic Euler XYZ. This should lead to fewer issues with gimbal lock, but I needed to update some terminology now that `nq != nv`. For instance:
+
+- Joint limits are specified now only in terms of the actuated joints
+- Terms like `num_joints` are deprecated in favor of `nq` and `nv`
+
+I'll update this list if more changes come up. The old Euler functionality still remains for now, if specified. Changes to fixed-base robot workflows are very minimal (just some variable renaming).
+
 ## Installation
 
 ### From PyPI

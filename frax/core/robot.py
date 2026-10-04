@@ -66,8 +66,11 @@ class Robot:
             derivative of a single configuration entry (q_dot = qd) to that entry's index in q.
             A quaternion base's angular velocity (qd[3:6]) has no key
 
-    Per-joint arrays (joint limits, max forces/velocities, joint_name_to_index, ...) are indexed
-    by velocity. The floating base has no position limits (infinite)
+    Per-joint arrays (joint_names, joint_types, joint_name_to_index, ...) are indexed by velocity.
+    The joint limits (actuated_joint_lower_limits, actuated_joint_upper_limits,
+    actuated_joint_max_forces, actuated_joint_max_velocities) only cover the actuated joints, so
+    they have length num_actuated_joints and line up with q[nq_floating:], qd[nv_floating:], and
+    tau[nv_floating:]. The floating base has no limits
 
     Note: Internally, a floating base is always expanded into 6 single-DOF "virtual" bodies
     (the last of which carries the base link's inertia), so all per-body arrays such as the
@@ -114,10 +117,10 @@ class Robot:
         self.nv = data["num_joints"]
         self.joint_types = np.asarray(data["joint_types"], dtype=int)
         self.joint_names = data["joint_names"]
-        self.joint_lower_limits = np.asarray(data["joint_lower_limits"], dtype=float)
-        self.joint_upper_limits = np.asarray(data["joint_upper_limits"], dtype=float)
-        self.joint_max_forces = np.asarray(data["joint_max_forces"], dtype=float)
-        self.joint_max_velocities = np.asarray(data["joint_max_velocities"], dtype=float)
+        self.actuated_joint_lower_limits = np.asarray(data["actuated_joint_lower_limits"], dtype=float)
+        self.actuated_joint_upper_limits = np.asarray(data["actuated_joint_upper_limits"], dtype=float)
+        self.actuated_joint_max_forces = np.asarray(data["actuated_joint_max_forces"], dtype=float)
+        self.actuated_joint_max_velocities = np.asarray(data["actuated_joint_max_velocities"], dtype=float)
         self.joint_axes = np.asarray(data["joint_axes"], dtype=float)
         self.joint_parent_frame_positions = np.asarray(data["joint_parent_frame_positions"], dtype=float)
         self.joint_parent_frame_rotations = np.asarray(data["joint_parent_frame_rotations"], dtype=float)
@@ -144,6 +147,13 @@ class Robot:
         self.nq_floating = 7 if self.is_quaternion_base else self.nv_floating
         self.nq = self.nv + self.nq_floating - self.nv_floating
         self.num_actuated_joints = self.nv - self.nv_floating
+        for limits in (
+            self.actuated_joint_lower_limits,
+            self.actuated_joint_upper_limits,
+            self.actuated_joint_max_forces,
+            self.actuated_joint_max_velocities,
+        ):
+            assert len(limits) == self.num_actuated_joints
         # Velocity index -> index into q of its configuration entry, for the velocities that are
         # the time derivative of a single configuration entry (q_dot = qd). A quaternion base's
         # angular velocity has no entry

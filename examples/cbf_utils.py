@@ -73,8 +73,8 @@ class OSCBFTorqueConfig(CBFConfig):
         super().__init__(
             n=self.num_joints * 2,
             m=self.num_joints,
-            u_min=-np.asarray(robot.joint_max_forces),
-            u_max=np.asarray(robot.joint_max_forces),
+            u_min=-np.asarray(robot.actuated_joint_max_forces),
+            u_max=np.asarray(robot.actuated_joint_max_forces),
             init_args=init_args,
         )
 
@@ -181,8 +181,8 @@ class OSCBFVelocityConfig(CBFConfig):
         super().__init__(
             n=self.num_joints,
             m=self.num_joints,
-            u_min=-np.asarray(robot.joint_max_velocities),
-            u_max=np.asarray(robot.joint_max_velocities),
+            u_min=-np.asarray(robot.actuated_joint_max_velocities),
+            u_max=np.asarray(robot.actuated_joint_max_velocities),
             init_args=init_args,
         )
 

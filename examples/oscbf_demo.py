@@ -58,8 +58,8 @@ class DemoOSCBFConfig(OSCBFTorqueConfig):
         collision_positions: ArrayLike,
         collision_radii: ArrayLike,
     ):
-        self.q_min = robot.joint_lower_limits
-        self.q_max = robot.joint_upper_limits
+        self.q_min = robot.actuated_joint_lower_limits
+        self.q_max = robot.actuated_joint_upper_limits
         self.singularity_tol = 1e-3
         self.collision_positions = np.atleast_2d(collision_positions)
         self.collision_radii = np.ravel(collision_radii)

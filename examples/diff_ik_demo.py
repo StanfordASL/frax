@@ -134,8 +134,8 @@ def main(robot_name, demo_mode):
         # Clamp to velocity limits
         return jnp.clip(
             v,
-            -1.0 * jnp.asarray(robot.joint_max_velocities),
-            jnp.asarray(robot.joint_max_velocities),
+            -1.0 * jnp.asarray(robot.actuated_joint_max_velocities),
+            jnp.asarray(robot.actuated_joint_max_velocities),
         )
 
     try:

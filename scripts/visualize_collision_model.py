@@ -342,8 +342,8 @@ def g1_main():
 def a2_main():
     robot = load_a2()
     q = robot.neutral_configuration()
-    lower = robot.joint_lower_limits[robot.nv_floating :]
-    upper = robot.joint_upper_limits[robot.nv_floating :]
+    lower = robot.actuated_joint_lower_limits
+    upper = robot.actuated_joint_upper_limits
     q[robot.nq_floating :] = lower + 0.5 * (upper - lower)
     # Move the robot up a bit so it's not in the floor
     q[2] = 0.5

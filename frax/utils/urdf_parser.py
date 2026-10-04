@@ -63,13 +63,7 @@ def add_floating_base_to_data(data: dict) -> dict:
     data["joint_types"] = new_joint_types + data["joint_types"]
     data["joint_axes"] = new_joint_axes + data["joint_axes"]
 
-    # The base has no position limits. Force/velocity limits are large but finite, for
-    # solvers that don't accept infinite bounds
-    data["joint_lower_limits"] = [-np.inf] * num_new_joints + data["joint_lower_limits"]
-    data["joint_upper_limits"] = [np.inf] * num_new_joints + data["joint_upper_limits"]
-    inf = 1e6  # Effectively infinite
-    data["joint_max_forces"] = [inf] * num_new_joints + data["joint_max_forces"]
-    data["joint_max_velocities"] = [inf] * num_new_joints + data["joint_max_velocities"]
+    # Note: The limits only apply to the actuated joints, so the floating base adds none
 
     data["joint_parent_frame_positions"] = [[0.0, 0.0, 0.0]] * num_new_joints + data[
         "joint_parent_frame_positions"
@@ -192,10 +186,10 @@ def genesis_to_mine(l_infos, j_infos):
         "num_joints": num_joints,
         "joint_names": joint_names,
         "joint_types": joint_types,
-        "joint_lower_limits": joint_lower_limits,
-        "joint_upper_limits": joint_upper_limits,
-        "joint_max_forces": joint_max_forces,
-        "joint_max_velocities": joint_max_velocities,
+        "actuated_joint_lower_limits": joint_lower_limits,
+        "actuated_joint_upper_limits": joint_upper_limits,
+        "actuated_joint_max_forces": joint_max_forces,
+        "actuated_joint_max_velocities": joint_max_velocities,
         "joint_axes": joint_axes,
         "joint_parent_frame_positions": joint_parent_frame_positions,
         "joint_parent_frame_rotations": joint_parent_frame_rotations,

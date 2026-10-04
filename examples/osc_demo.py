@@ -158,8 +158,8 @@ def main(robot_name, demo_mode):
         # Clamp to torque limits
         return jnp.clip(
             tau,
-            -1.0 * jnp.asarray(robot.joint_max_forces),
-            jnp.asarray(robot.joint_max_forces),
+            -1.0 * jnp.asarray(robot.actuated_joint_max_forces),
+            jnp.asarray(robot.actuated_joint_max_forces),
         )
 
     try:

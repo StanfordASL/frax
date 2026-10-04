@@ -337,12 +337,15 @@ class TestVsEuler:
 
     def test_floating_base_limits(self, robot, euler_robot):
         for r in (robot, euler_robot):
-            assert np.all(r.joint_lower_limits[:6] == -np.inf)
-            assert np.all(r.joint_upper_limits[:6] == np.inf)
-            assert np.all(np.isfinite(r.joint_lower_limits[6:]))
-            assert np.all(np.isfinite(r.joint_upper_limits[6:]))
-            assert np.all(np.isfinite(r.joint_max_velocities))
-            assert np.all(np.isfinite(r.joint_max_forces))
+            # Limits only cover the actuated joints, not the floating base
+            for limits in (
+                r.actuated_joint_lower_limits,
+                r.actuated_joint_upper_limits,
+                r.actuated_joint_max_velocities,
+                r.actuated_joint_max_forces,
+            ):
+                assert limits.shape == (r.num_actuated_joints,)
+                assert np.all(np.isfinite(limits))
 
     def test_physical_consistency(self, robot, euler_robot):
         def physical_quantities(q, qd, robot_is_quat):
