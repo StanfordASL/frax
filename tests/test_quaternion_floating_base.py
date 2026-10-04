@@ -322,6 +322,28 @@ class TestVsEuler:
         assert robot.nq == 36
         assert robot.nv == 35
 
+    def test_velocity_to_configuration_index(self, robot, euler_robot):
+        for r in (robot, euler_robot):
+            qd_idxs = np.array(list(r.velocity_to_configuration_index.keys()))
+            q_idxs = np.array(list(r.velocity_to_configuration_index.values()))
+            # Entries with a configuration entry integrate componentwise (q_dot = qd)
+            q, qd = r.neutral_configuration(), np.random.uniform(-1.0, 1.0, r.nv)
+            q1 = np.asarray(r.integrate(q, qd, 0.1))
+            np.testing.assert_allclose(q1[q_idxs], q[q_idxs] + 0.1 * qd[qd_idxs])
+        assert euler_robot.velocity_to_configuration_index == {i: i for i in range(35)}
+        assert robot.velocity_to_configuration_index == dict(
+            zip([*range(3), *range(6, 35)], [*range(3), *range(7, 36)])
+        )
+
+    def test_floating_base_limits(self, robot, euler_robot):
+        for r in (robot, euler_robot):
+            assert np.all(r.joint_lower_limits[:6] == -np.inf)
+            assert np.all(r.joint_upper_limits[:6] == np.inf)
+            assert np.all(np.isfinite(r.joint_lower_limits[6:]))
+            assert np.all(np.isfinite(r.joint_upper_limits[6:]))
+            assert np.all(np.isfinite(r.joint_max_velocities))
+            assert np.all(np.isfinite(r.joint_max_forces))
+
     def test_physical_consistency(self, robot, euler_robot):
         def physical_quantities(q, qd, robot_is_quat):
             r = robot if robot_is_quat else euler_robot

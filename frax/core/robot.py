@@ -62,6 +62,12 @@ class Robot:
     Dimensions:
         nq: Size of the configuration vector q
         nv: Size of the velocity vector qd (and qdd, tau, Jacobian columns, mass matrix, ...)
+        velocity_to_configuration_index: Dict from each velocity index whose entry is the time
+            derivative of a single configuration entry (q_dot = qd) to that entry's index in q.
+            A quaternion base's angular velocity (qd[3:6]) has no key
+
+    Per-joint arrays (joint limits, max forces/velocities, joint_name_to_index, ...) are indexed
+    by velocity. The floating base has no position limits (infinite)
 
     Note: Internally, a floating base is always expanded into 6 single-DOF "virtual" bodies
     (the last of which carries the base link's inertia), so all per-body arrays such as the
@@ -138,6 +144,15 @@ class Robot:
         self.nq_floating = 7 if self.is_quaternion_base else self.nv_floating
         self.nq = self.nv + self.nq_floating - self.nv_floating
         self.num_actuated_joints = self.nv - self.nv_floating
+        # Velocity index -> index into q of its configuration entry, for the velocities that are
+        # the time derivative of a single configuration entry (q_dot = qd). A quaternion base's
+        # angular velocity has no entry
+        if self.is_quaternion_base:
+            qd_idxs = [*range(3), *range(6, self.nv)]
+            q_idxs = [*range(3), *range(7, self.nq)]
+        else:
+            qd_idxs = q_idxs = range(self.nv)
+        self.velocity_to_configuration_index = dict(zip(qd_idxs, q_idxs))
         self.has_collision_data = len(collision_positions) > 0
         self.has_root_collision_data = len(root_collision_positions) > 0
         self.has_sc_data = len(body_sc_pairs) > 0

@@ -63,9 +63,11 @@ def add_floating_base_to_data(data: dict) -> dict:
     data["joint_types"] = new_joint_types + data["joint_types"]
     data["joint_axes"] = new_joint_axes + data["joint_axes"]
 
+    # The base has no position limits. Force/velocity limits are large but finite, for
+    # solvers that don't accept infinite bounds
+    data["joint_lower_limits"] = [-np.inf] * num_new_joints + data["joint_lower_limits"]
+    data["joint_upper_limits"] = [np.inf] * num_new_joints + data["joint_upper_limits"]
     inf = 1e6  # Effectively infinite
-    data["joint_lower_limits"] = [-inf] * num_new_joints + data["joint_lower_limits"]
-    data["joint_upper_limits"] = [inf] * num_new_joints + data["joint_upper_limits"]
     data["joint_max_forces"] = [inf] * num_new_joints + data["joint_max_forces"]
     data["joint_max_velocities"] = [inf] * num_new_joints + data["joint_max_velocities"]
 
