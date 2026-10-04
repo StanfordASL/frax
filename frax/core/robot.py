@@ -15,10 +15,7 @@ import jax.scipy as jsp
 import numpy as np
 
 from frax.utils.urdf_parser import parse_urdf
-from frax.utils.linalg_utils import (
-    schur_spd_inverse,
-    cholesky_spd_inverse,
-)
+from frax.utils.linalg_utils import cholesky_spd_inverse
 from frax.utils.transform_utils import (
     create_transform_numpy,
     transform_points,
@@ -934,15 +931,7 @@ class Robot:
         Returns:
             Array: Inverse of the mass matrix, shape (nv, nv)
         """
-        # NOTE: It seems like for floating-base robots, if we compute the inverse
-        # using the schur complement (accounting for the structure induced by the
-        # free-floating DOFs), this seems to be much faster and more stable
-        if self.includes_floating_dof:
-            return schur_spd_inverse(M, split_idx=6)
-        # Otherwise, for fixed-base robots, a cholesky factorization seems to be
-        # the most stable and fast solution
-        else:
-            return cholesky_spd_inverse(M)
+        return cholesky_spd_inverse(M)
 
     def gravity_vector(self, q: Array) -> Array:
         """Compute the gravity vector for a given joint configuration
