@@ -1,70 +1,44 @@
-"""Test cases for forward dynamics"""
-
-import unittest
+"""Test cases for forward dynamics, comparing against Pinocchio's values (from ABA)"""
 
 import jax
 import numpy as np
 import pinocchio as pin
+import pytest
 
-from frax.robots.franka_panda import load_panda
 from frax.assets import FRANKA_ASSETS_DIR
-
-jax.config.update("jax_platforms", "cpu")
-jax.config.update("jax_enable_x64", True)
+from frax.robots.franka_panda import load_panda
 
 
-@jax.tree_util.register_static
-class ForwardDynamicsTest(unittest.TestCase):
-    """Comparing FD output to Pinocchio's values (from ABA)"""
-
-    @classmethod
-    def setUpClass(cls):
-        cls.model = pin.buildModelFromUrdf(FRANKA_ASSETS_DIR / "panda.urdf")
-        cls.data = pin.Data(cls.model)
-        cls.robot = load_panda()
-        cls.num_joints = cls.robot.nv
-        np.random.seed(0)
-
-    @jax.jit
-    def my_fd(self, q, v, tau, fext):
-        return self.robot.forward_dynamics(q, v, tau, fext)
-
-    def test_zero_v_tau_f(self):
-        for i in range(10):
-            q = np.random.uniform(-np.pi / 2, np.pi / 2, self.num_joints)
-            dq = np.zeros(self.num_joints)
-            tau = np.zeros(self.num_joints)
-            fext = None
-            a = pin.aba(self.model, self.data, q, dq, tau)  # , fext)
-            a_mine = self.my_fd(q, dq, tau, fext)
-            np.testing.assert_array_almost_equal(a, a_mine, decimal=4)
-
-    def test_nonzero_v_zero_tau_f(self):
-        for i in range(10):
-            q = np.random.uniform(-np.pi / 2, np.pi / 2, self.num_joints)
-            dq = np.random.uniform(-np.pi / 2, np.pi / 2, self.num_joints)
-            tau = np.zeros(self.num_joints)
-            fext = None
-            a = pin.aba(self.model, self.data, q, dq, tau)  # , fext)
-            a_mine = self.my_fd(q, dq, tau, fext)
-            np.testing.assert_array_almost_equal(a, a_mine, decimal=4)
-
-    def test_nonzero_v_tau_zero_f(self):
-        for i in range(10):
-            q = np.random.uniform(-np.pi / 2, np.pi / 2, self.num_joints)
-            dq = np.random.uniform(-np.pi / 2, np.pi / 2, self.num_joints)
-            tau = np.random.uniform(-np.pi / 2, np.pi / 2, self.num_joints)
-            fext = None
-            a = pin.aba(self.model, self.data, q, dq, tau)  # , fext)
-            a_mine = self.my_fd(q, dq, tau, fext)
-            np.testing.assert_array_almost_equal(a, a_mine, decimal=4)
-
-    def test_nonzero_v_tau_f(self):
-        pass
-        # TODO! Need to adjust reference frames for forces
-        # i.e. mine are defined in the root frame
-        # and pinocchio's are defined in the local frame of the joints
+@pytest.fixture(scope="module")
+def robot():
+    return load_panda()
 
 
-if __name__ == "__main__":
-    unittest.main()
+@pytest.fixture(scope="module")
+def pin_model_and_data():
+    model = pin.buildModelFromUrdf(FRANKA_ASSETS_DIR / "panda.urdf")
+    return model, pin.Data(model)
+
+
+@pytest.mark.parametrize(
+    "nonzero_v, nonzero_tau",
+    [(False, False), (True, False), (True, True)],
+    ids=["zero_v_tau", "nonzero_v", "nonzero_v_tau"],
+)
+def test_forward_dynamics(robot, pin_model_and_data, nonzero_v, nonzero_tau):
+    model, data = pin_model_and_data
+    fd = jax.jit(lambda q, v, tau: robot.forward_dynamics(q, v, tau, None))
+    for _ in range(10):
+        q = np.random.uniform(-np.pi / 2, np.pi / 2, robot.nv)
+        v = np.random.uniform(-np.pi / 2, np.pi / 2, robot.nv) * nonzero_v
+        tau = np.random.uniform(-np.pi / 2, np.pi / 2, robot.nv) * nonzero_tau
+        a = pin.aba(model, data, q, v, tau)
+        np.testing.assert_array_almost_equal(a, fd(q, v, tau), decimal=4)
+
+
+@pytest.mark.skip(
+    reason="TODO: external forces are defined in the root frame in frax, "
+    "but in the local joint frames in Pinocchio"
+)
+def test_forward_dynamics_with_external_forces():
+    pass

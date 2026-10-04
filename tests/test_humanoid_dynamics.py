@@ -1,28 +1,43 @@
 """Test cases for the Humanoid class"""
 
-import unittest
-from typing import Callable, Tuple
+from typing import Tuple
 
 import jax
 import numpy as np
 import pinocchio as pin
+import pytest
 
-from frax.core.humanoid import Humanoid
-from frax.robots.unitree_g1 import load_fixed_root_g1, load_g1
 from frax.assets import G1_ASSETS_DIR
+from frax.robots.unitree_g1 import load_fixed_root_g1, load_g1
 from frax.utils.transform_utils import transform_jacobian_numpy
-
-jax.config.update("jax_platforms", "cpu")
-jax.config.update("jax_enable_x64", True)
 
 fixed_root_urdf = G1_ASSETS_DIR / "g1_29dof_rev_1_0.urdf"
 floating_root_urdf = G1_ASSETS_DIR / "floating_g1_29dof_rev_1_0.urdf"
 
 
-# Test case options:
-# Model has a pinocchio freeflyer base attached to the 29dof urdf
-# Model has 6dof pseudo joints attached (35dof)
-# Model has fixed pelvis (29dof)
+# Each test is run against three Pinocchio models:
+# - "freeflyer": Pinocchio's freeflyer base attached to the 29dof urdf (vs our 6 virtual joints)
+# - "fixed_root": Fixed pelvis (29dof)
+# - "floating_root": 6dof pseudo joints attached to the urdf (35dof), same as our virtual joints
+SETUPS = {
+    "freeflyer": (
+        lambda: load_g1(floating_base="euler"),
+        lambda: pin.buildModelFromUrdf(fixed_root_urdf, pin.JointModelFreeFlyer()),
+    ),
+    "fixed_root": (load_fixed_root_g1, lambda: pin.buildModelFromUrdf(fixed_root_urdf)),
+    "floating_root": (
+        lambda: load_g1(floating_base="euler"),
+        lambda: pin.buildModelFromUrdf(floating_root_urdf),
+    ),
+}
+
+
+@pytest.fixture(scope="module", params=list(SETUPS))
+def g1_and_pin(request):
+    """The frax robot, and the Pinocchio model and data to compare against"""
+    load_robot, load_model = SETUPS[request.param]
+    model = load_model()
+    return load_robot(), model, pin.Data(model)
 
 
 def sample_q(nq: int, nv: int) -> Tuple[np.ndarray, np.ndarray]:
@@ -73,10 +88,9 @@ def sample_v(nq: int, nv: int) -> np.ndarray:
     return v
 
 
-def check_mass_matrix(
-    model: pin.Model, data: pin.Data, mass_matrix_func: Callable
-) -> None:
-    jit_mass_matrix = jax.jit(mass_matrix_func)
+def test_mass_matrix(g1_and_pin):
+    robot, model, data = g1_and_pin
+    jit_mass_matrix = jax.jit(robot.mass_matrix)
 
     for i in range(10):
         q_mine, q_pin = sample_q(model.nq, model.nv)
@@ -88,10 +102,9 @@ def check_mass_matrix(
         np.testing.assert_array_almost_equal(M, Mpin, decimal=4)
 
 
-def check_gravity_vector(
-    model: pin.Model, data: pin.Data, gravity_vector_func: Callable
-) -> None:
-    jit_gravity_vector = jax.jit(gravity_vector_func)
+def test_gravity_vector(g1_and_pin):
+    robot, model, data = g1_and_pin
+    jit_gravity_vector = jax.jit(robot.gravity_vector)
     for i in range(10):
         q_mine, q_pin = sample_q(model.nq, model.nv)
         # If v = 0 then the bias from pinocchio will just be the grav vector
@@ -103,27 +116,18 @@ def check_gravity_vector(
         np.testing.assert_array_almost_equal(G, bias, decimal=4)
 
 
-def check_nonlinear_effects(
-    model: pin.Model,
-    data: pin.Data,
-    gravity_vector_func: Callable,
-    cc_vector_func: Callable,
-    bias_func: Callable,
-) -> None:
-
+def test_nonlinear_effects(g1_and_pin):
+    robot, model, data = g1_and_pin
     # NOTE: We have two possible ways of computing the nonlinear effects (bias):
     # - Sum the gravity vector and the centrifugal/coriolis vector, each computed individually
     # - Directly compute the sum via rnea
     # We want to make sure that both methods yield the same result
 
     def my_nle(q, dq):
-        return gravity_vector_func(q) + cc_vector_func(q, dq)
-
-    def my_bias(q, dq):
-        return bias_func(q, dq)
+        return robot.gravity_vector(q) + robot.centrifugal_coriolis_vector(q, dq)
 
     jit_my_nle = jax.jit(my_nle)
-    jit_my_bias = jax.jit(my_bias)
+    jit_my_bias = jax.jit(robot.nonlinear_bias)
     for i in range(10):
         q_mine, q_pin = sample_q(model.nq, model.nv)
         v = sample_v(model.nq, model.nv)
@@ -136,9 +140,8 @@ def check_nonlinear_effects(
         np.testing.assert_array_almost_equal(my_bias_result, pin_bias, decimal=4)
 
 
-def check_kinematics_and_jacobians(
-    robot: Humanoid, model: pin.Model, data: pin.Data
-) -> None:
+def test_kinematics_and_jacobians(g1_and_pin):
+    robot, model, data = g1_and_pin
 
     # NOTE: Joint numbering is different if pinocchio has loaded the 29DOF URDF and added a 6DOF freeflyer joint to it
     # So, we'll use this variable to check if the pinocchio model has the ff joint
@@ -227,9 +230,8 @@ def check_kinematics_and_jacobians(
             )
 
 
-def check_ee_tfs_and_jacobians(
-    robot: Humanoid, model: pin.Model, data: pin.Data
-) -> None:
+def test_ee_tfs_and_jacobians(g1_and_pin):
+    robot, model, data = g1_and_pin
 
     # NOTE: Joint numbering is different if pinocchio has loaded the 29DOF URDF and added a 6DOF freeflyer joint to it
     # So, we'll use this variable to check if the pinocchio model has the ff joint
@@ -288,110 +290,3 @@ def check_ee_tfs_and_jacobians(
         _test_appendage(
             int(robot.right_foot_parent_chain[-1]), T_rf, J_rf, joint_transforms
         )
-
-
-class FreeflyerRootDynamicsTest(unittest.TestCase):
-    """Test cases to compare my dynamics with 6 virtual links against Pinocchio's freeflyer joint"""
-
-    @classmethod
-    def setUpClass(cls):
-        print("Testing floating root dynamics against Pinocchio's freeflyer joint")
-        cls.model = pin.buildModelFromUrdf(fixed_root_urdf, pin.JointModelFreeFlyer())
-        cls.data = pin.Data(cls.model)
-        cls.robot = load_g1(floating_base="euler")
-        cls.num_joints = cls.robot.nv
-        cls.num_actuated_joints = cls.num_joints - 6
-        np.random.seed(0)
-
-    def test_mass_matrix(self):
-        return check_mass_matrix(self.model, self.data, self.robot.mass_matrix)
-
-    def test_gravity_vector(self):
-        return check_gravity_vector(self.model, self.data, self.robot.gravity_vector)
-
-    def test_nonlinear_effects(self):
-        return check_nonlinear_effects(
-            self.model,
-            self.data,
-            self.robot.gravity_vector,
-            self.robot.centrifugal_coriolis_vector,
-            self.robot.nonlinear_bias,
-        )
-
-    def test_kinematics_and_jacobians(self):
-        return check_kinematics_and_jacobians(self.robot, self.model, self.data)
-
-    def test_ee(self):
-        return check_ee_tfs_and_jacobians(self.robot, self.model, self.data)
-
-
-class FixedRootDynamicsTest(unittest.TestCase):
-    """Test cases to compare my dynamics with a fixed pelvis against Pinocchio"""
-
-    @classmethod
-    def setUpClass(cls):
-        print("Testing fixed root dynamics against Pinocchio")
-        cls.model = pin.buildModelFromUrdf(fixed_root_urdf)
-        cls.data = pin.Data(cls.model)
-        cls.robot = load_fixed_root_g1()
-        cls.num_joints = cls.robot.nv
-        np.random.seed(0)
-
-    def test_mass_matrix(self):
-        return check_mass_matrix(self.model, self.data, self.robot.mass_matrix)
-
-    def test_gravity_vector(self):
-        return check_gravity_vector(self.model, self.data, self.robot.gravity_vector)
-
-    def test_nonlinear_effects(self):
-        return check_nonlinear_effects(
-            self.model,
-            self.data,
-            self.robot.gravity_vector,
-            self.robot.centrifugal_coriolis_vector,
-            self.robot.nonlinear_bias,
-        )
-
-    def test_kinematics_and_jacobians(self):
-        return check_kinematics_and_jacobians(self.robot, self.model, self.data)
-
-    def test_ee(self):
-        return check_ee_tfs_and_jacobians(self.robot, self.model, self.data)
-
-
-class FloatingRootDynamicsTest(unittest.TestCase):
-    """Test cases to compare my dynamics with 6 virtual links against Pinocchio with the same 6 virtual links"""
-
-    @classmethod
-    def setUpClass(cls):
-        print("Testing floating root dynamics against Pinocchio")
-        cls.model = pin.buildModelFromUrdf(floating_root_urdf)
-        cls.data = pin.Data(cls.model)
-        cls.robot = load_g1(floating_base="euler")
-        cls.num_joints = cls.robot.nv
-        np.random.seed(0)
-
-    def test_mass_matrix(self):
-        return check_mass_matrix(self.model, self.data, self.robot.mass_matrix)
-
-    def test_gravity_vector(self):
-        return check_gravity_vector(self.model, self.data, self.robot.gravity_vector)
-
-    def test_nonlinear_effects(self):
-        return check_nonlinear_effects(
-            self.model,
-            self.data,
-            self.robot.gravity_vector,
-            self.robot.centrifugal_coriolis_vector,
-            self.robot.nonlinear_bias,
-        )
-
-    def test_kinematics_and_jacobians(self):
-        return check_kinematics_and_jacobians(self.robot, self.model, self.data)
-
-    def test_ee(self):
-        return check_ee_tfs_and_jacobians(self.robot, self.model, self.data)
-
-
-if __name__ == "__main__":
-    unittest.main()

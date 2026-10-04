@@ -1,81 +1,81 @@
-"""Test cases for math/linalg utils"""
+"""Test cases for math/linalg utils, including inversion of the mass matrix
 
-import unittest
+See timing/time_matrix_inverses.py for a speed comparison of the inversion methods
+"""
+
+from functools import partial
 
 import jax
+import jax.numpy as jnp
+import jax.scipy as jsp
 import numpy as np
+import pytest
 
+from frax.robots.unitree_g1 import load_fixed_root_g1, load_g1
 from frax.utils.linalg_utils import (
     fast_spd_inverse,
     random_spd_matrix,
     schur_spd_inverse,
 )
 
-jax.config.update("jax_platforms", "cpu")
-jax.config.update("jax_enable_x64", True)
+NUM_SAMPLES = 100
+TOL = 1e-10
+MASS_MATRIX_TOL = 1e-5
 
 
-def check_inversion_accuracy(mat, inv, atol, rtol):
+def cholesky_inverse(M):
+    L, low = jsp.linalg.cho_factor(M, lower=True)
+    return jsp.linalg.cho_solve((L, low), jnp.eye(M.shape[0]))
+
+
+INVERSES = {
+    "standard": jnp.linalg.inv,
+    "fast_spd": fast_spd_inverse,
+    "cholesky": cholesky_inverse,
+    "schur": None,  # Split index depends on the matrix, see below
+}
+
+
+def check_inversion_accuracy(mat, inv, tol):
+    """Check that inv @ mat is the identity, to within tol, or for ill-conditioned matrices,
+    to within the accuracy of the standard inverse (up to a small factor)"""
     n = mat.shape[0]
     assert inv.shape == mat.shape == (n, n)
-    try:
-        np.testing.assert_allclose(inv @ mat, np.eye(n), atol=atol, rtol=rtol)
-    except AssertionError:
-        # If my identity check did not pass then make sure that the standard inverse is also
-        # having some numerical difficulty on this matrix
-        try:
-            # If this assertion PASSES then the standard inverse performs better on this edge case
-            # and thus we have introduced a problem with our custom method
-            np.testing.assert_allclose(
-                np.linalg.inv(mat) @ mat,
-                np.eye(n),
-                atol=atol,
-                rtol=rtol,
-            )
-            raise  # The previous error
-        except AssertionError:
-            # If this assertion FAILS then our inverse performs the same as the standard (this is ok)
-            pass
+    err = np.max(np.abs(inv @ mat - np.eye(n)))
+    standard_err = np.max(np.abs(np.linalg.inv(mat) @ mat - np.eye(n)))
+    assert err <= max(tol, 10 * standard_err), (
+        f"Inverse error {err:.2e} is worse than the standard inverse error {standard_err:.2e}"
+    )
 
 
-class TestLinalg(unittest.TestCase):
-    DIMS = [5, 10, 20, 30]
-    NUM_ACCURACY_TESTS = 100
-    RTOL = 1e-10
-    ATOL = 1e-10
-
-    def _test_spd_inv_accuracy(self, n):
-        matrices = [random_spd_matrix(n) for _ in range(self.NUM_ACCURACY_TESTS)]
-
-        @jax.jit
-        def jit_fast_spd_inv(mat):
-            return fast_spd_inverse(mat)
-
-        custom_invs = [jit_fast_spd_inv(m) for m in matrices]
-
-        for mat, inv in zip(matrices, custom_invs):
-            check_inversion_accuracy(mat, inv, self.ATOL, self.RTOL)
-
-    def test_schur_inv_accuracy(self):
-        for n in self.DIMS:
-            self._test_schur_inv_accuracy(n)
-
-    def _test_schur_inv_accuracy(self, n):
-        matrices = [random_spd_matrix(n) for _ in range(self.NUM_ACCURACY_TESTS)]
-
-        @jax.jit
-        def jit_schur_inv(mat):
-            return schur_spd_inverse(mat, split_idx=mat.shape[0] // 4)
-
-        custom_invs = [jit_schur_inv(m) for m in matrices]
-
-        for mat, inv in zip(matrices, custom_invs):
-            check_inversion_accuracy(mat, inv, self.ATOL, self.RTOL)
-
-    def test_psd_inv_accuracy(self):
-        for n in self.DIMS:
-            self._test_spd_inv_accuracy(n)
+@pytest.mark.parametrize("method", ["fast_spd", "schur"])
+@pytest.mark.parametrize("n", [5, 10, 20, 30])
+def test_spd_inverse(n, method):
+    inverse = INVERSES[method] or partial(schur_spd_inverse, split_idx=n // 4)
+    inverse = jax.jit(inverse)
+    for _ in range(NUM_SAMPLES):
+        M = random_spd_matrix(n)
+        check_inversion_accuracy(M, inverse(M), TOL)
 
 
-if __name__ == "__main__":
-    unittest.main()
+@pytest.fixture(
+    scope="module",
+    params=[load_fixed_root_g1, load_g1],
+    ids=["g1_fixed_root", "g1_floating_root"],
+)
+def robot(request):
+    return request.param()
+
+
+@pytest.mark.parametrize("method", list(INVERSES))
+def test_mass_matrix_inverse(robot, method):
+    # For the floating base, the Schur complement splits off the 6 floating base DOFs
+    inverse = INVERSES[method] or partial(schur_spd_inverse, split_idx=6)
+    inverse = jax.jit(inverse)
+    mass_matrix = jax.jit(robot.mass_matrix)
+    for _ in range(10):
+        q = np.random.uniform(-1.0, 1.0, robot.nq)
+        if robot.is_quaternion_base:
+            q[3:7] /= np.linalg.norm(q[3:7])
+        M = mass_matrix(q)
+        check_inversion_accuracy(M, inverse(M), MASS_MATRIX_TOL)

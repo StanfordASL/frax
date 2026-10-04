@@ -9,7 +9,6 @@ import time
 from importlib.metadata import version as package_version
 from typing import Callable, Tuple
 
-import numpy as np
 from packaging import version
 
 
@@ -75,8 +74,10 @@ def benchmark_function(
     return avg_time, jit_time
 
 
-def sample_state(robot, batch_size: int | None = None) -> Tuple[np.ndarray, np.ndarray]:
+def sample_state(robot, batch_size: int | None = None) -> Tuple:
     """Sample a random (q, qd), with a leading batch dimension if batch_size is provided"""
+    import numpy as np  # Imported here so that configure_env can run first
+
     shape = () if batch_size is None else (batch_size,)
     q = np.random.uniform(-0.5, 0.5, shape + (robot.nq,))
     if robot.is_quaternion_base:

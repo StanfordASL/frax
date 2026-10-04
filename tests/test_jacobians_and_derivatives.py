@@ -22,8 +22,6 @@ from frax.robots.kuka_iiwa import load_iiwa
 from frax.robots.unitree_a2 import load_a2
 from frax.robots.unitree_g1 import load_fixed_root_g1, load_g1
 
-jax.config.update("jax_platforms", "cpu")
-jax.config.update("jax_enable_x64", True)
 
 NUM_SAMPLES = 5
 
