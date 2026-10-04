@@ -142,7 +142,7 @@ def main(robot_name, demo_mode):
         while env.viewer.is_running():
             z = env.get_joint_state()
             z_ee_des = env.get_desired_ee_state()
-            q = z[: robot.num_joints]
+            q = z[: robot.nv]
             u = differential_ik(q, z_ee_des)
             env.apply_control(u)
             env.step()

@@ -145,7 +145,7 @@ def main(robot_name):
     # Define nullspace posture task
     is_redundant = True  # 6DOF task, 7DOF robot
     des_q = env.q_init
-    des_qdot = np.zeros(robot.num_joints)
+    des_qdot = np.zeros(robot.nv)
 
     # Define acceleration terms for EE task
     des_accel = np.zeros(3)
@@ -160,8 +160,8 @@ def main(robot_name):
     @jax.jit
     def operational_space_control(z, z_ee_des):
         # Extract state info
-        q = z[: robot.num_joints]
-        qdot = z[robot.num_joints :]
+        q = z[: robot.nv]
+        qdot = z[robot.nv :]
         des_pos = z_ee_des[:3]
         des_rot = jnp.reshape(z_ee_des[3:12], (3, 3))
         des_vel = z_ee_des[12:15]
