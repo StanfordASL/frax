@@ -468,6 +468,19 @@ class Robot:
         base_tfs = self._quaternion_base_transforms(q)
         return jnp.concatenate([base_tfs, base_tfs[-1] @ world_tfs])
 
+    def base_transform(self, q: Array) -> Array:
+        """Transformation matrix of the floating base (w.r.t world), shape (4, 4)"""
+        if not self.includes_floating_dof:
+            return jnp.eye(4)
+        joint_transforms = self.joint_to_world_transforms(q)
+        return self._base_transform(joint_transforms)
+
+    def _base_transform(self, joint_transforms: Array) -> Array:
+        if not self.includes_floating_dof:
+            return jnp.eye(4)
+        # The final virtual body of the 6DOF chain holds the full pose of the base
+        return joint_transforms[self.nv_floating - 1]
+
     def link_to_world_transforms(self, q: Array) -> Array:
         """Compute the transformation matrices for all link inertial frames (link inertial frame --> world frame)
 
