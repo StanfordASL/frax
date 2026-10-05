@@ -366,7 +366,7 @@ class Robot:
             [q1[:3] - q0[:3], quat_wxyz_log(quat_rel), q1[7:] - q0[7:]]
         )
 
-    def configuration_velocity_map(self, q: Array) -> Array:
+    def velocity_to_qdot_map(self, q: Array) -> Array:
         """Matrix E(q) mapping velocities to the time derivative of the configuration: q_dot = E(q) @ qd
 
         This is useful when combining autodiff w.r.t. q with velocities, e.g.

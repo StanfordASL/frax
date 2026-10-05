@@ -298,7 +298,7 @@ def test_feet_jacobians_and_derivatives_autodiff(robot, foot):
     J_and_Jdot_func = getattr(robot, f"{foot}_foot_jacobian_and_derivative")
     for _ in range(3):
         q, qd = sample_state()
-        E = robot.configuration_velocity_map(q)
+        E = robot.velocity_to_qdot_map(q)
         J, Jdot = J_and_Jdot_func(q, qd)
         np.testing.assert_allclose(J, J_func(q), atol=1e-12)
         # Linear part of the Jacobian via autodiff

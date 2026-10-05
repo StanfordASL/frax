@@ -95,7 +95,7 @@ def test_center_of_mass_jacobian(robot, states):
     @jax.jit
     @jax.vmap
     def compute(q):
-        E = robot.configuration_velocity_map(q)
+        E = robot.velocity_to_qdot_map(q)
         J_analytical = robot.center_of_mass_jacobian(q)
         J_autodiff = jax.jacfwd(robot.center_of_mass)(q) @ E
         return J_analytical, J_autodiff
@@ -114,7 +114,7 @@ def test_ee_jacobians(robot, states, subtests):
     @jax.jit
     @jax.vmap
     def compute(q):
-        E = robot.configuration_velocity_map(q)
+        E = robot.velocity_to_qdot_map(q)
         results = {}
         for name in names:
             jac_func = getattr(robot, f"{name}_jacobian")
@@ -143,7 +143,7 @@ def test_ee_jacobian_derivatives(robot, states, subtests):
     @jax.jit
     @jax.vmap
     def compute(q, qd):
-        q_dot = robot.configuration_velocity_map(q) @ qd
+        q_dot = robot.velocity_to_qdot_map(q) @ qd
         results = {}
         for name in names:
             jac_dot_func = getattr(robot, f"{name}_jacobian_and_derivative")
@@ -172,7 +172,7 @@ def test_link_jacobians(robot, states):
     @jax.jit
     @jax.vmap
     def compute(q):
-        E = robot.configuration_velocity_map(q)
+        E = robot.velocity_to_qdot_map(q)
         tfs = robot.joint_to_world_transforms(q)
         Jvs_analytical = robot._link_linear_jacobians(tfs)
         Jws_analytical = robot._link_angular_jacobians(tfs)
@@ -202,7 +202,7 @@ def test_joint_jacobians(robot, states):
     @jax.jit
     @jax.vmap
     def compute(q):
-        E = robot.configuration_velocity_map(q)
+        E = robot.velocity_to_qdot_map(q)
         tfs = robot.joint_to_world_transforms(q)
         Jvs_analytical, Jws_analytical = robot._joint_jacobians(tfs)
         Jvs_autodiff = (

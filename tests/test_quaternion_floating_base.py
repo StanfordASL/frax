@@ -430,10 +430,10 @@ class TestAutodiff:
             dq = jax.jacobian(robot.integrate, argnums=1)(q, jnp.zeros(35))
             assert np.all(np.isfinite(dq))
 
-    def test_configuration_velocity_map(self, robot):
+    def test_velocity_to_qdot_map(self, robot):
         for _ in range(10):
             q, qd = sample_state()
-            E = robot.configuration_velocity_map(q)
+            E = robot.velocity_to_qdot_map(q)
             # q_dot = d/dt integrate(q, qd, t) at t = 0
             q_dot = jax.jacobian(lambda t: robot.integrate(q, qd, t))(0.0)
             np.testing.assert_allclose(E @ qd, q_dot, atol=1e-10)
