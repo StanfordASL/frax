@@ -443,8 +443,6 @@ def wxyz_to_xyzw(quat: Array) -> Array:
 def quat_wxyz_exp(rotvec: Array) -> Array:
     """Exponential map: rotation vector (axis * angle) to a WXYZ quaternion
 
-    This is safe to differentiate through at zero rotation
-
     Args:
         rotvec (Array): Rotation vector, shape (3,)
 
@@ -461,9 +459,8 @@ def quat_wxyz_exp(rotvec: Array) -> Array:
 
 
 def quat_wxyz_log(quat_wxyz: Array) -> Array:
-    """Logarithmic map: WXYZ quaternion to a rotation vector (axis * angle), via the shortest path
-
-    This is safe to differentiate through at zero rotation
+    """Logarithmic map: WXYZ quaternion to a rotation vector (axis * angle),
+    via the shortest path
 
     Args:
         quat_wxyz (Array): WXYZ quaternion, shape (4,)
@@ -472,7 +469,7 @@ def quat_wxyz_log(quat_wxyz: Array) -> Array:
         Array: Rotation vector, shape (3,)
     """
     quat_wxyz = quat_wxyz / jnp.linalg.norm(quat_wxyz)
-    # Ensure shortest path (q and -q represent the same rotation)
+    # Ensure shortest path
     quat_wxyz = jnp.where(quat_wxyz[0] < 0.0, -quat_wxyz, quat_wxyz)
     w, v = quat_wxyz[0], quat_wxyz[1:]
     s_sq = jnp.dot(v, v)
