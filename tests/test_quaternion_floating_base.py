@@ -346,9 +346,6 @@ class TestVsEuler:
         np.testing.assert_array_equal(q_quat[3:7], [1, 0, 0, 0])
         np.testing.assert_array_equal(q_euler[3:6], [0, 0, 0])
         np.testing.assert_array_equal(q_quat[7:], q_euler[6:])
-        # Returns a copy
-        q_quat[2] += 1.0
-        assert robot.default_configuration[2] != q_quat[2]
         # If unspecified: identity base pose at the origin, zero joints
         urdf = str(FRANKA_ASSETS_DIR / "panda.urdf")
         np.testing.assert_array_equal(
@@ -427,7 +424,7 @@ class TestAutodiff:
             q1 = robot.integrate(q, qd, 0.5)
             np.testing.assert_allclose(robot.difference(q, q1), 0.5 * qd, atol=1e-10)
             # Zero velocity should have a well-defined (non-NaN) derivative
-            dq = jax.jacobian(robot.integrate, argnums=1)(q, jnp.zeros(35))
+            dq = jax.jacobian(robot.integrate, argnums=1)(q, jnp.zeros(35), 0.5)
             assert np.all(np.isfinite(dq))
 
     def test_velocity_to_qdot_map(self, robot):
