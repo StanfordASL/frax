@@ -75,7 +75,7 @@ print(M)
 ```
 See the [Performance Tips](#performance-tips) section below for more advice on making your code *fast*.
 
-Many more kinematics and dynamics terms are available (joint/link/frame transforms and Jacobians, gravity vector, centrifugal/coriolis forces, and many other values relevant to robot control). We also provide `Manipulator`, `Humanoid`, and `Quadruped` classes for useful helper functions based on your robot's form-factor, and `frax` comes pre-loaded with the Franka Panda, Unitree G1, and Unitree A2. 
+Many more kinematics and dynamics terms are available (joint/link/frame transforms and Jacobians, gravity vector, centrifugal/coriolis forces, and many other values relevant to robot control). We also provide `Manipulator`, `Humanoid`, and `Quadruped` classes for useful helper functions based on your robot's form-factor, and `frax` comes pre-loaded with the Franka Panda, Kuka iiwa, Unitree G1, and Unitree A2. 
 
 More advanced and interactive demos are included in the `examples` directory, as seen below
 
@@ -109,10 +109,8 @@ Here, we're enforcing
 
 - If you would like to use `frax`'s collision methods, you must first define a spherized collision model of your robot (or, use our pre-built collision models for the Franka Panda/FR3 and the Unitree G1). Check out [this page](docs/modeling_collision.md) for more info!
 - For now, if you have joints in your URDF that are not part of the primary kinematic chain/tree being controlled (for instance, gripper joints), please set these as `fixed` so that they can be ignored, and so their child links' inertias can be fused into the parent. In the future, we will allow for fixing joints programmatically.
-- Free-floating bases (e.g. humanoids) can be represented in two ways, via `floating_base="quaternion"` (the default for `Humanoid` and `load_g1`) or `floating_base="euler"`:
-  - `"quaternion"`: A free joint matching MuJoCo's conventions. The configuration is `q = [position, WXYZ quaternion, joints]` and the velocity is `qd = [world-frame linear velocity, body-frame angular velocity, joint velocities]`, so `robot.nq = robot.nv + 1`. You can pass MuJoCo's `qpos`/`qvel` directly. Use `robot.integrate(q, qd, dt)` rather than `q + qd * dt`, and if you differentiate a function `f(q)` with autodiff, map the result back to velocity space with `jax.jacobian(f)(q) @ robot.configuration_velocity_map(q)`.
-  - `"euler"`: 6 virtual joints (3 prismatic, 3 revolute: intrinsic XYZ euler angles), as described in the paper. Here, `nq = nv`, and `qd` is simply the time derivative of `q`, but there is a singularity at a pitch of +/- 90 degrees.
-
+- Free-floating bases with a `quaternion` rotation representation follow MuJoCo's convention: `q = [position, WXYZ quaternion, joints]` and `v = [world-frame linear velocity, body-frame angular velocity, joint velocities]`. The original implementation of `frax` used 6 "virtual joints" (3 prismatic, 3 revolute) to represent a floating base, in which case `nq = nv` and `q_dot = v`. However, the intrinsic Euler XYZ rotation representation can suffer from singularities / gimbal lock. 
+- If working with quaternions, use `robot.integrate(q, v, dt)` rather than `q + v * dt`, and if you differentiate a function `f(q)` with autodiff, map the result back to velocity space with `jax.jacobian(f)(q) @ robot.velocity_to_qdot_map(q)`.
 
 ## Performance tips
 
@@ -132,7 +130,6 @@ For general advice on JAX, check out the [quickstart guide](https://docs.jax.dev
 
 - Add MJCF support
 - Add support for collision primitives other than just spheres
-- Add Quadruped class
 - Analytical Jacobians of forward/inverse dynamics (see: Pinocchio)
 
 The following features are unplanned:
