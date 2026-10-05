@@ -51,34 +51,15 @@ class Robot:
         joint_ordering (Optional[list[str]]): A specific joint ordering to use.
             Defaults to None (infer ordering from URDF)
         floating_base (Optional[str]): How to model a free-floating base. Defaults to None
-            (base is fixed to the world). Options:
-            - "quaternion": A 6DOF free joint with MuJoCo's conventions. The configuration is
-                q = [position (world), WXYZ quaternion (world), actuated joints], so nq = nv + 1,
-                and the velocity is qd = [linear velocity (world), angular velocity (body),
-                actuated joint velocities]. Singularity-free.
-            - "euler": 6 virtual joints (3 prismatic, then 3 revolute, i.e. intrinsic XYZ euler
-                angles). The configuration is q = [position, euler angles, actuated joints], and the
-                velocity is its time derivative, so nq = nv. Singular at pitch = +/- pi/2.
+            (fixed-base), or "quaternion"/"euler" depending on the desired rotation
+            representation. Quaternion matches MuJoCo's conventions where
+            q = [position, wxyz quaternion, actuated joints] and
+            v = [linear velocity, body angular velocity, actuated joint velocities].
+            Euler uses 6 virtual joints (3 prismatic, 3 revolute), i.e. intrinsic XYZ
+            Euler angles for the rotation. With Euler, nq = nv and qdot = v, but you have
+            the gimbal lock issue inherent to Euler angles
         default_configuration (Optional[ArrayLike]): The default configuration, shape (nq),
-            including the floating base pose (if any). Defaults to None (floating base at the
-            origin with identity orientation, all actuated joints at zero)
-
-    Dimensions:
-        nq: Size of the configuration vector q
-        nv: Size of the velocity vector qd (and qdd, tau, Jacobian columns, mass matrix, ...)
-        velocity_to_configuration_index: Dict from each velocity index whose entry is the time
-            derivative of a single configuration entry (q_dot = qd) to that entry's index in q.
-            A quaternion base's angular velocity (qd[3:6]) has no key
-
-    Per-joint arrays (joint_names, joint_types, joint_name_to_index, ...) are indexed by velocity.
-    The joint limits (actuated_joint_lower_limits, actuated_joint_upper_limits,
-    actuated_joint_max_forces, actuated_joint_max_velocities) only cover the actuated joints, so
-    they have length num_actuated_joints and line up with q[nq_floating:], qd[nv_floating:], and
-    tau[nv_floating:]. The floating base has no limits
-
-    Note: Internally, a floating base is always expanded into 6 single-DOF "virtual" bodies
-    (the last of which carries the base link's inertia), so all per-body arrays such as the
-    joint transforms have nv rows, regardless of the floating base representation.
+            Defaults to None (identity floating base, if used, and all actuated joints at zero)
     """
 
     def __init__(
@@ -182,9 +163,6 @@ class Robot:
             ):
                 raise ValueError("default_configuration's quaternion must be unit norm")
         self.default_configuration = default_configuration
-        # Velocity index -> index into q of its configuration entry, for the velocities that are
-        # the time derivative of a single configuration entry (q_dot = qd). A quaternion base's
-        # angular velocity has no entry
         if self.is_quaternion_base:
             qd_idxs = [*range(3), *range(6, self.nv)]
             q_idxs = [*range(3), *range(7, self.nq)]
@@ -297,20 +275,17 @@ class Robot:
         return mask
 
     def _compute_velocity_mask(self) -> np.ndarray:
-        """Computes the mask describing which DOFs contribute to each body's spatial velocity.
-
-        For single-DOF joints, this is just the ancestor mask. However, a quaternion-based free
-        joint is a single 6-DOF joint: its 6 virtual bodies are not a serial chain, but rather
-        all coincide with the base. Each translational virtual body (identity rotation, at the
-        base position) moves with all 3 translational DOFs, and each rotational virtual body moves
-        with the full base velocity. This matters for the velocity-product (S_dot @ qd) terms.
+        """Computes the mask describing which DOFs contribute to each body's spatial velocity
 
         Returns:
             np.ndarray: Shape (nv, nv). Mask[i, j] = 1 if DOF j contributes to the velocity of body i
         """
+        # Note: This is the same as the ancestor mask, except for a quaternion floating base
         mask = self.ancestor_mask.copy()
         if self.is_quaternion_base:
+            # Translational bodies move with the linear DOFs
             mask[0:3, 0:3] = True
+            # Rotational bodies move with linear and angular DOFs
             mask[3:6, 0:6] = True
         return mask
 
@@ -325,21 +300,16 @@ class Robot:
         )
         return self.nv
 
-    # CONFIGURATION SPACE
-
-    def integrate(self, q: Array, qd: Array, dt: float = 1.0) -> Array:
+    def integrate(self, q: Array, qd: Array, dt: float) -> Array:
         """Integrates a configuration forward in time with a constant velocity
-
-        For a quaternion floating base, this matches MuJoCo's position integration
-        (world-frame linear velocity, body-frame angular velocity)
 
         Args:
             q (Array): Configuration, shape (nq,)
             qd (Array): Velocity, shape (nv,)
-            dt (float, optional): Timestep. Defaults to 1.0.
+            dt (float): Timestep
 
         Returns:
-            Array: Configuration after dt, shape (nq,)
+            Array: New configuration, shape (nq,)
         """
         if not self.is_quaternion_base:
             return q + qd * dt
@@ -350,7 +320,8 @@ class Robot:
         return jnp.concatenate([pos, quat, q_act])
 
     def difference(self, q0: Array, q1: Array) -> Array:
-        """Computes the velocity which takes q0 to q1 in unit time (the inverse of `integrate`)
+        """Computes the velocity which takes q0 to q1 in unit time
+        (inverse of integrate)
 
         Args:
             q0 (Array): Starting configuration, shape (nq,)
@@ -367,7 +338,8 @@ class Robot:
         )
 
     def velocity_to_qdot_map(self, q: Array) -> Array:
-        """Matrix E(q) mapping velocities to the time derivative of the configuration: q_dot = E(q) @ qd
+        """Matrix E(q) mapping velocities to the time derivative of the configuration:
+        q_dot = E(q) @ qd
 
         This is useful when combining autodiff w.r.t. q with velocities, e.g.
         dh/dt = (dh/dq) @ E(q) @ qd. When nq == nv, this is the identity.
@@ -381,15 +353,13 @@ class Robot:
         if not self.is_quaternion_base:
             return jnp.eye(self.nv)
         w, x, y, z = q[3:7]
-        # q_dot = 0.5 * quat ⊗ [0, omega_body]
+        # q_dot = 0.5 * quat * [0, omega_body] (quaternion multiplication)
         quat_map = 0.5 * jnp.array([[-x, -y, -z], [w, -z, y], [z, w, -x], [-y, x, w]])
         E = jnp.zeros((self.nq, self.nv))
         E = E.at[:3, :3].set(jnp.eye(3))
         E = E.at[3:7, 3:6].set(quat_map)
         E = E.at[7:, 6:].set(jnp.eye(self.num_actuated_joints))
         return E
-
-    # KINEMATICS
 
     def joint_to_world_transforms(self, q: Array) -> Array:
         """Computes the transformation matrices for all joints (Joint frame --> world frame)
@@ -414,19 +384,18 @@ class Robot:
 
         Note: For a quaternion floating base, this only includes the actuated joints
         """
-        i = self.nv_floating if self.is_quaternion_base else 0
+        i_v = self.nv_floating if self.is_quaternion_base else 0
+        i_q = self.nq_floating if self.is_quaternion_base else 0
         # Calculate each joint's transformation matrix
         transforms = jax.vmap(joint_transform)(
-            q[self.nq - self.nv + i :], self.joint_axes[i:], self.joint_types[i:]
+            q[i_q:], self.joint_axes[i_v:], self.joint_types[i_v:]
         )
         # Multiply the transform by its corresponding link offset
-        return self.joint_to_prev_joint_tfs[i:] @ transforms
+        return self.joint_to_prev_joint_tfs[i_v:] @ transforms
 
     def _quaternion_base_transforms(self, q: Array) -> Array:
         """Helper function: Computes the world transforms of the 6 virtual bodies of the
-        quaternion floating base. The translational DOFs have frames at the base position with
-        identity rotation (so, their axes are world-aligned), and the rotational DOFs have the
-        frame of the base (so, their axes are body-aligned)
+        quaternion floating base
 
         Returns:
             Array: Transformation matrices, shape (6, 4, 4)
@@ -434,7 +403,9 @@ class Robot:
         pos = q[:3]
         R = quat_wxyz_to_rmat(q[3:7])
         bottom_row = jnp.array([[0.0, 0.0, 0.0, 1.0]])
+        # All positional TFs are at the base pos with identity rotation
         T_pos = jnp.block([[jnp.eye(3), pos[:, None]], [bottom_row]])
+        # All rotational TFs are at the base pos and base rot
         T_base = jnp.block([[R, pos[:, None]], [bottom_row]])
         return jnp.stack([T_pos, T_pos, T_pos, T_base, T_base, T_base])
 
