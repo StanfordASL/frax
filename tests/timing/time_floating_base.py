@@ -17,29 +17,30 @@ from frax import load_g1
 
 
 def make_functions(robot):
-    def fk(q, qd):
+    def fk(q, v):
         return robot.joint_to_world_transforms(q)
 
-    def mass_matrix(q, qd):
+    def mass_matrix(q, v):
         return robot.mass_matrix(q)
 
-    def bias(q, qd):
-        return robot.nonlinear_bias(q, qd)
+    def bias(q, v):
+        return robot.nonlinear_bias(q, v)
 
-    def forward_dynamics(q, qd):
-        return robot.forward_dynamics(q, qd, qd, None)
+    def forward_dynamics(q, v):
+        a = v  # hack
+        return robot.forward_dynamics(q, v, a, None)
 
-    def hand_J_Jdot(q, qd):
-        return robot.left_hand_jacobian_and_derivative(q, qd)
+    def hand_J_Jdot(q, v):
+        return robot.left_hand_jacobian_and_derivative(q, v)
 
-    def osc_terms(q, qd):
+    def osc_terms(q, v):
         # A typical whole-body controller's per-step dynamics terms
         tfs = robot.joint_to_world_transforms(q)
         M = robot._mass_matrix(tfs)
         M_inv = robot.mass_matrix_inverse(M)
-        b = robot._nonlinear_bias(qd, tfs)
-        J_lh, Jd_lh = robot._left_hand_jacobian_and_derivative(qd, tfs)
-        J_rh, Jd_rh = robot._right_hand_jacobian_and_derivative(qd, tfs)
+        b = robot._nonlinear_bias(v, tfs)
+        J_lh, Jd_lh = robot._left_hand_jacobian_and_derivative(v, tfs)
+        J_rh, Jd_rh = robot._right_hand_jacobian_and_derivative(v, tfs)
         J_com = robot._center_of_mass_jacobian(tfs)
         return M, M_inv, b, J_lh, Jd_lh, J_rh, Jd_rh, J_com
 

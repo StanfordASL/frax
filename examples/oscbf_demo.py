@@ -145,7 +145,7 @@ def main(robot_name):
     # Define nullspace posture task
     is_redundant = True  # 6DOF task, 7DOF robot
     des_q = env.q_init
-    des_qdot = np.zeros(robot.nv)
+    des_v = np.zeros(robot.nv)
 
     # Define acceleration terms for EE task
     des_accel = np.zeros(3)
@@ -160,20 +160,20 @@ def main(robot_name):
     @jax.jit
     def operational_space_control(z, z_ee_des):
         # Extract state info
-        q = z[: robot.nv]
-        qdot = z[robot.nv :]
+        q = z[: robot.nq]
+        v = z[robot.nq :]
         des_pos = z_ee_des[:3]
         des_rot = jnp.reshape(z_ee_des[3:12], (3, 3))
         des_vel = z_ee_des[12:15]
         des_omega = z_ee_des[15:18]
 
         # FRAX Kinematics + Dynamics
-        M, M_inv, g, c, J, ee_tmat = robot.torque_control_matrices(q, qdot)
+        M, M_inv, g, c, J, ee_tmat = robot.torque_control_matrices(q, v)
         pos = ee_tmat[:3, 3]
         rot = ee_tmat[:3, :3]
 
         # Compute twist
-        twist = J @ qdot
+        twist = J @ v
         vel = twist[:3]
         omega = twist[3:]
 
@@ -207,8 +207,8 @@ def main(robot_name):
             NT = jnp.eye(robot.nv) - J.T @ J_bar.T
             # Add nullspace joint task
             q_error = q - des_q
-            qdot_error = qdot - des_qdot
-            joint_accel = -kp_joint * q_error - kd_joint * qdot_error
+            v_error = v - des_v
+            joint_accel = -kp_joint * q_error - kd_joint * v_error
             secondary_joint_torques = M @ joint_accel
             tau += NT @ secondary_joint_torques
 

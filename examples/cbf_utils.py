@@ -22,7 +22,7 @@ from frax.core.manipulator import Manipulator
 class OSCBFTorqueConfig(CBFConfig):
     """CBF Configuration for safe torque-controlled manipulation
 
-    State: z = [q, qdot] (length = 2 * num_joints)
+    State: z = [q, v] (length = 2 * num_joints)
     Control: u = [joint torques] (length = num_joints)
 
     Args:
@@ -80,15 +80,15 @@ class OSCBFTorqueConfig(CBFConfig):
 
     def f(self, z, *args, **kwargs):
         q = z[: self.num_joints]
-        q_dot = z[self.num_joints : self.num_joints * 2]
+        v = z[self.num_joints : self.num_joints * 2]
         M = self.robot.mass_matrix(q)
         M_inv = jnp.linalg.inv(M)
         bias = self.robot.gravity_vector(q)
         if self.compensate_centrifugal_coriolis:
-            bias += self.robot.centrifugal_coriolis_vector(q, q_dot)
+            bias += self.robot.centrifugal_coriolis_vector(q, v)
         return jnp.concatenate(
             [
-                q_dot,  # Joint velocity
+                v,  # Joint velocity
                 -M_inv @ bias,  # Joint acceleration
             ]
         )

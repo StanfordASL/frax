@@ -164,11 +164,11 @@ class Robot:
                 raise ValueError("default_configuration's quaternion must be unit norm")
         self.default_configuration = default_configuration
         if self.is_quaternion_base:
-            qd_idxs = [*range(3), *range(6, self.nv)]
+            v_idxs = [*range(3), *range(6, self.nv)]
             q_idxs = [*range(3), *range(7, self.nq)]
         else:
-            qd_idxs = q_idxs = range(self.nv)
-        self.velocity_to_configuration_index = dict(zip(qd_idxs, q_idxs))
+            v_idxs = q_idxs = range(self.nv)
+        self.velocity_to_configuration_index = dict(zip(v_idxs, q_idxs))
         self.has_collision_data = len(collision_positions) > 0
         self.has_root_collision_data = len(root_collision_positions) > 0
         self.has_sc_data = len(body_sc_pairs) > 0
@@ -300,23 +300,23 @@ class Robot:
         )
         return self.nv
 
-    def integrate(self, q: Array, qd: Array, dt: float) -> Array:
+    def integrate(self, q: Array, v: Array, dt: float) -> Array:
         """Integrates a configuration forward in time with a constant velocity
 
         Args:
             q (Array): Configuration, shape (nq,)
-            qd (Array): Velocity, shape (nv,)
+            v (Array): Velocity, shape (nv,)
             dt (float): Timestep
 
         Returns:
             Array: New configuration, shape (nq,)
         """
         if not self.is_quaternion_base:
-            return q + qd * dt
-        pos = q[:3] + qd[:3] * dt
-        quat = quat_wxyz_multiply(q[3:7], quat_wxyz_exp(qd[3:6] * dt))
+            return q + v * dt
+        pos = q[:3] + v[:3] * dt
+        quat = quat_wxyz_multiply(q[3:7], quat_wxyz_exp(v[3:6] * dt))
         quat = quat / jnp.linalg.norm(quat)
-        q_act = q[7:] + qd[6:] * dt
+        q_act = q[7:] + v[6:] * dt
         return jnp.concatenate([pos, quat, q_act])
 
     def difference(self, q0: Array, q1: Array) -> Array:
@@ -339,10 +339,10 @@ class Robot:
 
     def velocity_to_qdot_map(self, q: Array) -> Array:
         """Matrix E(q) mapping velocities to the time derivative of the configuration:
-        q_dot = E(q) @ qd
+        q_dot = E(q) @ v
 
         This is useful when combining autodiff w.r.t. q with velocities, e.g.
-        dh/dt = (dh/dq) @ E(q) @ qd. When nq == nv, this is the identity.
+        dh/dt = (dh/dq) @ E(q) @ v. When nq == nv, this is the identity.
 
         Args:
             q (Array): Configuration, shape (nq,)
@@ -614,7 +614,7 @@ class Robot:
     # TODO: See if using more spatial algebra would simplify some of the operations here
     def _frame_jacobian_and_derivative(
         self,
-        qd: Array,
+        v: Array,
         joint_transforms: Array,
         frame_transform: Array,  # TODO rename to offset_transform?
         parent_chain: Array,
@@ -626,7 +626,7 @@ class Robot:
         computations between J and Jdot in that case
 
         Args:
-            qd (Array): Joint velocities, shape (nv,)
+            v (Array): Joint velocities, shape (nv,)
             joint_transforms (Array): Transformation matrices for every joint, shape (nv, 4, 4)
             frame_transform (Array): Transformation matrix of interest in its local frame, shape (4, 4)
             parent_chain (Array): Ancestor joint indices of the frame's link
@@ -638,8 +638,8 @@ class Robot:
         """
         # TODO: Create a version of _joint_jacobians that allows us to just compute it for the parent chain?
         joint_Jvs, joint_Jws = self._joint_jacobians(joint_transforms)
-        parent_vels = joint_Jvs[parent_chain] @ qd
-        parent_ang_vels = joint_Jws[parent_chain] @ qd
+        parent_vels = joint_Jvs[parent_chain] @ v
+        parent_ang_vels = joint_Jws[parent_chain] @ v
 
         # NOTE: Many of these operations below are similar to the frame_jacobian function
         # For more documentation, refer to the comments in that function
@@ -667,7 +667,7 @@ class Robot:
         ).T
         J = jnp.vstack([Jv, Jw])
 
-        frame_vel = Jv @ qd[parent_chain]
+        frame_vel = Jv @ v[parent_chain]
         frame_vel_wrt_parents = frame_vel[jnp.newaxis, :] - parent_vels
 
         lever_arms_dot = jnp.cross(parent_axes_dot, frame_pos_wrt_parents) + jnp.cross(
@@ -988,8 +988,8 @@ class Robot:
             return self._rnea_from_spatial_data(
                 spatial_axes,
                 spatial_inertias,
-                qd=None,
-                qdd=None,
+                v=None,
+                a=None,
                 gravity_accel=g_accel,
                 F_ext=None,
             )
@@ -1012,45 +1012,45 @@ class Robot:
             g = jnp.array([0.0, 0.0, -9.81])
             return -jnp.einsum("l, ldj, d -> j", self.link_masses, link_Jvs, g)
 
-    def centrifugal_coriolis_vector(self, q: Array, qd: Array) -> Array:
+    def centrifugal_coriolis_vector(self, q: Array, v: Array) -> Array:
         """Compute the centrifugal and coriolis vector for a given joint configuration
 
         Args:
             q (Array): Array of joint angles, shape (nq,)
-            qd (Array): Array of joint velocities, shape (nv,)
+            v (Array): Array of joint velocities, shape (nv,)
 
         Returns:
             Array: The centrifugal and coriolis vector, shape (nv,)
         """
         joint_transforms = self.joint_to_world_transforms(q)
-        return self._centrifugal_coriolis_vector(qd, joint_transforms)
+        return self._centrifugal_coriolis_vector(v, joint_transforms)
 
-    def _centrifugal_coriolis_vector(self, qd: Array, joint_transforms: Array) -> Array:
+    def _centrifugal_coriolis_vector(self, v: Array, joint_transforms: Array) -> Array:
         """Helper function: Computes the centrifugal/coriolis vector given the joint transforms"""
         spatial_axes, spatial_inertias = self._spatial_axes_and_inertias(
             joint_transforms
         )
         return self._rnea_from_spatial_data(
-            spatial_axes, spatial_inertias, qd, qdd=None, gravity_accel=None, F_ext=None
+            spatial_axes, spatial_inertias, v, a=None, gravity_accel=None, F_ext=None
         )
 
-    def nonlinear_bias(self, q: Array, qd: Array) -> Array:
+    def nonlinear_bias(self, q: Array, v: Array) -> Array:
         """Compute the nonlinear bias vector (Centrifugal/Coriolis + Gravity) in a single pass
         ```
-        b(q, qd) = c(q, qd) + g(q),
+        b(q, v) = c(q, v) + g(q),
         ```
 
         Args:
             q (Array): Joint positions, shape (nq,)
-            qd (Array): Joint velocities, shape (nv,)
+            v (Array): Joint velocities, shape (nv,)
 
         Returns:
             Array: The nonlinear bias vector, shape (nv,)
         """
         joint_transforms = self.joint_to_world_transforms(q)
-        return self._nonlinear_bias(qd, joint_transforms)
+        return self._nonlinear_bias(v, joint_transforms)
 
-    def _nonlinear_bias(self, qd: Array, joint_transforms: Array) -> Array:
+    def _nonlinear_bias(self, v: Array, joint_transforms: Array) -> Array:
         """Helper function: Computes the nonlinear bias (c + g) given the joint transforms"""
         g_accel = jnp.array([0.0, 0.0, 9.81, 0.0, 0.0, 0.0])
         spatial_axes, spatial_inertias = self._spatial_axes_and_inertias(
@@ -1059,8 +1059,8 @@ class Robot:
         return self._rnea_from_spatial_data(
             spatial_axes,
             spatial_inertias,
-            qd=qd,
-            qdd=None,
+            v=v,
+            a=None,
             gravity_accel=g_accel,
             F_ext=None,
         )
@@ -1068,8 +1068,8 @@ class Robot:
     def rnea(
         self,
         q: Array,
-        qd: Optional[Array],
-        qdd: Optional[Array],
+        v: Optional[Array],
+        a: Optional[Array],
         gravity_accel: Optional[Array],
         F_ext: Optional[Array],
     ) -> Array:
@@ -1077,9 +1077,9 @@ class Robot:
 
         Args:
             q (Array): Joint positions, shape (nq,)
-            qd (Optional[Array]): Joint velocities, shape (nv,). None if not considering
+            v (Optional[Array]): Joint velocities, shape (nv,). None if not considering
                 joint velocities (as is done to compute gravity)
-            qdd (Optional[Array]): Joint accelerations, shape (nv,). This is currently not used
+            a (Optional[Array]): Joint accelerations, shape (nv,). This is currently not used
                 for most methods and can be set to None.
             gravity_accel (Optional[Array]): Spatial acceleration from gravity, shape (6,). None if
                 not considering gravity (as is done to compute centrifugal/coriolis)
@@ -1094,15 +1094,15 @@ class Robot:
             joint_transforms
         )
         return self._rnea_from_spatial_data(
-            spatial_axes, spatial_inertias, qd, qdd, gravity_accel, F_ext
+            spatial_axes, spatial_inertias, v, a, gravity_accel, F_ext
         )
 
     def _rnea_from_spatial_data(
         self,
         spatial_axes: Array,
         spatial_inertias: Array,
-        qd: Optional[Array],
-        qdd: Optional[Array],
+        v: Optional[Array],
+        a: Optional[Array],
         gravity_accel: Optional[Array],
         F_ext: Optional[Array],
     ) -> Array:
@@ -1114,25 +1114,23 @@ class Robot:
         if gravity_accel is not None:
             spatial_accel += gravity_accel[None, :]
 
-        if qd is not None:
-            s_qd = spatial_axes * qd[:, None]  # Helper
+        if v is not None:
+            s_v = spatial_axes * v[:, None]  # Helper
             # Spatial velocities for every link, summed over contributions from ancestors
-            spatial_vel = self.velocity_mask @ s_qd
+            spatial_vel = self.velocity_mask @ s_v
             # Spatial accelerations for every link, summed over contributions from ancestors
-            spatial_accel += self.velocity_mask @ spatial_motion_cross(
-                spatial_vel, s_qd
-            )
+            spatial_accel += self.velocity_mask @ spatial_motion_cross(spatial_vel, s_v)
         else:
             spatial_vel = jnp.zeros((self.nv, 6))
 
-        if qdd is not None:
-            spatial_accel += self.velocity_mask @ (spatial_axes * qdd[:, None])
+        if a is not None:
+            spatial_accel += self.velocity_mask @ (spatial_axes * a[:, None])
 
         # Newton-Euler (part 1): I * a term
         link_forces = jnp.einsum("ijk,ik->ij", spatial_inertias, spatial_accel)
 
         # Newton-Euler (part 2): v x I * v term
-        if qd is not None:
+        if v is not None:
             Iv = jnp.einsum("ijk,ik->ij", spatial_inertias, spatial_vel)
             link_forces += spatial_force_cross(spatial_vel, Iv)
 
@@ -1207,7 +1205,7 @@ class Robot:
         return spatial_axes, spatial_inertias
 
     def forward_dynamics(
-        self, q: Array, qd: Array, tau: Array, fext: Optional[Array]
+        self, q: Array, v: Array, tau: Array, fext: Optional[Array]
     ) -> Array:
         """Compute the joint acceleration resulting from an applied torque (and optionally,
         any external forces acting on the links), given the joint state
@@ -1216,7 +1214,7 @@ class Robot:
 
         Args:
             q (Array): Joint positions, shape (nq,)
-            qd (Array): Joint velocities, shape (nv,)
+            v (Array): Joint velocities, shape (nv,)
             tau (Array): Joint torques, shape (nv,)
             fext (Optional[Array]): External wrenches on each link (expressed in the root/world frame),
                 shape (nv, 6). Set to None if no external forces are applied
@@ -1225,12 +1223,12 @@ class Robot:
             Array: Joint accelerations, shape (nv,)
         """
         joint_transforms = self.joint_to_world_transforms(q)
-        return self._forward_dynamics(joint_transforms, qd, tau, fext)
+        return self._forward_dynamics(joint_transforms, v, tau, fext)
 
     def _forward_dynamics(
         self,
         joint_transforms: Array,
-        qd: Array,
+        v: Array,
         tau: Array,
         fext: Optional[Array],
     ) -> Array:
@@ -1245,9 +1243,9 @@ class Robot:
         bias = self._rnea_from_spatial_data(
             spatial_axes,
             spatial_inertias,
-            qd=qd,
+            v=v,
             gravity_accel=g_accel,
-            qdd=None,
+            a=None,
             F_ext=fext,
         )
         # TODO: Decide if it's better to use a cho_factor + cho_solve combo here

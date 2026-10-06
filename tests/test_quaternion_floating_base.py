@@ -2,13 +2,13 @@
 
 The quaternion floating base uses MuJoCo's free joint conventions:
 - q = [position (world), WXYZ quaternion (world), actuated joint positions], nq = nv + 1
-- qd = [linear velocity (world), angular velocity (body), actuated joint velocities]
+- v = [linear velocity (world), angular velocity (body), actuated joint velocities]
 
 So, we can compare against MuJoCo directly. For Pinocchio, the freeflyer joint uses
 XYZW quaternions and a body-frame linear velocity, so we convert between the two:
-    v_pin = T @ qd, where T = blockdiag(R^T, I)
+    v_pin = T @ v, where T = blockdiag(R^T, I)
 which implies M_frax = T^T M_pin T, and tau_frax = T^T tau_pin.
-Note that T depends on the state, so T_dot @ qd must be accounted for in the accelerations.
+Note that T depends on the state, so T_dot @ v must be accounted for in the accelerations.
 """
 
 from typing import Tuple
@@ -45,28 +45,28 @@ def sample_state(nv: int = 35) -> Tuple[np.ndarray, np.ndarray]:
     quat /= np.linalg.norm(quat)
     q_act = np.random.uniform(-np.pi / 2, np.pi / 2, nv - 6)
     q = np.concatenate([pos, quat, q_act])
-    qd = np.random.uniform(-1.0, 1.0, nv)
-    return q, qd
+    v = np.random.uniform(-1.0, 1.0, nv)
+    return q, v
 
 
-def frax_to_pinocchio(q: np.ndarray, qd: np.ndarray):
+def frax_to_pinocchio(q: np.ndarray, v: np.ndarray):
     """Convert quaternion-based frax (MuJoCo convention) state to Pinocchio's freeflyer convention
 
     Returns:
         q_pin: Pinocchio configuration (XYZW quaternion), shape (nq,)
         v_pin: Pinocchio velocity (body-frame linear and angular velocity), shape (nv,)
-        T: Velocity transform, v_pin = T @ qd, shape (nv, nv)
-        Tdot_qd: T_dot @ qd, shape (nv,)
+        T: Velocity transform, v_pin = T @ v, shape (nv, nv)
+        Tdot_v: T_dot @ v, shape (nv,)
     """
     R = np.asarray(quat_wxyz_to_rmat(q[3:7]))
     q_pin = np.concatenate([q[:3], np.asarray(wxyz_to_xyzw(q[3:7])), q[7:]])
-    T = np.eye(len(qd))
+    T = np.eye(len(v))
     T[:3, :3] = R.T
-    v_pin = T @ qd
+    v_pin = T @ v
     # d/dt(R^T) = -skew(omega_body) @ R^T
-    Tdot_qd = np.zeros(len(qd))
-    Tdot_qd[:3] = -np.cross(qd[3:6], v_pin[:3])
-    return q_pin, v_pin, T, Tdot_qd
+    Tdot_v = np.zeros(len(v))
+    Tdot_v[:3] = -np.cross(v[3:6], v_pin[:3])
+    return q_pin, v_pin, T, Tdot_v
 
 
 @pytest.fixture(scope="module")
@@ -91,9 +91,9 @@ def mj_model_and_data():
     return model, mujoco.MjData(model)
 
 
-def set_mj_state(model, data, q, qd, tau=None):
+def set_mj_state(model, data, q, v, tau=None):
     data.qpos[:] = q
-    data.qvel[:] = qd
+    data.qvel[:] = v
     data.qfrc_applied[:] = 0.0 if tau is None else tau
     mujoco.mj_forward(model, data)
 
@@ -111,8 +111,8 @@ class TestVsPinocchio:
         model, data = pin_model_and_data
         mass_matrix = jax.jit(robot.mass_matrix)
         for _ in range(10):
-            q, qd = sample_state()
-            q_pin, _, T, _ = frax_to_pinocchio(q, qd)
+            q, v = sample_state()
+            q_pin, _, T, _ = frax_to_pinocchio(q, v)
             M_pin = pin.crba(model, data, q_pin)
             M_pin = np.triu(M_pin) + np.triu(M_pin, 1).T
             np.testing.assert_allclose(mass_matrix(q), T.T @ M_pin @ T, atol=1e-8)
@@ -123,37 +123,37 @@ class TestVsPinocchio:
         gravity = jax.jit(robot.gravity_vector)
         cc = jax.jit(robot.centrifugal_coriolis_vector)
         for _ in range(10):
-            q, qd = sample_state()
-            q_pin, v_pin, T, Tdot_qd = frax_to_pinocchio(q, qd)
+            q, v = sample_state()
+            q_pin, v_pin, T, Tdot_v = frax_to_pinocchio(q, v)
             # The bias in frax's coordinates includes the effect of T_dot
-            # tau = T^T (M_pin (T qdd + T_dot qd) + b_pin), with qdd = 0
-            tau_pin = pin.rnea(model, data, q_pin, v_pin, Tdot_qd)
+            # tau = T^T (M_pin (T a + T_dot v) + b_pin), with a = 0
+            tau_pin = pin.rnea(model, data, q_pin, v_pin, Tdot_v)
             expected = T.T @ tau_pin
-            np.testing.assert_allclose(bias(q, qd), expected, atol=1e-8)
-            np.testing.assert_allclose(gravity(q) + cc(q, qd), expected, atol=1e-8)
+            np.testing.assert_allclose(bias(q, v), expected, atol=1e-8)
+            np.testing.assert_allclose(gravity(q) + cc(q, v), expected, atol=1e-8)
 
     def test_rnea(self, robot, pin_model_and_data):
         model, data = pin_model_and_data
-        rnea = jax.jit(lambda q, qd, qdd: robot.rnea(q, qd, qdd, g, None))
+        rnea = jax.jit(lambda q, v, a: robot.rnea(q, v, a, g, None))
         for _ in range(10):
-            q, qd = sample_state()
-            qdd = np.random.uniform(-1.0, 1.0, robot.nv)
-            q_pin, v_pin, T, Tdot_qd = frax_to_pinocchio(q, qd)
-            a_pin = T @ qdd + Tdot_qd
+            q, v = sample_state()
+            a = np.random.uniform(-1.0, 1.0, robot.nv)
+            q_pin, v_pin, T, Tdot_v = frax_to_pinocchio(q, v)
+            a_pin = T @ a + Tdot_v
             tau_pin = pin.rnea(model, data, q_pin, v_pin, a_pin)
-            np.testing.assert_allclose(rnea(q, qd, qdd), T.T @ tau_pin, atol=1e-8)
+            np.testing.assert_allclose(rnea(q, v, a), T.T @ tau_pin, atol=1e-8)
 
     def test_forward_dynamics(self, robot, pin_model_and_data):
         model, data = pin_model_and_data
-        fd = jax.jit(lambda q, qd, tau: robot.forward_dynamics(q, qd, tau, None))
+        fd = jax.jit(lambda q, v, tau: robot.forward_dynamics(q, v, tau, None))
         for _ in range(10):
-            q, qd = sample_state()
+            q, v = sample_state()
             tau = np.random.uniform(-1.0, 1.0, robot.nv)
-            q_pin, v_pin, T, Tdot_qd = frax_to_pinocchio(q, qd)
+            q_pin, v_pin, T, Tdot_v = frax_to_pinocchio(q, v)
             # T is orthogonal, so T^-T = T
             a_pin = pin.aba(model, data, q_pin, v_pin, T @ tau)
-            expected = T.T @ (a_pin - Tdot_qd)
-            np.testing.assert_allclose(fd(q, qd, tau), expected, rtol=1e-6, atol=1e-6)
+            expected = T.T @ (a_pin - Tdot_v)
+            np.testing.assert_allclose(fd(q, v, tau), expected, rtol=1e-6, atol=1e-6)
 
     def test_kinematics_and_jacobians(self, robot, pin_model_and_data):
         model, data = pin_model_and_data
@@ -162,8 +162,8 @@ class TestVsPinocchio:
             lambda q: robot._joint_jacobians(robot.joint_to_world_transforms(q))
         )
         for _ in range(5):
-            q, qd = sample_state()
-            q_pin, _, T, _ = frax_to_pinocchio(q, qd)
+            q, v = sample_state()
+            q_pin, _, T, _ = frax_to_pinocchio(q, v)
             pin.forwardKinematics(model, data, q_pin)
             pin.computeJointJacobians(model, data, q_pin)
             tfs = fk(q)
@@ -195,18 +195,18 @@ def test_floating_manipulator_vs_pinocchio():
     assert robot.is_pure_kinematic_chain
 
     @jax.jit
-    def get_data(q, qd):
+    def get_data(q, v):
         tfs = robot.joint_to_world_transforms(q)
-        return tfs, robot._mass_matrix(tfs), robot._nonlinear_bias(qd, tfs)
+        return tfs, robot._mass_matrix(tfs), robot._nonlinear_bias(v, tfs)
 
     for _ in range(5):
-        q, qd = sample_state(robot.nv)
-        q_pin, v_pin, T, Tdot_qd = frax_to_pinocchio(q, qd)
-        tfs, M, bias = get_data(q, qd)
+        q, v = sample_state(robot.nv)
+        q_pin, v_pin, T, Tdot_v = frax_to_pinocchio(q, v)
+        tfs, M, bias = get_data(q, v)
         M_pin = pin.crba(model, data, q_pin)
         M_pin = np.triu(M_pin) + np.triu(M_pin, 1).T
         np.testing.assert_allclose(M, T.T @ M_pin @ T, atol=1e-10)
-        tau_pin = pin.rnea(model, data, q_pin, v_pin, Tdot_qd)
+        tau_pin = pin.rnea(model, data, q_pin, v_pin, Tdot_v)
         np.testing.assert_allclose(bias, T.T @ tau_pin, atol=1e-10)
         pin.forwardKinematics(model, data, q_pin)
         for my_idx in range(5, robot.nv):
@@ -236,8 +236,8 @@ class TestVsMujoco:
         model, data = mj_model_and_data
         mass_matrix = jax.jit(robot.mass_matrix)
         for _ in range(10):
-            q, qd = sample_state()
-            set_mj_state(model, data, q, qd)
+            q, v = sample_state()
+            set_mj_state(model, data, q, v)
             M_mj = np.zeros((model.nv, model.nv))
             mujoco.mj_fullM(model, data, M_mj)
             np.testing.assert_allclose(mass_matrix(q), M_mj, atol=1e-4)
@@ -246,23 +246,21 @@ class TestVsMujoco:
         model, data = mj_model_and_data
         bias = jax.jit(robot.nonlinear_bias)
         for _ in range(10):
-            q, qd = sample_state()
-            set_mj_state(model, data, q, qd)
-            np.testing.assert_allclose(
-                bias(q, qd), data.qfrc_bias, rtol=1e-5, atol=1e-3
-            )
+            q, v = sample_state()
+            set_mj_state(model, data, q, v)
+            np.testing.assert_allclose(bias(q, v), data.qfrc_bias, rtol=1e-5, atol=1e-3)
 
     def test_forward_dynamics(self, robot, mj_model_and_data):
         model, data = mj_model_and_data
-        fd = jax.jit(lambda q, qd, tau: robot.forward_dynamics(q, qd, tau, None))
+        fd = jax.jit(lambda q, v, tau: robot.forward_dynamics(q, v, tau, None))
         for _ in range(10):
-            q, qd = sample_state()
+            q, v = sample_state()
             tau = np.random.uniform(-1.0, 1.0, robot.nv)
-            set_mj_state(model, data, q, qd, tau)
+            set_mj_state(model, data, q, v, tau)
             # qacc_smooth is the acceleration without any constraint forces (contact, limits)
-            qdd = np.asarray(fd(q, qd, tau))
+            a = np.asarray(fd(q, v, tau))
             np.testing.assert_allclose(
-                qdd, data.qacc_smooth, atol=1e-4 * np.max(np.abs(qdd))
+                a, data.qacc_smooth, atol=1e-4 * np.max(np.abs(a))
             )
 
     def test_kinematics_and_jacobians(self, robot, mj_model_and_data):
@@ -272,8 +270,8 @@ class TestVsMujoco:
             lambda q: robot._joint_jacobians(robot.joint_to_world_transforms(q))
         )
         for _ in range(5):
-            q, qd = sample_state()
-            set_mj_state(model, data, q, qd)
+            q, v = sample_state()
+            set_mj_state(model, data, q, v)
             tfs = fk(q)
             Jvs, Jws = joint_jacobians(q)
             for my_idx in range(5, robot.nv):
@@ -295,11 +293,11 @@ class TestVsMujoco:
     def test_integrate(self, robot, mj_model_and_data):
         model, _ = mj_model_and_data
         for _ in range(10):
-            q, qd = sample_state()
+            q, v = sample_state()
             dt = 0.1
             q_mj = q.copy()
-            mujoco.mj_integratePos(model, q_mj, qd, dt)
-            np.testing.assert_allclose(robot.integrate(q, qd, dt), q_mj, atol=1e-12)
+            mujoco.mj_integratePos(model, q_mj, v, dt)
+            np.testing.assert_allclose(robot.integrate(q, v, dt), q_mj, atol=1e-12)
 
 
 class TestVsEuler:
@@ -307,14 +305,14 @@ class TestVsEuler:
 
     @staticmethod
     def sample_matching_states():
-        q_quat, qd_quat = sample_state()
+        q_quat, v_quat = sample_state()
         pos, quat = q_quat[:3], q_quat[3:7]
-        vel = qd_quat[:3]
-        omega_world = np.asarray(rotate_vector_by_quat_wxyz(quat, qd_quat[3:6]))
-        q_ff, qd_ff = pose_and_twist_to_virtual_joints(pos, quat, vel, omega_world)
+        vel = v_quat[:3]
+        omega_world = np.asarray(rotate_vector_by_quat_wxyz(quat, v_quat[3:6]))
+        q_ff, v_ff = pose_and_twist_to_virtual_joints(pos, quat, vel, omega_world)
         q_euler = np.concatenate([q_ff, q_quat[7:]])
-        qd_euler = np.concatenate([qd_ff, qd_quat[6:]])
-        return q_euler, qd_euler, q_quat, qd_quat
+        v_euler = np.concatenate([v_ff, v_quat[6:]])
+        return q_euler, v_euler, q_quat, v_quat
 
     def test_dimensions(self, robot, euler_robot):
         assert euler_robot.nq == 35
@@ -324,12 +322,12 @@ class TestVsEuler:
 
     def test_velocity_to_configuration_index(self, robot, euler_robot):
         for r in (robot, euler_robot):
-            qd_idxs = np.array(list(r.velocity_to_configuration_index.keys()))
+            v_idxs = np.array(list(r.velocity_to_configuration_index.keys()))
             q_idxs = np.array(list(r.velocity_to_configuration_index.values()))
-            # Entries with a configuration entry integrate componentwise (q_dot = qd)
-            q, qd = r.default_configuration, np.random.uniform(-1.0, 1.0, r.nv)
-            q1 = np.asarray(r.integrate(q, qd, 0.1))
-            np.testing.assert_allclose(q1[q_idxs], q[q_idxs] + 0.1 * qd[qd_idxs])
+            # Entries with a configuration entry integrate componentwise (q_dot = v)
+            q, v = r.default_configuration, np.random.uniform(-1.0, 1.0, r.nv)
+            q1 = np.asarray(r.integrate(q, v, 0.1))
+            np.testing.assert_allclose(q1[q_idxs], q[q_idxs] + 0.1 * v[v_idxs])
         assert euler_robot.velocity_to_configuration_index == {i: i for i in range(35)}
         assert robot.velocity_to_configuration_index == dict(
             zip([*range(3), *range(6, 35)], [*range(3), *range(7, 36)])
@@ -388,28 +386,28 @@ class TestVsEuler:
                 assert np.all(np.isfinite(limits))
 
     def test_physical_consistency(self, robot, euler_robot):
-        def physical_quantities(q, qd, robot_is_quat):
+        def physical_quantities(q, v, robot_is_quat):
             r = robot if robot_is_quat else euler_robot
             tfs = r.joint_to_world_transforms(q)
             M = r._mass_matrix(tfs)
-            qdd = r._forward_dynamics(tfs, qd, jnp.zeros(r.nv), None)
-            J, Jdot = r._left_hand_jacobian_and_derivative(qd, tfs)
+            a = r._forward_dynamics(tfs, v, jnp.zeros(r.nv), None)
+            J, Jdot = r._left_hand_jacobian_and_derivative(v, tfs)
             com = r._center_of_mass(tfs)
-            com_vel = r._center_of_mass_jacobian(tfs) @ qd
+            com_vel = r._center_of_mass_jacobian(tfs) @ v
             return (
                 tfs[5:],  # All real (non-virtual) bodies
-                0.5 * qd @ M @ qd,  # Kinetic energy
-                J @ qd,  # Hand velocity
-                J @ qdd + Jdot @ qd,  # Hand acceleration under passive dynamics
+                0.5 * v @ M @ v,  # Kinetic energy
+                J @ v,  # Hand velocity
+                J @ a + Jdot @ v,  # Hand acceleration under passive dynamics
                 com,
                 com_vel,
             )
 
         physical_quantities = jax.jit(physical_quantities, static_argnums=2)
         for _ in range(10):
-            q_e, qd_e, q_q, qd_q = self.sample_matching_states()
-            res_e = physical_quantities(q_e, qd_e, False)
-            res_q = physical_quantities(q_q, qd_q, True)
+            q_e, v_e, q_q, v_q = self.sample_matching_states()
+            res_e = physical_quantities(q_e, v_e, False)
+            res_q = physical_quantities(q_q, v_q, True)
             for a, b in zip(res_e, res_q):
                 np.testing.assert_allclose(a, b, atol=1e-8)
 
@@ -420,17 +418,17 @@ class TestAutodiff:
 
     def test_integrate_and_difference(self, robot):
         for _ in range(10):
-            q, qd = sample_state()
-            q1 = robot.integrate(q, qd, 0.5)
-            np.testing.assert_allclose(robot.difference(q, q1), 0.5 * qd, atol=1e-10)
+            q, v = sample_state()
+            q1 = robot.integrate(q, v, 0.5)
+            np.testing.assert_allclose(robot.difference(q, q1), 0.5 * v, atol=1e-10)
             # Zero velocity should have a well-defined (non-NaN) derivative
             dq = jax.jacobian(robot.integrate, argnums=1)(q, jnp.zeros(35), 0.5)
             assert np.all(np.isfinite(dq))
 
     def test_velocity_to_qdot_map(self, robot):
         for _ in range(10):
-            q, qd = sample_state()
+            q, v = sample_state()
             E = robot.velocity_to_qdot_map(q)
-            # q_dot = d/dt integrate(q, qd, t) at t = 0
-            q_dot = jax.jacobian(lambda t: robot.integrate(q, qd, t))(0.0)
-            np.testing.assert_allclose(E @ qd, q_dot, atol=1e-10)
+            # q_dot = d/dt integrate(q, v, t) at t = 0
+            q_dot = jax.jacobian(lambda t: robot.integrate(q, v, t))(0.0)
+            np.testing.assert_allclose(E @ v, q_dot, atol=1e-10)

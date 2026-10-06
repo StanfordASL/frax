@@ -242,10 +242,10 @@ def test_g1():
     print("\nTesting Unitree G1:")
     robot = load_g1()
     q = robot.default_configuration
-    qd = 0.1 * np.ones(robot.nv)
+    v = 0.1 * np.ones(robot.nv)
     transforms = robot.joint_to_world_transforms(q)
     M = robot._mass_matrix(transforms)
-    c = robot._centrifugal_coriolis_vector(qd, transforms)
+    c = robot._centrifugal_coriolis_vector(v, transforms)
     g = robot._gravity_vector(transforms)
     p_com = robot._center_of_mass(transforms)
     J_com = robot._center_of_mass_jacobian(transforms)

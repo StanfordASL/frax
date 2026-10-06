@@ -99,12 +99,12 @@ class Manipulator(Robot):
             joint_transforms, self.ee_offset, self.ee_parent_chain
         )
 
-    def ee_jacobian_and_derivative(self, q: Array, qd: Array) -> Tuple[Array, Array]:
+    def ee_jacobian_and_derivative(self, q: Array, v: Array) -> Tuple[Array, Array]:
         """End-effector Jacobian and its time derivative (w.r.t world)
 
         Args:
             q (Array): Joint positions, shape (nq,)
-            qd (Array): Joint velocities, shape (nv,)
+            v (Array): Joint velocities, shape (nv,)
 
         Returns:
             Tuple[Array, Array]:
@@ -112,14 +112,14 @@ class Manipulator(Robot):
                 Jdot (Array): Time derivative of the EE Jacobian, shape (6, nv)
         """
         transforms = self.joint_to_world_transforms(q)
-        return self._ee_jacobian_and_derivative(qd, transforms)
+        return self._ee_jacobian_and_derivative(v, transforms)
 
     def _ee_jacobian_and_derivative(
-        self, qd: Array, joint_transforms: Array
+        self, v: Array, joint_transforms: Array
     ) -> Tuple[Array, Array]:
         """Helper function: Compute EE Jacobian and time derivative given joint transforms"""
         return self._frame_jacobian_and_derivative(
-            qd, joint_transforms, self.ee_offset, self.ee_parent_chain
+            v, joint_transforms, self.ee_offset, self.ee_parent_chain
         )
 
     def ee_manipulability_index(self, q: Array) -> float:
@@ -140,14 +140,14 @@ class Manipulator(Robot):
         return self._manipulability_index_helper(J_full, self.ee_parent_chain)
 
     def torque_control_matrices(
-        self, q: Array, qd: Array
+        self, q: Array, v: Array
     ) -> Tuple[Array, Array, Array, Array, Array, Array]:
         """Compute the matrices required for operational space torque control
         with just a single evaluation of the kinematics
 
         Args:
             q (Array): Joint positions, shape (nq,)
-            qd (Array): Joint velocities, shape (nv,)
+            v (Array): Joint velocities, shape (nv,)
 
         Returns:
             Tuple[Array, Array, Array, Array, Array, Array]:
@@ -162,7 +162,7 @@ class Manipulator(Robot):
         M = self._mass_matrix(joint_transforms)
         M_inv = self.mass_matrix_inverse(M)
         G = self._gravity_vector(joint_transforms)
-        C = self._centrifugal_coriolis_vector(qd, joint_transforms)
+        C = self._centrifugal_coriolis_vector(v, joint_transforms)
         J = self._ee_jacobian(joint_transforms)
         T = self._ee_transform(joint_transforms)
         return M, M_inv, G, C, J, T

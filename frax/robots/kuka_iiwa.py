@@ -62,10 +62,10 @@ def load_iiwa() -> Manipulator:
 
 def main():
     robot = load_iiwa()
-    qd = 0.1 * np.ones(robot.nv)
+    v = 0.1 * np.ones(robot.nv)
     transforms = robot.joint_to_world_transforms(default_q)
     M = robot._mass_matrix(transforms)
-    c = robot._centrifugal_coriolis_vector(qd, transforms)
+    c = robot._centrifugal_coriolis_vector(v, transforms)
     g = robot._gravity_vector(transforms)
     J_rh = robot._ee_jacobian(transforms)
     coll_pos, coll_rad = robot._link_collision_data(transforms)

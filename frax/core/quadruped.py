@@ -177,17 +177,17 @@ class Quadruped(Robot):
         )
 
     def front_left_foot_jacobian_and_derivative(
-        self, q: Array, qd: Array
+        self, q: Array, v: Array
     ) -> Tuple[Array, Array]:
         """Front left foot Jacobian and its time derivative (w.r.t world), both of shape (6, nv)"""
         transforms = self.joint_to_world_transforms(q)
-        return self._front_left_foot_jacobian_and_derivative(qd, transforms)
+        return self._front_left_foot_jacobian_and_derivative(v, transforms)
 
     def _front_left_foot_jacobian_and_derivative(
-        self, qd: Array, joint_transforms: Array
+        self, v: Array, joint_transforms: Array
     ) -> Tuple[Array, Array]:
         return self._frame_jacobian_and_derivative(
-            qd,
+            v,
             joint_transforms,
             self.front_left_foot_offset,
             self.front_left_foot_parent_chain,
@@ -206,17 +206,17 @@ class Quadruped(Robot):
         )
 
     def front_right_foot_jacobian_and_derivative(
-        self, q: Array, qd: Array
+        self, q: Array, v: Array
     ) -> Tuple[Array, Array]:
         """Front right foot Jacobian and its time derivative (w.r.t world), both of shape (6, nv)"""
         transforms = self.joint_to_world_transforms(q)
-        return self._front_right_foot_jacobian_and_derivative(qd, transforms)
+        return self._front_right_foot_jacobian_and_derivative(v, transforms)
 
     def _front_right_foot_jacobian_and_derivative(
-        self, qd: Array, joint_transforms: Array
+        self, v: Array, joint_transforms: Array
     ) -> Tuple[Array, Array]:
         return self._frame_jacobian_and_derivative(
-            qd,
+            v,
             joint_transforms,
             self.front_right_foot_offset,
             self.front_right_foot_parent_chain,
@@ -235,17 +235,17 @@ class Quadruped(Robot):
         )
 
     def hind_left_foot_jacobian_and_derivative(
-        self, q: Array, qd: Array
+        self, q: Array, v: Array
     ) -> Tuple[Array, Array]:
         """Hind left foot Jacobian and its time derivative (w.r.t world), both of shape (6, nv)"""
         transforms = self.joint_to_world_transforms(q)
-        return self._hind_left_foot_jacobian_and_derivative(qd, transforms)
+        return self._hind_left_foot_jacobian_and_derivative(v, transforms)
 
     def _hind_left_foot_jacobian_and_derivative(
-        self, qd: Array, joint_transforms: Array
+        self, v: Array, joint_transforms: Array
     ) -> Tuple[Array, Array]:
         return self._frame_jacobian_and_derivative(
-            qd,
+            v,
             joint_transforms,
             self.hind_left_foot_offset,
             self.hind_left_foot_parent_chain,
@@ -264,17 +264,17 @@ class Quadruped(Robot):
         )
 
     def hind_right_foot_jacobian_and_derivative(
-        self, q: Array, qd: Array
+        self, q: Array, v: Array
     ) -> Tuple[Array, Array]:
         """Hind right foot Jacobian and its time derivative (w.r.t world), both of shape (6, nv)"""
         transforms = self.joint_to_world_transforms(q)
-        return self._hind_right_foot_jacobian_and_derivative(qd, transforms)
+        return self._hind_right_foot_jacobian_and_derivative(v, transforms)
 
     def _hind_right_foot_jacobian_and_derivative(
-        self, qd: Array, joint_transforms: Array
+        self, v: Array, joint_transforms: Array
     ) -> Tuple[Array, Array]:
         return self._frame_jacobian_and_derivative(
-            qd,
+            v,
             joint_transforms,
             self.hind_right_foot_offset,
             self.hind_right_foot_parent_chain,

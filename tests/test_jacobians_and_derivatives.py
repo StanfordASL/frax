@@ -54,7 +54,7 @@ def ee_names(robot):
 
 
 def angular_jacobians_autodiff(tfs_func, q):
-    """Computes the angular Jacobians Jw such that w = Jw @ q_dot for a batch of frames,
+    """Computes the angular Jacobians Jw such that w = Jw @ v for a batch of frames,
     using the relationship skew(w) = R_dot @ R^T
 
     Args:
@@ -79,13 +79,13 @@ def robot(request):
 
 @pytest.fixture(scope="module")
 def states(robot):
-    """Batch of random (q, qd) samples, with shapes (NUM_SAMPLES, nq) and (NUM_SAMPLES, nv)"""
+    """Batch of random (q, v) samples, with shapes (NUM_SAMPLES, nq) and (NUM_SAMPLES, nv)"""
     rng = np.random.default_rng(42)
     qs = rng.uniform(-1.0, 1.0, (NUM_SAMPLES, robot.nq))
-    qds = rng.uniform(-1.0, 1.0, (NUM_SAMPLES, robot.nv))
+    vs = rng.uniform(-1.0, 1.0, (NUM_SAMPLES, robot.nv))
     if robot.is_quaternion_base:
         qs[:, 3:7] /= np.linalg.norm(qs[:, 3:7], axis=1, keepdims=True)
-    return qs, qds
+    return qs, vs
 
 
 def test_center_of_mass_jacobian(robot, states):
@@ -137,25 +137,25 @@ def test_ee_jacobians(robot, states, subtests):
 
 def test_ee_jacobian_derivatives(robot, states, subtests):
     """Test EE Jacobian derivatives (linear & angular) against JVP of Jacobian"""
-    qs, qds = states
+    qs, vs = states
     names = ee_names(robot)
 
     @jax.jit
     @jax.vmap
-    def compute(q, qd):
-        q_dot = robot.velocity_to_qdot_map(q) @ qd
+    def compute(q, v):
+        q_dot = robot.velocity_to_qdot_map(q) @ v
         results = {}
         for name in names:
             jac_dot_func = getattr(robot, f"{name}_jacobian_and_derivative")
             jac_func = getattr(robot, f"{name}_jacobian")
             # Analytical Jdot
-            _, Jdot_analytical = jac_dot_func(q, qd)
+            _, Jdot_analytical = jac_dot_func(q, v)
             # Autodiff Jdot via JVP of analytical Jacobian function
             _, Jdot_autodiff = jax.jvp(jac_func, (q,), (q_dot,))
             results[name] = (Jdot_analytical, Jdot_autodiff)
         return results
 
-    for name, (Jdot_analytical, Jdot_autodiff) in compute(qs, qds).items():
+    for name, (Jdot_analytical, Jdot_autodiff) in compute(qs, vs).items():
         with subtests.test(ee=name):
             np.testing.assert_allclose(
                 Jdot_analytical,

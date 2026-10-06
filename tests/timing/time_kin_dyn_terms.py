@@ -25,15 +25,17 @@ from frax import load_g1, load_panda
 
 
 def make_functions(robot, ee_jacobian_and_derivative):
-    """Functions to time, all with the signature f(q, qd)"""
+    """Functions to time, all with the signature f(q, v)"""
     return {
-        "FK": lambda q, qd: robot.joint_to_world_transforms(q),
+        "FK": lambda q, v: robot.joint_to_world_transforms(q),
         "EE J + Jdot": ee_jacobian_and_derivative,
-        "Collision positions": lambda q, qd: robot.link_collision_positions(q),
-        "Mass matrix": lambda q, qd: robot.mass_matrix(q),
-        "Gravity vector": lambda q, qd: robot.gravity_vector(q),
+        "Collision positions": lambda q, v: robot.link_collision_positions(q),
+        "Mass matrix": lambda q, v: robot.mass_matrix(q),
+        "Gravity vector": lambda q, v: robot.gravity_vector(q),
         "Nonlinear bias": robot.nonlinear_bias,
-        "Forward dynamics": lambda q, qd: robot.forward_dynamics(q, qd, qd, None),
+        "Forward dynamics": lambda q, v: robot.forward_dynamics(
+            q, v, v, None
+        ),  # note: a = v here, just for timing
     }
 
 

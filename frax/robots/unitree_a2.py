@@ -37,7 +37,9 @@ foot_offset = np.block(
     [[np.eye(3), np.array([0.0, 0.0, -0.275]).reshape(-1, 1)], [0.0, 0.0, 0.0, 1.0]]
 )
 
-default_q_act = np.array([0., 0.8, -1.5, 0., 0.8, -1.5, 0., 0.8, -1.5, 0., 0.8, -1.5])
+default_q_act = np.array(
+    [0.0, 0.8, -1.5, 0.0, 0.8, -1.5, 0.0, 0.8, -1.5, 0.0, 0.8, -1.5]
+)
 default_base_height = 0.434
 
 
@@ -49,8 +51,12 @@ def load_a2(floating_base: str = "quaternion") -> Quadruped:
             See Robot for details. Defaults to "quaternion".
     """
     assert floating_base in ("euler", "quaternion")
-    orientation = [1.0, 0.0, 0.0, 0.0] if floating_base == "quaternion" else [0.0, 0.0, 0.0]
-    default_q = np.concatenate([[0.0, 0.0, default_base_height], orientation, default_q_act])
+    orientation = (
+        [1.0, 0.0, 0.0, 0.0] if floating_base == "quaternion" else [0.0, 0.0, 0.0]
+    )
+    default_q = np.concatenate(
+        [[0.0, 0.0, default_base_height], orientation, default_q_act]
+    )
     return Quadruped(
         urdf,
         front_left_foot_parent_joint_name,
@@ -68,7 +74,7 @@ def load_a2(floating_base: str = "quaternion") -> Quadruped:
             joint_to_child_mapping,
             root_link_name=root_link_name,
             add_floating_base=True,
-            sc_data=None, # TODO
+            sc_data=None,  # TODO
             verbose=False,
         ),
         default_configuration=default_q,
@@ -80,10 +86,10 @@ def test_a2():
     print("\nTesting Unitree A2:")
     robot = load_a2()
     q = robot.default_configuration
-    qd = 0.1 * np.ones(robot.nv)
+    v = 0.1 * np.ones(robot.nv)
     transforms = robot.joint_to_world_transforms(q)
     M = robot._mass_matrix(transforms)
-    c = robot._centrifugal_coriolis_vector(qd, transforms)
+    c = robot._centrifugal_coriolis_vector(v, transforms)
     g = robot._gravity_vector(transforms)
     p_com = robot._center_of_mass(transforms)
     J_com = robot._center_of_mass_jacobian(transforms)

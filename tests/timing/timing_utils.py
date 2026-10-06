@@ -75,7 +75,7 @@ def benchmark_function(
 
 
 def sample_state(robot, batch_size: int | None = None) -> Tuple:
-    """Sample a random (q, qd), with a leading batch dimension if batch_size is provided"""
+    """Sample a random (q, v), with a leading batch dimension if batch_size is provided"""
     import numpy as np  # Imported here so that configure_env can run first
 
     shape = () if batch_size is None else (batch_size,)
@@ -83,5 +83,5 @@ def sample_state(robot, batch_size: int | None = None) -> Tuple:
     if robot.is_quaternion_base:
         quat = np.random.randn(*shape, 4)
         q[..., 3:7] = quat / np.linalg.norm(quat, axis=-1, keepdims=True)
-    qd = np.random.uniform(-0.5, 0.5, shape + (robot.nv,))
-    return q, qd
+    v = np.random.uniform(-0.5, 0.5, shape + (robot.nv,))
+    return q, v
