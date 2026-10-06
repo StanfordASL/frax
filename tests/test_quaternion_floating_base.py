@@ -91,11 +91,18 @@ def mj_model_and_data():
     return model, mujoco.MjData(model)
 
 
-def set_mj_state(model, data, q, v, tau=None):
+def set_mj_state(model, data, q, v, tau=None, xfrc=None):
     data.qpos[:] = q
     data.qvel[:] = v
     data.qfrc_applied[:] = 0.0 if tau is None else tau
+    data.xfrc_applied[:] = 0.0 if xfrc is None else xfrc
     mujoco.mj_forward(model, data)
+
+
+# frax's link index for each of MuJoCo's bodies (body 0 is the world, body 1 is the pelvis,
+# and frax's first 5 links are the massless virtual bodies of the floating base)
+def mj_body_to_frax_link(body_id: int) -> int:
+    return body_id + 4
 
 
 class TestVsPinocchio:
@@ -259,6 +266,25 @@ class TestVsMujoco:
             set_mj_state(model, data, q, v, tau)
             # qacc_smooth is the acceleration without any constraint forces (contact, limits)
             a = np.asarray(fd(q, v, tau))
+            np.testing.assert_allclose(
+                a, data.qacc_smooth, atol=1e-4 * np.max(np.abs(a))
+            )
+
+    def test_forward_dynamics_with_external_wrenches(self, robot, mj_model_and_data):
+        # frax's external wrenches use the same convention as MuJoCo's xfrc_applied:
+        # [force; torque] about each body's COM, with world-aligned axes
+        model, data = mj_model_and_data
+        fd = jax.jit(robot.forward_dynamics)
+        for _ in range(10):
+            q, v = sample_state()
+            tau = np.random.uniform(-1.0, 1.0, robot.nv)
+            xfrc = np.random.uniform(-10.0, 10.0, (model.nbody, 6))
+            xfrc[0] = 0.0  # Wrenches on the world body have no effect in MuJoCo
+            fext = np.zeros((robot.nv, 6))
+            for body_id in range(1, model.nbody):
+                fext[mj_body_to_frax_link(body_id)] = xfrc[body_id]
+            set_mj_state(model, data, q, v, tau, xfrc)
+            a = np.asarray(fd(q, v, tau, fext))
             np.testing.assert_allclose(
                 a, data.qacc_smooth, atol=1e-4 * np.max(np.abs(a))
             )
@@ -432,3 +458,26 @@ class TestAutodiff:
             # q_dot = d/dt integrate(q, v, t) at t = 0
             q_dot = jax.jacobian(lambda t: robot.integrate(q, v, t))(0.0)
             np.testing.assert_allclose(E @ v, q_dot, atol=1e-10)
+
+
+def test_dynamics_invariant_to_base_translation(robot):
+    """Translating the robot (and any external wrenches with it) should not change the dynamics
+
+    This checks that taking the spatial quantities about the base (rather than the world
+    origin) is consistent. The external wrench convention itself is checked against MuJoCo
+    """
+    rnea = jax.jit(robot.rnea)
+    for _ in range(5):
+        q, v = sample_state()
+        a = np.random.uniform(-1.0, 1.0, robot.nv)
+        # Wrenches about each link's COM are unaffected by a pure translation
+        fext = np.random.uniform(-10.0, 10.0, (robot.nv, 6))
+        M = robot.mass_matrix(q)
+        tau = rnea(q, v, a, g, fext)
+        for offset in [10.0, 1000.0]:
+            q_shifted = q.copy()
+            q_shifted[:3] += offset
+            np.testing.assert_allclose(robot.mass_matrix(q_shifted), M, atol=1e-8)
+            np.testing.assert_allclose(
+                rnea(q_shifted, v, a, g, fext), tau, atol=1e-8
+            )

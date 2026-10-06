@@ -40,8 +40,9 @@ def test_rnea(robot, pin_model_and_data, nonzero_v, nonzero_a):
 
 
 @pytest.mark.skip(
-    reason="TODO: external forces are defined in the root frame in frax, "
-    "but in the local joint frames in Pinocchio"
+    reason="TODO: external wrenches are about each link's COM (world-aligned) in frax, "
+    "but in the local joint frames in Pinocchio. These are tested against MuJoCo's "
+    "xfrc_applied in test_quaternion_floating_base.py"
 )
 def test_rnea_with_external_forces():
     pass

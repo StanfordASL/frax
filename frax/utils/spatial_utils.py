@@ -133,3 +133,19 @@ def spatial_force_cross(velocity: Array, force: Array) -> Array:
     return jnp.concatenate(
         [jnp.cross(w, f), jnp.cross(w, f0) + jnp.cross(v0, f)], axis=-1
     )
+
+
+def shift_wrenches(wrenches: Array, point: Array) -> Array:
+    """Changes the reference point of spatial forces (wrenches)
+
+    A wrench [f; n] taken about point A becomes [f; n - p x f] about point B, where p = B - A
+
+    Args:
+        wrenches (Array): Spatial forces about their current reference points, shape (..., 6)
+        point (Array): New reference points, relative to the current ones, shape (..., 3)
+
+    Returns:
+        Array: Spatial forces about the new reference points, shape (..., 6)
+    """
+    f, n = wrenches[..., :3], wrenches[..., 3:]
+    return jnp.concatenate([f, n - jnp.cross(point, f)], axis=-1)

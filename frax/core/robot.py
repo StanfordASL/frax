@@ -27,6 +27,7 @@ from frax.utils.spatial_utils import (
     get_spatial_joint_axes,
     spatial_motion_cross,
     spatial_force_cross,
+    shift_wrenches,
 )
 from frax.utils.rotation_utils import (
     quat_wxyz_to_rmat,
@@ -1082,8 +1083,9 @@ class Robot:
                 for most methods and can be set to None.
             gravity_accel (Optional[Array]): Spatial acceleration from gravity, shape (6,). None if
                 not considering gravity (as is done to compute centrifugal/coriolis)
-            F_ext (Optional[Array]): External wrenches on each link (expressed in the root/world frame),
-                shape (nv, 6). This is currently not used for most methods and can be set to None.
+            F_ext (Optional[Array]): External wrenches [force; torque] on each link, shape (nv, 6).
+                Each is taken about that link's COM, with axes aligned to the world frame.
+                None if no external wrenches are applied.
 
         Returns:
             Array: Joint torques, shape (nv,)
@@ -1092,6 +1094,8 @@ class Robot:
         spatial_axes, spatial_inertias = self._spatial_axes_and_inertias(
             joint_transforms
         )
+        if F_ext is not None:
+            F_ext = self._wrenches_about_dynamics_origin(F_ext, joint_transforms)
         return self._rnea_from_spatial_data(
             spatial_axes, spatial_inertias, v, a, gravity_accel, F_ext
         )
@@ -1194,6 +1198,11 @@ class Robot:
                 spatial_axes (Array): shape (nv, 6)
                 spatial_inertias (Array): shape (nv, 6, 6)
         """
+        # Express spatial quantities w.r.t the base rather than the world
+        # to avoid loss of precision when far from the origin
+        joint_transforms = joint_transforms.at[:, :3, 3].add(
+            -self._dynamics_origin(joint_transforms)
+        )
         spatial_axes = get_spatial_joint_axes(
             joint_transforms, self.joint_axes, self.revolute_mask
         )
@@ -1202,6 +1211,20 @@ class Robot:
             self.link_masses, self.link_local_inertias, link_transforms
         )
         return spatial_axes, spatial_inertias
+
+    def _dynamics_origin(self, joint_transforms: Array) -> Array:
+        """Helper function: Reference point for the spatial quantities in RNEA/CRBA, shape (3,)"""
+        return self._base_transform(joint_transforms)[:3, 3]
+
+    def _wrenches_about_dynamics_origin(
+        self, link_wrenches: Array, joint_transforms: Array
+    ) -> Array:
+        """Helper function: Moves the reference point of external wrenches from each link's
+        COM to the dynamics origin"""
+        offsets = self._dynamics_origin(joint_transforms) - self._link_com_positions(
+            joint_transforms
+        )
+        return shift_wrenches(link_wrenches, offsets)
 
     def forward_dynamics(
         self, q: Array, v: Array, tau: Array, fext: Optional[Array]
@@ -1215,8 +1238,9 @@ class Robot:
             q (Array): Configuration vector, shape (nq,)
             v (Array): Generalized velocities, shape (nv,)
             tau (Array): Joint torques, shape (nv,)
-            fext (Optional[Array]): External wrenches on each link (expressed in the root/world frame),
-                shape (nv, 6). Set to None if no external forces are applied
+            fext (Optional[Array]): External wrenches [force; torque] on each link, shape (nv, 6).
+                Each is taken about that link's COM, with axes aligned to the world frame.
+                None if no external wrenches are applied.
 
         Returns:
             Array: Joint accelerations, shape (nv,)
@@ -1238,6 +1262,8 @@ class Robot:
             joint_transforms
         )
         M = self._crba_from_spatial_data(spatial_axes, spatial_inertias)
+        if fext is not None:
+            fext = self._wrenches_about_dynamics_origin(fext, joint_transforms)
         g_accel = jnp.array([0.0, 0.0, 9.81, 0.0, 0.0, 0.0])
         bias = self._rnea_from_spatial_data(
             spatial_axes,
