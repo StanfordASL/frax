@@ -60,7 +60,7 @@ theme:
     toggle:
       icon: material/weather-night
       name: Switch to dark mode
-  favicon: favicon.png
+  favicon: favicon.ico
 
 markdown_extensions:
   - pymdownx.arithmatex:
