@@ -25,6 +25,9 @@ nav:
 - API Reference:
   - Core:
     - "Robot": api/robot.md
+    - "Manipulator": api/manipulator.md
+    - "Humanoid": api/humanoid.md
+    - "Quadruped": api/quadruped.md
 
 theme:
   name: material
