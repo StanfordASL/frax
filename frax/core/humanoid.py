@@ -265,9 +265,7 @@ class Humanoid(Robot):
 
     def _left_hand_manipulability_index(self, joint_transforms: Array) -> float:
         J_full = self._left_hand_jacobian(joint_transforms)
-        chain_idxs = self.left_hand_parent_chain
-        if self.includes_floating_dof:
-            chain_idxs = chain_idxs[6:]
+        chain_idxs = self.left_hand_parent_chain[self.nv_floating :]
         return self._manipulability_index_helper(J_full, chain_idxs)
 
     def right_hand_manipulability_index(self, q: Array) -> float:
@@ -276,9 +274,7 @@ class Humanoid(Robot):
 
     def _right_hand_manipulability_index(self, joint_transforms: Array) -> float:
         J_full = self._right_hand_jacobian(joint_transforms)
-        chain_idxs = self.right_hand_parent_chain
-        if self.includes_floating_dof:
-            chain_idxs = chain_idxs[6:]
+        chain_idxs = self.right_hand_parent_chain[self.nv_floating :]
         return self._manipulability_index_helper(J_full, chain_idxs)
 
     def left_foot_manipulability_index(self, q: Array) -> float:
@@ -287,9 +283,7 @@ class Humanoid(Robot):
 
     def _left_foot_manipulability_index(self, joint_transforms: Array) -> float:
         J_full = self._left_foot_jacobian(joint_transforms)
-        chain_idxs = self.left_foot_parent_chain
-        if self.includes_floating_dof:
-            chain_idxs = chain_idxs[6:]
+        chain_idxs = self.left_foot_parent_chain[self.nv_floating :]
         return self._manipulability_index_helper(J_full, chain_idxs)
 
     def right_foot_manipulability_index(self, q: Array) -> float:
@@ -298,7 +292,5 @@ class Humanoid(Robot):
 
     def _right_foot_manipulability_index(self, joint_transforms: Array) -> float:
         J_full = self._right_foot_jacobian(joint_transforms)
-        chain_idxs = self.right_foot_parent_chain
-        if self.includes_floating_dof:
-            chain_idxs = chain_idxs[6:]
+        chain_idxs = self.right_foot_parent_chain[self.nv_floating :]
         return self._manipulability_index_helper(J_full, chain_idxs)

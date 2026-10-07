@@ -116,7 +116,6 @@ class Robot:
         self.link_local_inertia_rotations = np.asarray(data["link_local_inertia_rotations"], dtype=float)
         self.parent_idxs = np.asarray(data["parent_idxs"], dtype=int)
         self.floating_base = floating_base
-        self.includes_floating_dof = floating_base is not None  # TODO rename this
         self.collision_positions = collision_positions # RAGGED
         self.collision_radii = collision_radii # RAGGED
         self.root_collision_positions = np.asarray(root_collision_positions, dtype=float)
@@ -129,7 +128,7 @@ class Robot:
 
         self.is_quaternion_base = floating_base == "quaternion"
         # Dimensions of the floating base's configuration and velocity
-        self.nv_floating = 6 if self.includes_floating_dof else 0
+        self.nv_floating = 6 if self.floating_base is not None else 0
         self.nq_floating = 7 if self.is_quaternion_base else self.nv_floating
         self.nq = self.nv + self.nq_floating - self.nv_floating
         self.num_actuated_joints = self.nv - self.nv_floating
@@ -441,13 +440,13 @@ class Robot:
 
     def base_transform(self, q: Array) -> Array:
         """Transformation matrix of the floating base (w.r.t world), shape (4, 4)"""
-        if not self.includes_floating_dof:
+        if not self.floating_base:
             return jnp.eye(4)
         joint_transforms = self.joint_to_world_transforms(q)
         return self._base_transform(joint_transforms)
 
     def _base_transform(self, joint_transforms: Array) -> Array:
-        if not self.includes_floating_dof:
+        if not self.floating_base:
             return jnp.eye(4)
         # The final virtual body of the 6DOF chain holds the full pose of the base
         return joint_transforms[self.nv_floating - 1]

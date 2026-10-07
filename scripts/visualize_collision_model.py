@@ -52,7 +52,7 @@ def visualize_collision_model(
     server = viser.ViserServer(port=port)
 
     # Update the root state of the robot in viser with quaternion convention
-    if robot.includes_floating_dof:
+    if robot.floating_base:
         pos = q_initial[:3]
         if robot.is_quaternion_base:
             quat_wxyz = q_initial[3:7]
@@ -348,7 +348,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Visualize robot collision model in viser"
     )
-    parser.add_argument("--robot", choices=["panda", "g1", "iiwa", "a2"], default="panda")
+    parser.add_argument(
+        "--robot", choices=["panda", "g1", "iiwa", "a2"], default="panda"
+    )
     parser.add_argument("--port", type=int, default=8080, help="Viser server port")
     args = parser.parse_args()
 
