@@ -12,10 +12,6 @@ With `frax`, you can design high-performance inverse-kinematics and inverse-dyna
 
 On CPU, you can expect compute times for typical controllers in the *low microseconds range (~25-100 kHz)*, and on GPU or TPU, `frax` can compute dynamics terms at upwards of *100 million computations per second*, depending on your batch size. 
 
-> [!IMPORTANT]
-> `frax` is actively under development and internal operations may change between beta versions
-
-
 ### New, breaking changes:
 
 I recently improved the handling of free-floating joints and added a position + WXYZ quaternion representation (following MuJoCo) rather than just position + intrinsic Euler XYZ. This should lead to fewer issues with gimbal lock, but I needed to update some terminology now that `nq != nv`. For instance:
