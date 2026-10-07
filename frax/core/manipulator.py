@@ -67,7 +67,7 @@ class Manipulator(Robot):
         """Transformation matrix of the end effector (EE frame --> world frame)
 
         Args:
-            q (Array): Joint positions, shape (nq,)
+            q (Array): Configuration vector, shape (nq,)
 
         Returns:
             Array: Transformation matrix, shape (4, 4)
@@ -84,7 +84,7 @@ class Manipulator(Robot):
         """Jacobian [Jv; Jw] of the end effector given the joint configuration
 
         Args:
-            q (Array): Joint positions, shape (nq,)
+            q (Array): Configuration vector, shape (nq,)
 
         Returns:
             Array: Jacobian, shape (6, nv). The first 3 rows are the linear Jacobian,
@@ -103,8 +103,8 @@ class Manipulator(Robot):
         """End-effector Jacobian and its time derivative (w.r.t world)
 
         Args:
-            q (Array): Joint positions, shape (nq,)
-            v (Array): Joint velocities, shape (nv,)
+            q (Array): Configuration vector, shape (nq,)
+            v (Array): Generalized velocities, shape (nv,)
 
         Returns:
             Tuple[Array, Array]:
@@ -126,7 +126,7 @@ class Manipulator(Robot):
         """Manipulability index of the end-effector Jacobian
 
         Args:
-            q (Array): Joint positions, shape (nq,)
+            q (Array): Configuration vector, shape (nq,)
 
         Returns:
             float: Manipulability index
@@ -146,8 +146,8 @@ class Manipulator(Robot):
         with just a single evaluation of the kinematics
 
         Args:
-            q (Array): Joint positions, shape (nq,)
-            v (Array): Joint velocities, shape (nv,)
+            q (Array): Configuration vector, shape (nq,)
+            v (Array): Generalized velocities, shape (nv,)
 
         Returns:
             Tuple[Array, Array, Array, Array, Array, Array]:
@@ -172,7 +172,7 @@ class Manipulator(Robot):
         with just a single evaluation of the kinematics
 
         Args:
-            q (Array): Joint positions, shape (nq,)
+            q (Array): Configuration vector, shape (nq,)
 
         Returns:
             Tuple[Array, Array]:
@@ -194,7 +194,7 @@ class Manipulator(Robot):
         to construct the dynamically-consistent generalized Jacobian inverse
 
         Args:
-            q (Array): Joint positions, shape (nq,)
+            q (Array): Configuration vector, shape (nq,)
 
         Returns:
             Tuple[Array, Array, Array]:

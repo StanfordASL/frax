@@ -365,7 +365,7 @@ class Robot:
         """Computes the transformation matrices for all joints (Joint frame --> world frame)
 
         Args:
-            q (Array): Joint positions, shape (nq,)
+            q (Array): Configuration vector, shape (nq,)
 
         Returns:
             Array: Transformation matrices, shape (nv, 4, 4)
@@ -456,7 +456,7 @@ class Robot:
         """Compute the transformation matrices for all link inertial frames (link inertial frame --> world frame)
 
         Args:
-            q (Array): Joint positions, shape (nq,)
+            q (Array): Configuration vector, shape (nq,)
 
         Returns:
             Array: Transformation matrices, shape (nv, 4, 4)
@@ -497,7 +497,7 @@ class Robot:
         """Compute the center of mass of the robot, in world frame
 
         Args:
-            q (Array): Joint positions, shape (nq,)
+            q (Array): Configuration vector, shape (nq,)
 
         Returns:
             Array: Position of the center of mass, shape (3,)
@@ -518,7 +518,7 @@ class Robot:
         """Computes the linear Jacobian (Jv) for the motion of the COM
 
         Args:
-            q (Array): Joint positions, shape (nq,)
+            q (Array): Configuration vector, shape (nq,)
 
         Returns:
             Array: Jv_COM, shape (3, nv)
@@ -626,7 +626,7 @@ class Robot:
         computations between J and Jdot in that case
 
         Args:
-            v (Array): Joint velocities, shape (nv,)
+            v (Array): Generalized velocities, shape (nv,)
             joint_transforms (Array): Transformation matrices for every joint, shape (nv, 4, 4)
             frame_transform (Array): Transformation matrix of interest in its local frame, shape (4, 4)
             parent_chain (Array): Ancestor joint indices of the frame's link
@@ -701,7 +701,7 @@ class Robot:
         """Compute collision data for all links given the joint configuration
 
         Args:
-            q (Array): Joint positions, shape (nq,)
+            q (Array): Configuration vector, shape (nq,)
 
         Returns:
             Tuple[Array, Array]:
@@ -724,7 +724,7 @@ class Robot:
         """Compute the positions of all collision spheres in world frame
 
         Args:
-            q (Array): Joint positions, shape (nq,)
+            q (Array): Configuration vector, shape (nq,)
 
         Returns:
             Array: Collision positions, shape (num_collision_spheres, 3)
@@ -1017,7 +1017,7 @@ class Robot:
 
         Args:
             q (Array): Array of joint angles, shape (nq,)
-            v (Array): Array of joint velocities, shape (nv,)
+            v (Array): Array of Generalized velocities, shape (nv,)
 
         Returns:
             Array: The centrifugal and coriolis vector, shape (nv,)
@@ -1041,8 +1041,8 @@ class Robot:
         ```
 
         Args:
-            q (Array): Joint positions, shape (nq,)
-            v (Array): Joint velocities, shape (nv,)
+            q (Array): Configuration vector, shape (nq,)
+            v (Array): Generalized velocities, shape (nv,)
 
         Returns:
             Array: The nonlinear bias vector, shape (nv,)
@@ -1076,10 +1076,10 @@ class Robot:
         """Recursive Newton-Euler Algorithm (vectorized form)
 
         Args:
-            q (Array): Joint positions, shape (nq,)
-            v (Optional[Array]): Joint velocities, shape (nv,). None if not considering
+            q (Array): Configuration vector, shape (nq,)
+            v (Optional[Array]): Generalized velocities, shape (nv,). None if not considering
                 joint velocities (as is done to compute gravity)
-            a (Optional[Array]): Joint accelerations, shape (nv,). This is currently not used
+            a (Optional[Array]): Generalized accelerations, shape (nv,). This is currently not used
                 for most methods and can be set to None.
             gravity_accel (Optional[Array]): Spatial acceleration from gravity, shape (6,). None if
                 not considering gravity (as is done to compute centrifugal/coriolis)
@@ -1149,7 +1149,7 @@ class Robot:
         """Composite Rigid Body Algorithm (vectorized form)
 
         Args:
-            q (Array): Joint positions, shape (nq,)
+            q (Array): Configuration vector, shape (nq,)
 
         Returns:
             Array: Mass matrix, shape (nv, nv)
@@ -1213,8 +1213,8 @@ class Robot:
         Note: gravity is assumed always applied (for now)
 
         Args:
-            q (Array): Joint positions, shape (nq,)
-            v (Array): Joint velocities, shape (nv,)
+            q (Array): Configuration vector, shape (nq,)
+            v (Array): Generalized velocities, shape (nv,)
             tau (Array): Joint torques, shape (nv,)
             fext (Optional[Array]): External wrenches on each link (expressed in the root/world frame),
                 shape (nv, 6). Set to None if no external forces are applied
