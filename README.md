@@ -140,6 +140,7 @@ The following features are unplanned:
 ## Other recommended resources
 
 `frax` might not serve your needs exactly -- that's fine! Here are some other useful repositories to look at
+
 - [stack-of-tasks/pinocchio](https://github.com/stack-of-tasks/pinocchio) -- Robot kinematics + dynamics (C++/Python)
 - [google/mujoco/mjx](https://github.com/google-deepmind/mujoco/tree/main/mjx) -- Parallelized simulation (JAX)
 - [google/brax](https://github.com/google/brax) -- Parallelized simulation (JAX)
