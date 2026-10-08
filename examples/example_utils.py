@@ -85,7 +85,7 @@ class ManipulatorEnv:
         control_mode (str): Control mode, either "torque" or "velocity"
         traj (Optional[SinusoidalTaskTrajectory]): Task-space trajectory for the target to follow.
         real_time (bool): Whether to run the simulation in "real time". Defaults to False.
-        sync_viewer_every (int): Sync the viewer every N simulation steps. Defaults to 5
+        sync_viewer_every (int): Sync the viewer every N simulation steps. Defaults to 4
     """
 
     def __init__(
@@ -95,7 +95,7 @@ class ManipulatorEnv:
         traj: Optional[SinusoidalTaskTrajectory] = None,
         real_time: bool = False,
         load_obstacle: bool = False,
-        sync_viewer_every: int = 5,
+        sync_viewer_every: int = 4,
     ):
         repo_path = Path(__file__).parents[1]
         if robot == "panda":
