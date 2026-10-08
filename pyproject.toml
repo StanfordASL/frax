@@ -32,7 +32,9 @@ tpu = ["jax[tpu]"]
 dev = ["mkdocs-material", "mkdocstrings[python]", "ruff"]
 examples = [
     "mujoco>=3.3.1", # Require newer mujoco versions for MjSpec URDF loading
-    "cbfpy",
+    "cbfpy[elastiqp]>=0.1.0",
+    "elastiqp[jax]>=0.1.0",
+    "jax>=0.9.1", # for elastiqp
     "viser[urdf]",
 ]
 test = ["pin", "pytest>=9", "mujoco"]

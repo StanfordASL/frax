@@ -76,6 +76,8 @@ class OSCBFTorqueConfig(CBFConfig):
             u_min=-np.asarray(robot.actuated_joint_max_forces),
             u_max=np.asarray(robot.actuated_joint_max_forces),
             init_args=init_args,
+            backend="elastiqp",
+            solver_tol=1e-5,
         )
 
     def f(self, z, *args, **kwargs):
@@ -184,6 +186,8 @@ class OSCBFVelocityConfig(CBFConfig):
             u_min=-np.asarray(robot.actuated_joint_max_velocities),
             u_max=np.asarray(robot.actuated_joint_max_velocities),
             init_args=init_args,
+            backend="elastiqp",
+            solver_tol=1e-5,
         )
 
     def f(self, z, *args, **kwargs):
