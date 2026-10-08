@@ -85,6 +85,7 @@ class ManipulatorEnv:
         control_mode (str): Control mode, either "torque" or "velocity"
         traj (Optional[SinusoidalTaskTrajectory]): Task-space trajectory for the target to follow.
         real_time (bool): Whether to run the simulation in "real time". Defaults to False.
+        sync_viewer_every (int): Sync the viewer every N simulation steps. Defaults to 5
     """
 
     def __init__(
@@ -94,6 +95,7 @@ class ManipulatorEnv:
         traj: Optional[SinusoidalTaskTrajectory] = None,
         real_time: bool = False,
         load_obstacle: bool = False,
+        sync_viewer_every: int = 5,
     ):
         repo_path = Path(__file__).parents[1]
         if robot == "panda":
@@ -124,6 +126,8 @@ class ManipulatorEnv:
         self.control_mode = control_mode
         self.traj = traj
         self.real_time = real_time
+        self.sync_viewer_every = sync_viewer_every
+        self.step_count = 0
 
         self.mocap_id = self.model.body_mocapid[
             mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "target")
@@ -137,7 +141,6 @@ class ManipulatorEnv:
         mujoco.mj_forward(self.model, self.data)
 
         self.dt = self.model.opt.timestep
-        self.t = 0
         self.last_time = time.time()
 
         self.viewer = mujoco.viewer.launch_passive(self.model, self.data)
@@ -149,10 +152,11 @@ class ManipulatorEnv:
 
     def get_desired_ee_state(self) -> np.ndarray:
         if self.traj is not None:
-            pos = self.traj.position(self.t)
-            rot = self.traj.rotation(self.t).ravel()
-            vel = self.traj.velocity(self.t)
-            omega = self.traj.omega(self.t)
+            t = self.step_count * self.dt
+            pos = self.traj.position(t)
+            rot = self.traj.rotation(t).ravel()
+            vel = self.traj.velocity(t)
+            omega = self.traj.omega(t)
 
             # Update mocap body
             self.data.mocap_pos[self.mocap_id] = pos
@@ -192,8 +196,9 @@ class ManipulatorEnv:
             # Torque control -- use the actual motor actuators with the applied ctrl
             mujoco.mj_step(self.model, self.data)
 
-        self.t += self.dt
-        self.viewer.sync()
+        self.step_count += 1
+        if self.step_count % self.sync_viewer_every == 0:
+            self.viewer.sync()
         if self.real_time:
             elapsed = time.time() - self.last_time
             if elapsed < self.dt:
