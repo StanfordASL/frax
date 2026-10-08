@@ -124,7 +124,7 @@ def main(robot_name):
 
     print(STARTUP_MSG)
     env = ManipulatorEnv(
-        robot=robot_name, control_mode="torque", real_time=True, load_obstacle=True
+        robot=robot_name, control_mode="torque", real_time=False, load_obstacle=True
     )
 
     if robot_name == "panda":

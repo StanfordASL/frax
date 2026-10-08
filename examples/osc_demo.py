@@ -77,8 +77,9 @@ def main(robot_name, demo_mode):
         print(MANUAL_MODE_MSG)
         traj = None
 
+    use_real_time = demo_mode == "trajectory"
     env = ManipulatorEnv(
-        robot=robot_name, control_mode="torque", traj=traj, real_time=True
+        robot=robot_name, control_mode="torque", traj=traj, real_time=use_real_time
     )
 
     # Define gains
