@@ -12,17 +12,25 @@ from typing import Callable, Tuple
 from packaging import version
 
 
-def configure_env(device: str = "cpu") -> None:
+def configure_env(device: str = "cpu", dtype: str = "auto") -> str:
     """Set the recommended environment variables for benchmarking frax on CPU or GPU
 
     Args:
         device (str, optional): "cpu" or "gpu". Defaults to "cpu".
+        dtype (str, optional): "float32", "float64", or "auto" (float64 on CPU, float32
+            on GPU). Defaults to "auto".
+
+    Returns:
+        str: The resolved dtype ("float32" or "float64")
     """
     assert device in ("cpu", "gpu")
-    os.environ["JAX_ENABLE_X64"] = "True"
+    assert dtype in ("auto", "float32", "float64")
+    if dtype == "auto":
+        dtype = "float64" if device == "cpu" else "float32"
+    os.environ["JAX_ENABLE_X64"] = "True" if dtype == "float64" else "False"
     if device == "gpu":
         os.environ["JAX_PLATFORMS"] = "cuda"
-        return
+        return dtype
     os.environ["JAX_PLATFORMS"] = "cpu"
     os.environ["OPENBLAS_NUM_THREADS"] = "1"
     os.environ["XLA_FLAGS"] = "--xla_cpu_multi_thread_eigen=false"
@@ -30,6 +38,7 @@ def configure_env(device: str = "cpu") -> None:
         os.environ["XLA_FLAGS"] += (
             " --xla_cpu_scheduler_type=CPU_SCHEDULER_TYPE_MEMORY_OPTIMIZED"
         )
+    return dtype
 
 
 def benchmark_function(

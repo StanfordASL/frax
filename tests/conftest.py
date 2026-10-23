@@ -10,7 +10,7 @@ import pytest
 
 from timing.timing_utils import configure_env
 
-configure_env("cpu")
+configure_env("cpu", "float64")
 
 
 @pytest.fixture(autouse=True)

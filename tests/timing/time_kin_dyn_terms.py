@@ -3,7 +3,8 @@
 Usage:
     python time_kin_dyn_terms.py                                   # CPU, single state
     python time_kin_dyn_terms.py --batch_size 1024 --n_calls 100   # CPU, batched
-    python time_kin_dyn_terms.py --device gpu --batch_size 4096    # GPU, batched
+    python time_kin_dyn_terms.py --device gpu --batch_size 4096    # GPU, batched (float32)
+    python time_kin_dyn_terms.py --device gpu --dtype float64      # GPU, float64
 """
 
 # ruff: noqa: E402 (jax must be imported after configure_env)
@@ -16,8 +17,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--device", choices=["cpu", "gpu"], default="cpu")
 parser.add_argument("--batch_size", type=int, default=None)
 parser.add_argument("--n_calls", type=int, default=10000)
+parser.add_argument("--dtype", choices=["auto", "float32", "float64"], default="auto")
 args = parser.parse_args()
-configure_env(args.device)
+dtype = configure_env(args.device, args.dtype)
 
 import jax
 import numpy as np
@@ -50,7 +52,7 @@ def main(batch_size: int | None, n_calls: int):
     n_states = 1 if batch_size is None else batch_size
 
     mode = "single state" if batch_size is None else f"batch size {batch_size}"
-    print(f"\n=== {jax.default_backend().upper()}, {mode} ===")
+    print(f"\n=== {jax.default_backend().upper()}, {dtype}, {mode} ===")
     header = f"{'Robot':<7} {'Function':<20} {'JIT (s)':>9} {'Time (us)':>11} {'States/s':>12}"
     print(header)
     print("-" * len(header))

@@ -9,7 +9,13 @@ import argparse
 
 from timing_utils import benchmark_function, configure_env, sample_state
 
-configure_env("cpu")
+parser = argparse.ArgumentParser()
+parser.add_argument("--n_calls", type=int, default=20000)
+parser.add_argument("--n_trials", type=int, default=5)
+parser.add_argument("--batch_size", type=int, default=1024)
+parser.add_argument("--dtype", choices=["auto", "float32", "float64"], default="auto")
+args = parser.parse_args()
+dtype = configure_env("cpu", args.dtype)
 
 import jax
 import numpy as np
@@ -64,9 +70,11 @@ def main(n_calls: int, n_trials: int, batch_size: int):
 
     for batched in (False, True):
         if batched:
-            print(f"\n=== Batched (vmap, batch size {batch_size}): time per batch ===")
+            print(
+                f"\n=== {dtype}, batched (vmap, batch size {batch_size}): time per batch ==="
+            )
         else:
-            print("\n=== Single state: time per call ===")
+            print(f"\n=== {dtype}, single state: time per call ===")
         header = (
             f"{'Function':<18} {'euler (us)':>12} {'quat (us)':>12} {'quat/euler':>11}"
         )
@@ -90,9 +98,4 @@ def main(n_calls: int, n_trials: int, batch_size: int):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--n_calls", type=int, default=20000)
-    parser.add_argument("--n_trials", type=int, default=5)
-    parser.add_argument("--batch_size", type=int, default=1024)
-    args = parser.parse_args()
     main(args.n_calls, args.n_trials, args.batch_size)

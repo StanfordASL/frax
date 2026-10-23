@@ -12,8 +12,9 @@ from timing_utils import benchmark_function, configure_env, sample_state
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--n_calls", type=int, default=10000)
+parser.add_argument("--dtype", choices=["auto", "float32", "float64"], default="auto")
 args = parser.parse_args()
-configure_env("cpu")
+dtype = configure_env("cpu", args.dtype)
 
 import jax.numpy as jnp
 import jax.scipy as jsp
@@ -44,6 +45,7 @@ def main(n_calls: int):
     ]
 
     methods = ["Standard", "Fast SPD", "Cholesky", "Schur"]
+    print(f"\n=== CPU, {dtype} ===")
     header = f"{'Matrix':<18}" + "".join(f"{m + ' (us)':>16}" for m in methods)
     print(header)
     print("-" * len(header))
