@@ -76,5 +76,14 @@ def check_env_vars():
         if should_warn:
             warnings.warn(msg, stacklevel=2)
 
+    elif (
+        devices[0].platform == "gpu" and jax.config.jax_default_matmul_precision is None
+    ):
+        warnings.warn(
+            "[frax] GPU backend detected. When working with robot dynamics on GPU, I recommend "
+            + "setting JAX_DEFAULT_MATMUL_PRECISION=float32 for better numerics.",
+            stacklevel=2,
+        )
+
 
 check_env_vars()

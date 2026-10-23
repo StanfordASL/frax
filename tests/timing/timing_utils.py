@@ -30,6 +30,7 @@ def configure_env(device: str = "cpu", dtype: str = "auto") -> str:
     os.environ["JAX_ENABLE_X64"] = "True" if dtype == "float64" else "False"
     if device == "gpu":
         os.environ["JAX_PLATFORMS"] = "cuda"
+        os.environ["JAX_DEFAULT_MATMUL_PRECISION"] = "float32"
         return dtype
     os.environ["JAX_PLATFORMS"] = "cpu"
     os.environ["OPENBLAS_NUM_THREADS"] = "1"

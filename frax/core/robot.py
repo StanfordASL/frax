@@ -17,6 +17,7 @@ import numpy as np
 
 from frax.utils.urdf_parser import parse_urdf
 from frax.utils.linalg_utils import cholesky_spd_inverse
+from frax.utils.general_utils import highest_matmul_precision_cls
 from frax.utils.transform_utils import (
     create_transform_numpy,
     transform_points,
@@ -41,6 +42,7 @@ FLOATING_BASE_TYPES = (None, "quaternion", "euler")
 
 
 @jax.tree_util.register_static
+@highest_matmul_precision_cls
 class Robot:
     """Robot kinematics and dynamics
 
@@ -62,6 +64,11 @@ class Robot:
         default_configuration (Optional[ArrayLike]): The default configuration, shape (nq),
             Defaults to None (identity floating base, if used, and all actuated joints at zero)
     """
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        # Apply high-precision matmuls to all subclasses (Humanoid, Manipulator, ...)
+        highest_matmul_precision_cls(cls)
 
     def __init__(
         self,
