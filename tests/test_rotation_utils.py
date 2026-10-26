@@ -123,6 +123,10 @@ def test_quat_convention_swaps():
     np.testing.assert_array_equal(wxyz_to_xyzw(q), [2.0, 3.0, 4.0, 1.0])
     np.testing.assert_array_equal(xyzw_to_wxyz(q), [4.0, 1.0, 2.0, 3.0])
     np.testing.assert_array_equal(xyzw_to_wxyz(wxyz_to_xyzw(q)), q)
+    # Batched: convention swap applies to the last axis
+    qs = np.arange(12.0).reshape(3, 4)
+    np.testing.assert_array_equal(wxyz_to_xyzw(qs), qs[:, [1, 2, 3, 0]])
+    np.testing.assert_array_equal(xyzw_to_wxyz(qs), qs[:, [3, 0, 1, 2]])
 
 
 def test_conjugate_and_multiply():

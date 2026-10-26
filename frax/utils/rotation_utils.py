@@ -385,24 +385,24 @@ def xyzw_to_wxyz(quat: Array) -> Array:
     """Convert an XYZW quaternion to WXYZ
 
     Args:
-        quat (Array): XYZW quaternion, shape (4,)
+        quat (Array): XYZW quaternion(s), shape (..., 4)
 
     Returns:
-        Array: WXYZ quaternion, shape (4,)
+        Array: WXYZ quaternion(s), shape (..., 4)
     """
-    return quat[jnp.array([3, 0, 1, 2])]
+    return jnp.roll(quat, 1, axis=-1)
 
 
 def wxyz_to_xyzw(quat: Array) -> Array:
     """Convert a WXYZ quaternion to XYZW
 
     Args:
-        quat (Array): WXYZ quaternion, shape (4,)
+        quat (Array): WXYZ quaternion(s), shape (..., 4)
 
     Returns:
-        Array: XYZW quaternion, shape (4,)
+        Array: XYZW quaternion(s), shape (..., 4)
     """
-    return quat[jnp.array([1, 2, 3, 0])]
+    return jnp.roll(quat, -1, axis=-1)
 
 
 def quat_wxyz_exp(rotvec: Array) -> Array:
