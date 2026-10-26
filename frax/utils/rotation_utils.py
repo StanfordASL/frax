@@ -311,24 +311,11 @@ def _omega_from_wxyz_quaternions(
     q1: Array, q2: Array, dt: float, frame: str = "world"
 ) -> Array:
     """Helper function for computing angular velocity from two quaternions"""
-    q1 = q1 / jnp.linalg.norm(q1)
-    q2 = q2 / jnp.linalg.norm(q2)
-
-    # Ensure shortest path
-    q2 = jnp.where(jnp.dot(q1, q2) < 0.0, -q2, q2)
-
     if frame == "world":
         q_rel = quat_wxyz_multiply(q2, quat_wxyz_conjugate(q1))
     else:  # body
         q_rel = quat_wxyz_multiply(quat_wxyz_conjugate(q1), q2)
-
-    w, v = q_rel[0], q_rel[1:]
-    v_norm = jnp.linalg.norm(v)
-
-    # Axis-angle with check for numerical stability
-    theta = 2.0 * jnp.atan2(v_norm, w)
-    axis = jnp.where(v_norm > 1e-8, v / v_norm, jnp.zeros(3))
-    return axis * (theta / dt)
+    return quat_wxyz_log(q_rel) / dt
 
 
 def omega_world_from_wxyz_quaternions(q1: Array, q2: Array, dt: float) -> Array:

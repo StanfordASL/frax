@@ -225,6 +225,34 @@ def test_omega_from_quaternions(frame, omega_fn):
         np.testing.assert_allclose(omega_fn(q1, -q2, dt), omega, atol=1e-8)
     # Zero rotation gives zero velocity
     np.testing.assert_allclose(omega_fn(q1, q1, dt), np.zeros(3), atol=TOL)
+    # Unnormalized inputs give the same result
+    np.testing.assert_allclose(omega_fn(2.0 * q1, 0.5 * q2, dt), omega, atol=1e-8)
+
+
+@pytest.mark.parametrize(
+    "frame, omega_fn",
+    [
+        ("world", omega_world_from_wxyz_quaternions),
+        ("body", omega_body_from_wxyz_quaternions),
+    ],
+    ids=["world", "body"],
+)
+def test_omega_gradients_at_zero(frame, omega_fn):
+    # Note: the identity guarantees an exactly zero relative rotation, whereas for
+    # random quaternions, q1^* q1 may have a tiny nonzero vector part due to rounding
+    dt = 0.01
+    for q in (jnp.array([1.0, 0.0, 0.0, 0.0]), jnp.asarray(random_quat())):
+        jac_q1, jac_q2 = jax.jacobian(omega_fn, argnums=(0, 1))(q, q, dt)
+        assert np.all(np.isfinite(jac_q1))
+        assert np.all(np.isfinite(jac_q2))
+        r = np.random.randn(3)
+        r_quat = np.concatenate([[0.0], r / 2])
+        if frame == "world":
+            dq2 = quat_wxyz_multiply(r_quat, q)
+        else:
+            dq2 = quat_wxyz_multiply(q, r_quat)
+        _, domega = jax.jvp(lambda q2: omega_fn(q, q2, dt), (q,), (dq2,))
+        np.testing.assert_allclose(domega, r / dt, atol=1e-8)
 
 
 def test_orientation_error():
