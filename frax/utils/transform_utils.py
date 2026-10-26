@@ -91,20 +91,38 @@ def prismatic_transform(q: float, axis: ArrayLike) -> jax.Array:
     )
 
 
-def transform_point(transform, point):
+def transform_point(transform: ArrayLike, point: ArrayLike) -> Array:
+    """Apply a transformation matrix to a point
+
+    Args:
+        transform (ArrayLike): Transformation matrix, shape (4, 4)
+        point (ArrayLike): Point to transform, shape (3,)
+
+    Returns:
+        Array: Transformed point, shape (3,)
+    """
     transform = jnp.asarray(transform)
     point = jnp.asarray(point)
     assert transform.shape == (4, 4)
     assert point.shape == (3,)
-    return (transform @ jnp.concatenate([point, 1.0]))[:3]
+    return transform[:3, :3] @ point + transform[:3, 3]
 
 
-def transform_points(transform, points):
+def transform_points(transform: ArrayLike, points: ArrayLike) -> Array:
+    """Apply a transformation matrix to a set of points
+
+    Args:
+        transform (ArrayLike): Transformation matrix, shape (4, 4)
+        points (ArrayLike): Points to transform, shape (n, 3)
+
+    Returns:
+        Array: Transformed points, shape (n, 3)
+    """
     transform = jnp.asarray(transform)
     points = jnp.asarray(points)
     assert transform.shape == (4, 4)
     assert points.shape[1] == 3
-    return (jnp.hstack([points, jnp.ones((points.shape[0], 1))]) @ transform.T)[:, :3]
+    return points @ transform[:3, :3].T + transform[:3, 3]
 
 
 def joint_transform(
