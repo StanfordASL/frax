@@ -239,7 +239,7 @@ def slerp(start: Array, end: Array, t: float) -> Array:
         t (float): Interpolation parameter, 0 <= t <= 1.
 
     Returns:
-        Array: Interpolated quaternion(s), shape (4,) or (n, 4)
+        Array: Interpolated quaternion, shape (4,)
     """
     assert start.shape == (4,)
     assert end.shape == (4,)
@@ -247,20 +247,21 @@ def slerp(start: Array, end: Array, t: float) -> Array:
     end = end / jnp.linalg.norm(end)
 
     # Ensure shortest path
-    dot_prod = jnp.dot(start, end)
-    end = jnp.where(dot_prod < 0.0, -end, end)
-    dot_prod = jnp.abs(dot_prod)  # Update to reflect the flip
+    end = jnp.where(jnp.dot(start, end) < 0.0, -end, end)
 
-    angle = jnp.arccos(jnp.clip(dot_prod, -1.0, 1.0))
+    diff = start - end
+    diff_sq = jnp.dot(diff, diff)
 
     # Linear interpolation for small angles
-    small_angle = angle < 1e-6
+    small_angle = diff_sq < 1e-12
     w1_linear = 1.0 - t
     w2_linear = t
 
     # SLERP for larger angles
     # Note: avoid division by zero to prevent NaN via "double where" trick
     # see https://github.com/jax-ml/jax/issues/5039
+    diff_norm = jnp.sqrt(jnp.where(small_angle, 1.0, diff_sq))
+    angle = 2.0 * jnp.atan2(diff_norm, jnp.sqrt(4.0 - diff_sq))
     safe_sin = jnp.where(small_angle, 1.0, jnp.sin(angle))
     w1_slerp = jnp.sin((1.0 - t) * angle) / safe_sin
     w2_slerp = jnp.sin(t * angle) / safe_sin

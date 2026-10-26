@@ -184,6 +184,24 @@ def test_slerp_small_angle():
     assert_same_rotation(out, q)
 
 
+@pytest.mark.parametrize("scale", [0.0, 1e-9, 1e-5, 1e-2, 1.0, 3.0])
+def test_slerp_gradients(scale):
+    q = random_quat()
+    q2 = quat_wxyz_multiply(q, quat_wxyz_exp(scale * np.array([0.6, 0.0, 0.8])))
+    t = 0.3
+    jac_start, jac_end, jac_t = jax.jacobian(slerp, argnums=(0, 1, 2))(
+        jnp.asarray(q), q2, t
+    )
+    for jac in (jac_start, jac_end, jac_t):
+        assert np.all(np.isfinite(jac))
+    # Moving along the geodesic: d/dt slerp = q * (log(q^-1 q2) / 2) as a pure quaternion
+    expected = quat_wxyz_multiply(
+        slerp(q, q2, t),
+        np.concatenate([[0.0], 0.5 * scale * np.array([0.6, 0.0, 0.8])]),
+    )
+    np.testing.assert_allclose(jac_t, expected, atol=1e-8)
+
+
 @pytest.mark.parametrize(
     "frame, omega_fn",
     [
