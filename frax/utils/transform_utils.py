@@ -122,7 +122,7 @@ def transform_points(transform: ArrayLike, points: ArrayLike) -> Array:
     points = jnp.asarray(points)
     assert transform.shape == (4, 4)
     assert points.shape[1] == 3
-    return points @ transform[:3, :3].T + transform[:3, 3]
+    return (jnp.hstack([points, jnp.ones((points.shape[0], 1))]) @ transform.T)[:, :3]
 
 
 def joint_transform(
