@@ -1205,15 +1205,17 @@ class Robot:
                 spatial_axes (Array): shape (nv, 6)
                 spatial_inertias (Array): shape (nv, 6, 6)
         """
-        # Express spatial quantities w.r.t the base rather than the world
-        # to avoid loss of precision when far from the origin
-        joint_transforms = joint_transforms.at[:, :3, 3].add(
-            -self._dynamics_origin(joint_transforms)
-        )
+        link_transforms = self._link_to_world_transforms(joint_transforms)
+        if self.floating_base:
+            # Express spatial quantities w.r.t the base rather than the world
+            # to avoid loss of precision when far from the origin
+            origin = self._dynamics_origin(joint_transforms)
+            shift = jnp.zeros((4, 4), joint_transforms.dtype).at[:3, 3].set(-origin)
+            joint_transforms = joint_transforms + shift
+            link_transforms = link_transforms + shift
         spatial_axes = get_spatial_joint_axes(
             joint_transforms, self.joint_axes, self.revolute_mask
         )
-        link_transforms = self._link_to_world_transforms(joint_transforms)
         spatial_inertias = get_spatial_inertias(
             self.link_masses, self.link_local_inertias, link_transforms
         )

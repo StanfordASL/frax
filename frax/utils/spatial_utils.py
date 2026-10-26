@@ -58,9 +58,7 @@ def _spatial_inertia(mass: Array, local_inertia: Array, transform: Array) -> Arr
     c = transform[:3, 3]
     cx = skew(c)
     # Rotational inertia about the origin (parallel axis theorem)
-    I_rot = R @ local_inertia @ R.T + mass * (
-        jnp.dot(c, c) * jnp.eye(3) - jnp.outer(c, c)
-    )
+    I_rot = R @ local_inertia @ R.T - mass * (cx @ cx)
     # Spatial inertia I_O = [m*I, -m*cx; m*cx, Ic - m*cx*cx]
     mcx = mass * cx
     return jnp.block([[mass * jnp.eye(3), -mcx], [mcx, I_rot]])
