@@ -194,60 +194,37 @@ def rmat_to_quat_wxyz(R: Array) -> Array:
         Array: WXYZ quaternion, shape (4,)
     """
     R = jnp.asarray(R)
-
+    # Products of quaternion components (times 4) are linear functions of
+    # the entries in R, example: ww = 4*w*w, wx = 4*w*x, ...
+    # See: the quaternion to rotation matrix conversion
     tr = R[0, 0] + R[1, 1] + R[2, 2]
-
-    def case_tr_gt_0():
-        s = jnp.sqrt(tr + 1.0) * 2
-        w = 0.25 * s
-        x = (R[2, 1] - R[1, 2]) / s
-        y = (R[0, 2] - R[2, 0]) / s
-        z = (R[1, 0] - R[0, 1]) / s
-        return jnp.array([w, x, y, z])
-
-    def case_x_max():
-        s = jnp.sqrt(1.0 + R[0, 0] - R[1, 1] - R[2, 2]) * 2
-        w = (R[2, 1] - R[1, 2]) / s
-        x = 0.25 * s
-        y = (R[0, 1] + R[1, 0]) / s
-        z = (R[0, 2] + R[2, 0]) / s
-        return jnp.array([w, x, y, z])
-
-    def case_y_max():
-        s = jnp.sqrt(1.0 + R[1, 1] - R[0, 0] - R[2, 2]) * 2
-        w = (R[0, 2] - R[2, 0]) / s
-        x = (R[0, 1] + R[1, 0]) / s
-        y = 0.25 * s
-        z = (R[1, 2] + R[2, 1]) / s
-        return jnp.array([w, x, y, z])
-
-    def case_z_max():
-        s = jnp.sqrt(1.0 + R[2, 2] - R[0, 0] - R[1, 1]) * 2
-        w = (R[1, 0] - R[0, 1]) / s
-        x = (R[0, 2] + R[2, 0]) / s
-        y = (R[1, 2] + R[2, 1]) / s
-        z = 0.25 * s
-        return jnp.array([w, x, y, z])
-
-    # Choose the most stable case
-    cond1 = tr > 0
-    cond2 = (R[0, 0] > R[1, 1]) & (R[0, 0] > R[2, 2])
-    cond3 = R[1, 1] > R[2, 2]
-
-    res = jnp.where(
-        cond1,
-        case_tr_gt_0(),
+    ww = 1.0 + tr
+    xx = 1.0 + 2.0 * R[0, 0] - tr
+    yy = 1.0 + 2.0 * R[1, 1] - tr
+    zz = 1.0 + 2.0 * R[2, 2] - tr
+    wx = R[2, 1] - R[1, 2]
+    wy = R[0, 2] - R[2, 0]
+    wz = R[1, 0] - R[0, 1]
+    xy = R[0, 1] + R[1, 0]
+    xz = R[0, 2] + R[2, 0]
+    yz = R[1, 2] + R[2, 1]
+    # Pick the most numerically stable case.
+    # Normalizing eliminates any remaining scaling: example:
+    # [ww, wx, wy, wz] = 4*w*[w, x, y, z]; normalizing gives [w, x, y, z]
+    quat = jnp.where(
+        (ww >= xx) & (ww >= yy) & (ww >= zz),
+        jnp.array([ww, wx, wy, wz]),
         jnp.where(
-            cond2,
-            case_x_max(),
+            (xx >= yy) & (xx >= zz),
+            jnp.array([wx, xx, xy, xz]),
             jnp.where(
-                cond3,
-                case_y_max(),
-                case_z_max(),
+                yy >= zz,
+                jnp.array([wy, xy, yy, yz]),
+                jnp.array([wz, xz, yz, zz]),
             ),
         ),
     )
-    return res / jnp.linalg.norm(res)
+    return quat / jnp.linalg.norm(quat)
 
 
 def slerp(start: Array, end: Array, t: float) -> Array:
