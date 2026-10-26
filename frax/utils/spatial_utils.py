@@ -6,8 +6,11 @@ from Featherstone's textbook which uses [angular, linear]. But,
 and MuJoCo.
 """
 
+import jax
 import jax.numpy as jnp
 from jax import Array
+
+from frax.utils.linalg_utils import skew
 
 
 def get_spatial_joint_axes(
@@ -40,7 +43,29 @@ def get_spatial_joint_axes(
     return jnp.where(revolute_mask[:, None], s_rev, s_pri)
 
 
-# TODO clean up this function more
+def _spatial_inertia(mass: Array, local_inertia: Array, transform: Array) -> Array:
+    """Helper function: Spatial inertia of a single link, expressed in the root frame
+
+    Args:
+        mass (Array): Mass of the link
+        local_inertia (Array): Inertia matrix about the COM, in the link frame, shape (3, 3)
+        transform (Array): Transformation matrix of the link's COM frame, shape (4, 4)
+
+    Returns:
+        Array: Spatial inertia matrix, shape (6, 6)
+    """
+    R = transform[:3, :3]
+    c = transform[:3, 3]
+    cx = skew(c)
+    # Rotational inertia about the origin (parallel axis theorem)
+    I_rot = R @ local_inertia @ R.T + mass * (
+        jnp.dot(c, c) * jnp.eye(3) - jnp.outer(c, c)
+    )
+    # Spatial inertia I_O = [m*I, -m*cx; m*cx, Ic - m*cx*cx]
+    mcx = mass * cx
+    return jnp.block([[mass * jnp.eye(3), -mcx], [mcx, I_rot]])
+
+
 def get_spatial_inertias(
     link_masses: Array,
     link_local_inertias: Array,
@@ -56,43 +81,7 @@ def get_spatial_inertias(
     Returns:
         Array: Spatial inertia matrices, shape (nv, 6, 6)
     """
-    m = link_masses
-    R_i = link_transforms[:, :3, :3]
-    link_pos = link_transforms[:, :3, 3]
-
-    Ic = jnp.einsum(
-        "ijk,ikl,ilm->ijm",
-        R_i,
-        link_local_inertias,
-        R_i.transpose(0, 2, 1),
-    )
-    c = link_pos
-    cx = jnp.stack(
-        [
-            jnp.stack([jnp.zeros_like(c[:, 0]), -c[:, 2], c[:, 1]], axis=1),
-            jnp.stack([c[:, 2], jnp.zeros_like(c[:, 0]), -c[:, 0]], axis=1),
-            jnp.stack([-c[:, 1], c[:, 0], jnp.zeros_like(c[:, 0])], axis=1),
-        ],
-        axis=1,
-    )
-
-    # Spatial inertia I_O = [m*I, -m*cx; m*cx, Ic - m*cx*cx]
-    I_O = jnp.concatenate(
-        [
-            jnp.concatenate(
-                [
-                    m[:, None, None] * jnp.eye(3)[None, :, :],
-                    -m[:, None, None] * cx,
-                ],
-                axis=2,
-            ),
-            jnp.concatenate(
-                [m[:, None, None] * cx, Ic - m[:, None, None] * (cx @ cx)], axis=2
-            ),
-        ],
-        axis=1,
-    )
-    return I_O
+    return jax.vmap(_spatial_inertia)(link_masses, link_local_inertias, link_transforms)
 
 
 def spatial_motion_cross(velocity: Array, motion: Array) -> Array:
