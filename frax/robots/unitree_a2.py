@@ -40,7 +40,7 @@ foot_offset = np.block(
 default_q_act = np.array(
     [0.0, 0.8, -1.5, 0.0, 0.8, -1.5, 0.0, 0.8, -1.5, 0.0, 0.8, -1.5]
 )
-default_base_height = 0.434
+default_base_height = 0.43454
 
 
 def load_a2(floating_base: str = "quaternion") -> Quadruped:
