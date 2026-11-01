@@ -16,27 +16,33 @@
       </material>
     </visual>
     <collision name="sphere_0">
-      <origin xyz="0.2831169562943807 0.0 0.016" rpy="0 0 0" />
+      <origin xyz="0.305650121442673 0.0 0.08271207269991247" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.15431200698160366" />
+        <sphere radius="0.09688698810186702" />
       </geometry>
     </collision>
     <collision name="sphere_1">
-      <origin xyz="0.0777675975484178 0.0 0.016" rpy="0 0 0" />
+      <origin xyz="0.13941917239395468 0.0 0.024512841508476456" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.16961856749598445" />
+        <sphere radius="0.15458901160678326" />
       </geometry>
     </collision>
     <collision name="sphere_2">
-      <origin xyz="-0.07301770567117981 0.0 0.016" rpy="0 0 0" />
+      <origin xyz="0.004241574335966019 0.0 0.018406539345608198" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.16981399689654256" />
+        <sphere radius="0.15541293494504105" />
       </geometry>
     </collision>
     <collision name="sphere_3">
-      <origin xyz="-0.23269156844893069 0.0 0.016" rpy="0 0 0" />
+      <origin xyz="-0.12026173798137127 0.0 0.016" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.15431200698160366" />
+        <sphere radius="0.1553410409167389" />
+      </geometry>
+    </collision>
+    <collision name="sphere_4">
+      <origin xyz="-0.271880015460734 0.0 0.08965231006122173" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.08296443377331165" />
       </geometry>
     </collision>
   </link>
@@ -78,28 +84,34 @@
         <color rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <collision name="sphere_4">
-      <origin xyz="-0.0035337244044831295 -0.024647337999362723 -0.015246631887328284" rpy="0 0 0" />
-      <geometry>
-        <sphere radius="0.07052307464179645" />
-      </geometry>
-    </collision>
     <collision name="sphere_5">
-      <origin xyz="-0.015578572541253832 -0.017844529248237234 -0.09292731823411708" rpy="0 0 0" />
+      <origin xyz="-0.0038136855018557347 -0.028673635392233526 -0.011398902871696912" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.06335890514346523" />
+        <sphere radius="0.07" />
       </geometry>
     </collision>
     <collision name="sphere_6">
-      <origin xyz="-0.026998719591501963 -0.018720248841829434 -0.18078223711333774" rpy="0 0 0" />
+      <origin xyz="-0.01975905381966417 0.0015252461723253563 -0.07989307483358592" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.06335890514346523" />
+        <sphere radius="0.045" />
       </geometry>
     </collision>
     <collision name="sphere_7">
-      <origin xyz="-0.01542421714411013 -0.018562474696550202 -0.25522858363969386" rpy="0 0 0" />
+      <origin xyz="-0.02730981088048684 -1.3068937166044181e-05 -0.14570986923512502" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.06335890514346523" />
+        <sphere radius="0.045" />
+      </geometry>
+    </collision>
+    <collision name="sphere_8">
+      <origin xyz="-0.025886007275114642 -0.0015777753473151523 -0.20967460558248763" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.045" />
+      </geometry>
+    </collision>
+    <collision name="sphere_9">
+      <origin xyz="-0.00828780026750442 0.0 -0.25993214284444677" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.045" />
       </geometry>
     </collision>
   </link>
@@ -125,28 +137,34 @@
         <color rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <collision name="sphere_8">
-      <origin xyz="0.006065371557174404 -0.007145896103365079 -0.04836288249666021" rpy="0 0 0" />
-      <geometry>
-        <sphere radius="0.05" />
-      </geometry>
-    </collision>
-    <collision name="sphere_9">
-      <origin xyz="0.012914459167715109 -0.005667865221967577 -0.11614567134316384" rpy="0 0 0" />
-      <geometry>
-        <sphere radius="0.05" />
-      </geometry>
-    </collision>
     <collision name="sphere_10">
-      <origin xyz="0.017492191402216195 -0.001262048066878324 -0.1923309942569365" rpy="0 0 0" />
+      <origin xyz="0.006065371557174126 -0.00374432482507292 -0.05339722958734999" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.05" />
+        <sphere radius="0.036" />
       </geometry>
     </collision>
     <collision name="sphere_11">
-      <origin xyz="0.0075815085687198636 -0.0013020701683718605 -0.2613926715878865" rpy="0 0 0" />
+      <origin xyz="0.020444859858459064 -0.0004548740349608893 -0.10994328718878482" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.05" />
+        <sphere radius="0.036" />
+      </geometry>
+    </collision>
+    <collision name="sphere_12">
+      <origin xyz="0.027807651962653723 -0.001262048066878435 -0.17128082760983238" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.036" />
+      </geometry>
+    </collision>
+    <collision name="sphere_13">
+      <origin xyz="0.022000628290806457 -0.0013020701683718328 -0.22966885607318388" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.036" />
+      </geometry>
+    </collision>
+    <collision name="sphere_14">
+      <origin xyz="0.0007093788271498869 -4.3526895969120405e-05 -0.27371755673188475" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.03405189238043357" />
       </geometry>
     </collision>
   </link>
@@ -217,28 +235,34 @@
         <color rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <collision name="sphere_20">
-      <origin xyz="-0.0035337244044831295 -0.024647337999362723 -0.015246631887328284" rpy="0 0 0" />
+    <collision name="sphere_25">
+      <origin xyz="-0.0038136855018557347 -0.028673635392233526 -0.011398902871696912" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.07052307464179645" />
+        <sphere radius="0.07" />
       </geometry>
     </collision>
-    <collision name="sphere_21">
-      <origin xyz="-0.015578572541253832 -0.017844529248237234 -0.09292731823411708" rpy="0 0 0" />
+    <collision name="sphere_26">
+      <origin xyz="-0.01975905381966417 0.0015252461723253563 -0.07989307483358592" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.06335890514346523" />
+        <sphere radius="0.045" />
       </geometry>
     </collision>
-    <collision name="sphere_22">
-      <origin xyz="-0.026998719591501963 -0.018720248841829434 -0.18078223711333774" rpy="0 0 0" />
+    <collision name="sphere_27">
+      <origin xyz="-0.02730981088048684 -1.3068937166044181e-05 -0.14570986923512502" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.06335890514346523" />
+        <sphere radius="0.045" />
       </geometry>
     </collision>
-    <collision name="sphere_23">
-      <origin xyz="-0.01542421714411013 -0.018562474696550202 -0.25522858363969386" rpy="0 0 0" />
+    <collision name="sphere_28">
+      <origin xyz="-0.025886007275114642 -0.0015777753473151523 -0.20967460558248763" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.06335890514346523" />
+        <sphere radius="0.045" />
+      </geometry>
+    </collision>
+    <collision name="sphere_29">
+      <origin xyz="-0.00828780026750442 0.0 -0.25993214284444677" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.045" />
       </geometry>
     </collision>
   </link>
@@ -264,28 +288,34 @@
         <color rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <collision name="sphere_24">
-      <origin xyz="0.006065371557174404 -0.007145896103365079 -0.04836288249666021" rpy="0 0 0" />
+    <collision name="sphere_30">
+      <origin xyz="0.006065371557174126 -0.00374432482507292 -0.05339722958734999" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.05" />
+        <sphere radius="0.036" />
       </geometry>
     </collision>
-    <collision name="sphere_25">
-      <origin xyz="0.012914459167715109 -0.005667865221967577 -0.11614567134316384" rpy="0 0 0" />
+    <collision name="sphere_31">
+      <origin xyz="0.020444859858459064 -0.0004548740349608893 -0.10994328718878482" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.05" />
+        <sphere radius="0.036" />
       </geometry>
     </collision>
-    <collision name="sphere_26">
-      <origin xyz="0.017492191402216195 -0.001262048066878324 -0.1923309942569365" rpy="0 0 0" />
+    <collision name="sphere_32">
+      <origin xyz="0.027807651962653723 -0.001262048066878435 -0.17128082760983238" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.05" />
+        <sphere radius="0.036" />
       </geometry>
     </collision>
-    <collision name="sphere_27">
-      <origin xyz="0.0075815085687198636 -0.0013020701683718605 -0.2613926715878865" rpy="0 0 0" />
+    <collision name="sphere_33">
+      <origin xyz="0.022000628290806457 -0.0013020701683718328 -0.22966885607318388" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.05" />
+        <sphere radius="0.036" />
+      </geometry>
+    </collision>
+    <collision name="sphere_34">
+      <origin xyz="0.0007093788271498869 -4.3526895969120405e-05 -0.27371755673188475" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.03405189238043357" />
       </geometry>
     </collision>
   </link>
@@ -356,28 +386,34 @@
         <color rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <collision name="sphere_12">
-      <origin xyz="-0.0035337244044831295 0.024647337999362723 -0.015246631887328284" rpy="0 0 0" />
-      <geometry>
-        <sphere radius="0.07052307464179645" />
-      </geometry>
-    </collision>
-    <collision name="sphere_13">
-      <origin xyz="-0.015578572541253832 0.017844529248237234 -0.09292731823411708" rpy="0 0 0" />
-      <geometry>
-        <sphere radius="0.06335890514346523" />
-      </geometry>
-    </collision>
-    <collision name="sphere_14">
-      <origin xyz="-0.026998719591501963 0.018720248841829434 -0.18078223711333774" rpy="0 0 0" />
-      <geometry>
-        <sphere radius="0.06335890514346523" />
-      </geometry>
-    </collision>
     <collision name="sphere_15">
-      <origin xyz="-0.01542421714411013 0.018562474696550202 -0.25522858363969386" rpy="0 0 0" />
+      <origin xyz="-0.0038136855018557347 0.028673635392233526 -0.011398902871696912" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.06335890514346523" />
+        <sphere radius="0.07" />
+      </geometry>
+    </collision>
+    <collision name="sphere_16">
+      <origin xyz="-0.01975905381966417 -0.0015252461723253563 -0.07989307483358592" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.045" />
+      </geometry>
+    </collision>
+    <collision name="sphere_17">
+      <origin xyz="-0.02730981088048684 1.3068937166044181e-05 -0.14570986923512502" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.045" />
+      </geometry>
+    </collision>
+    <collision name="sphere_18">
+      <origin xyz="-0.025886007275114642 0.0015777753473151523 -0.20967460558248763" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.045" />
+      </geometry>
+    </collision>
+    <collision name="sphere_19">
+      <origin xyz="-0.00828780026750442 0.0 -0.25993214284444677" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.045" />
       </geometry>
     </collision>
   </link>
@@ -403,28 +439,34 @@
         <color rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <collision name="sphere_16">
-      <origin xyz="0.006065371557174404 0.007145896103365079 -0.04836288249666021" rpy="0 0 0" />
+    <collision name="sphere_20">
+      <origin xyz="0.006065371557174126 0.00374432482507292 -0.05339722958734999" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.05" />
+        <sphere radius="0.036" />
       </geometry>
     </collision>
-    <collision name="sphere_17">
-      <origin xyz="0.012914459167715109 0.005667865221967577 -0.11614567134316384" rpy="0 0 0" />
+    <collision name="sphere_21">
+      <origin xyz="0.020444859858459064 0.0004548740349608893 -0.10994328718878482" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.05" />
+        <sphere radius="0.036" />
       </geometry>
     </collision>
-    <collision name="sphere_18">
-      <origin xyz="0.017492191402216195 0.001262048066878324 -0.1923309942569365" rpy="0 0 0" />
+    <collision name="sphere_22">
+      <origin xyz="0.027807651962653723 0.001262048066878435 -0.17128082760983238" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.05" />
+        <sphere radius="0.036" />
       </geometry>
     </collision>
-    <collision name="sphere_19">
-      <origin xyz="0.0075815085687198636 0.0013020701683718605 -0.2613926715878865" rpy="0 0 0" />
+    <collision name="sphere_23">
+      <origin xyz="0.022000628290806457 0.0013020701683718328 -0.22966885607318388" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.05" />
+        <sphere radius="0.036" />
+      </geometry>
+    </collision>
+    <collision name="sphere_24">
+      <origin xyz="0.0007093788271498869 4.3526895969120405e-05 -0.27371755673188475" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.03405189238043357" />
       </geometry>
     </collision>
   </link>
@@ -495,28 +537,34 @@
         <color rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <collision name="sphere_28">
-      <origin xyz="-0.0035337244044831295 0.024647337999362723 -0.015246631887328284" rpy="0 0 0" />
+    <collision name="sphere_35">
+      <origin xyz="-0.0038136855018557347 0.028673635392233526 -0.011398902871696912" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.07052307464179645" />
+        <sphere radius="0.07" />
       </geometry>
     </collision>
-    <collision name="sphere_29">
-      <origin xyz="-0.015578572541253832 0.017844529248237234 -0.09292731823411708" rpy="0 0 0" />
+    <collision name="sphere_36">
+      <origin xyz="-0.01975905381966417 -0.0015252461723253563 -0.07989307483358592" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.06335890514346523" />
+        <sphere radius="0.045" />
       </geometry>
     </collision>
-    <collision name="sphere_30">
-      <origin xyz="-0.026998719591501963 0.018720248841829434 -0.18078223711333774" rpy="0 0 0" />
+    <collision name="sphere_37">
+      <origin xyz="-0.02730981088048684 1.3068937166044181e-05 -0.14570986923512502" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.06335890514346523" />
+        <sphere radius="0.045" />
       </geometry>
     </collision>
-    <collision name="sphere_31">
-      <origin xyz="-0.01542421714411013 0.018562474696550202 -0.25522858363969386" rpy="0 0 0" />
+    <collision name="sphere_38">
+      <origin xyz="-0.025886007275114642 0.0015777753473151523 -0.20967460558248763" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.06335890514346523" />
+        <sphere radius="0.045" />
+      </geometry>
+    </collision>
+    <collision name="sphere_39">
+      <origin xyz="-0.00828780026750442 0.0 -0.25993214284444677" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.045" />
       </geometry>
     </collision>
   </link>
@@ -542,28 +590,34 @@
         <color rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <collision name="sphere_32">
-      <origin xyz="0.006065371557174404 0.007145896103365079 -0.04836288249666021" rpy="0 0 0" />
+    <collision name="sphere_40">
+      <origin xyz="0.006065371557174126 0.00374432482507292 -0.05339722958734999" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.05" />
+        <sphere radius="0.036" />
       </geometry>
     </collision>
-    <collision name="sphere_33">
-      <origin xyz="0.012914459167715109 0.005667865221967577 -0.11614567134316384" rpy="0 0 0" />
+    <collision name="sphere_41">
+      <origin xyz="0.020444859858459064 0.0004548740349608893 -0.10994328718878482" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.05" />
+        <sphere radius="0.036" />
       </geometry>
     </collision>
-    <collision name="sphere_34">
-      <origin xyz="0.017492191402216195 0.001262048066878324 -0.1923309942569365" rpy="0 0 0" />
+    <collision name="sphere_42">
+      <origin xyz="0.027807651962653723 0.001262048066878435 -0.17128082760983238" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.05" />
+        <sphere radius="0.036" />
       </geometry>
     </collision>
-    <collision name="sphere_35">
-      <origin xyz="0.0075815085687198636 0.0013020701683718605 -0.2613926715878865" rpy="0 0 0" />
+    <collision name="sphere_43">
+      <origin xyz="0.022000628290806457 0.0013020701683718328 -0.22966885607318388" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.05" />
+        <sphere radius="0.036" />
+      </geometry>
+    </collision>
+    <collision name="sphere_44">
+      <origin xyz="0.0007093788271498869 4.3526895969120405e-05 -0.27371755673188475" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.03405189238043357" />
       </geometry>
     </collision>
   </link>
