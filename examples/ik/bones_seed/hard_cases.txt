@@ -1,0 +1,178 @@
+# 176 hard clips, from /mnt/data/dmorton/bones_fraxik_metrics.csv (141538 clips)
+# clip  criteria=value (frax's metric, or its excess over nvidia's)  package/category
+high_jump_R_001__A457  worst_snap=48.09  Locomotion/Baseline
+dance_vouge_dancehall_open_close_270_R_003__A324  worst_snap=48.06  Dances/Dancing
+bump_into_small_obstacle_stop_walk_look_right_180_R_001__A463_M  worst_snap=47.66  Locomotion/Advanced Locomotion
+dance_vouge_papper_rain_fly_180_R_loop_fast_002__A321_M  worst_snap=47.13  Dances/Dancing
+high_jump_R_001__A456  worst_snap=46.99  Locomotion/Baseline
+victory_dance_ymca_R_002__A310_M  worst_snap=46.89  Dances/Dancing
+sledgehammering_wall_from_side_R_004__A296_M  worst_snap=46.61  Interactions/Object Manipulation
+crowd_cheer_003__A066  worst_snap=45.84  Communication/Communication
+sitting_legs_cross_arm_side_stop_003__A166_M  worst_snap=45.49  Locomotion/Basic Locomotion Neutral
+crowd_cheer_003__A049  worst_snap=45.31  Communication/Communication
+big_heavy_two_hands_put_down_right_side_high_R_001__A524_M  worst_snap=45.23  Interactions/Object Manipulation
+medium_big_heavy_one_hand_pick_up_behind_high_R_001__A520_M  worst_snap=45.12  Interactions/Object Manipulation
+bump_into_small_obstacle_swear_stop_walk_ff_180_R_001__A463_M  worst_snap=44.84  Locomotion/Advanced Locomotion
+triumph_two_handed_001__A052  worst_snap=44.83  Communication/Gestures
+flap_wings_R_002__A533  worst_snap=44.81  Gaming/Magic
+bump_into_small_obstacle_kick_stop_walk_ff_360_R_001__A463_M  worst_snap=44.66  Locomotion/Advanced Locomotion
+looking_around_R_002__A140_M  worst_snap=44.50  Gaming/Object Interaction
+erudition_R_001__A432  worst_snap=44.45  Communication/Gestures
+crawl_ff_loop_360_R_003__A229_M  worst_snap=44.30  Gaming/Unusual Locomotion
+high_jump_R_opt_1_002__A476_M  worst_snap=44.17  Locomotion/Baseline
+sitting_legs_bend_arms_front_start_004__A246_M  snaps_per_min=195.18 jerks_per_min=303.61  Locomotion/Basic Locomotion Neutral
+sitting_legs_crossed_arms_front_stop_R_003__A411  snaps_per_min=147.24  Locomotion/Basic Locomotion Neutral
+sitting_legs_bend_arms_front_stop_R_003__A410_M  snaps_per_min=138.76  Locomotion/Basic Locomotion Neutral
+exercise_V001_001__A237_M  snaps_per_min=116.13  Sport/Sports
+dance_retro_clap_step_variation_R_fast_002__A315  snaps_per_min=100.35  Dances/Dancing
+dance_vouge_daap_pose_R_fast_001__A319_M  snaps_per_min=99.72  Dances/Dancing
+dance_basic_slide_180_R_loop_fast_001__A323  snaps_per_min=97.30  Dances/Dancing
+exercise_v001_001__A359  snaps_per_min=96.92  Sport/Sports
+exercise_1_005__A068  snaps_per_min=95.64  Sport/Sports
+dusting_hands_002__A164  snaps_per_min=89.26  Communication/Gestures
+run_start_180_R_003__A348  snaps_per_min=89.16 jerks_per_min=133.75  Locomotion/Advanced Locomotion
+dusting_hands_003__A164  snaps_per_min=88.16  Communication/Gestures
+neutral_throw_ball_R_002__A098_M  snaps_per_min=85.46  Other/Other
+tarzan_R_003__A261_M  snaps_per_min=83.82  Communication/Gestures
+grating_vegetables_R_001__A288  snaps_per_min=83.29 jerks_per_min=259.13  Everyday/Household
+reach_jump_R_001__A390_M  snaps_per_min=81.26  Locomotion/Baseline
+high_jump_R_002__A409  snaps_per_min=78.47  Locomotion/Baseline
+grating_vegetables_R_003__A288  snaps_per_min=77.34 jerks_per_min=162.41  Everyday/Household
+self_hifive_R_004__A431_M  snaps_per_min=72.73  Communication/Communication
+grating_vegetables_R_001__A290  snaps_per_min=70.69  Everyday/Household
+sitting_legs_bend_arms_front_stop_001__A063  jerks_per_min=253.52  Locomotion/Basic Locomotion Neutral
+grating_vegetables_R_002__A288  jerks_per_min=204.81  Everyday/Household
+exercise_v001_003__A361_M  jerks_per_min=201.60  Sport/Sports
+exercise_1_002__A117_M  jerks_per_min=192.20  Sport/Sports
+exercise_v001_002__A361_M  jerks_per_min=188.65  Sport/Sports
+sitting_legs_bend_arms_front_stop_R_001__A411_M  jerks_per_min=187.42  Locomotion/Basic Locomotion Neutral
+dance_basic_slide_270_R_loop_fast_002__A321_M  jerks_per_min=162.71  Dances/Dancing
+dance_vouge_go_down_4_steps_R_001__A320_M  jerks_per_min=157.14  Dances/Dancing
+dance_latino_salsa_step_360_R_001__A322_M  jerks_per_min=156.67  Dances/Dancing
+dusting_hands_003__A166_M  jerks_per_min=136.88  Communication/Gestures
+jog_ff_loop_180_R_001__A410  jerks_per_min=133.33  Locomotion/Baseline
+dancing_routine_V002_003__A218_M  jerks_per_min=133.02  Locomotion/Baseline
+injured_torso_jog_ff_loop_225_R_003__A214  jerks_per_min=129.73  Locomotion/Basic Locomotion Styles
+brush_of_dust_002__A029  jerks_per_min=128.43  Communication/Gestures
+injured_torso_turn_jog_360_R_001__A214_M  jerks_per_min=126.98  Locomotion/Basic Locomotion Styles
+rubbing_eyes_fist_001__A165_M  jerks_per_min=124.57  Communication/Gestures
+clap_forced_003__A063  off_target=100.00 off_target_vs_nvidia=100.00  Communication/Communication
+come_up_50cm_box_R_001__A202  off_target=100.00 off_target_vs_nvidia=100.00  Locomotion/Baseline
+come_up_50cm_box_R_003__A202  off_target=100.00 off_target_vs_nvidia=100.00  Locomotion/Baseline
+drinking_wall_leaning_mug_090_R_003__A283  off_target=100.00  Everyday/Consuming
+drinking_wall_leaning_mug_090_R_004__A283  off_target=100.00  Everyday/Consuming
+h_b_w_crouch_270_loop_001__A342  off_target=100.00 off_target_vs_nvidia=100.00  Locomotion/Advanced Locomotion
+handstand_ff_loop_180_R_001__A305  off_target=100.00  Sport/Sports
+handstand_ff_loop_180_R_003__A305  off_target=100.00 off_target_vs_nvidia=100.00  Sport/Sports
+handstand_ff_stop_180_R_001__A305  off_target=100.00 off_target_vs_nvidia=100.00  Sport/Sports
+idle_crawl_right_loop_001__A128  off_target=100.00 rot_err=42.67 rot_err_vs_nvidia=23.92 off_target_vs_nvidia=100.00  Gaming/Unusual Locomotion
+idle_crawl_right_loop_002__A128  off_target=100.00 rot_err=41.63 rot_err_vs_nvidia=26.35 off_target_vs_nvidia=100.00  Gaming/Unusual Locomotion
+idle_crouch_right_loop_103__A126  off_target=100.00 off_target_vs_nvidia=100.00  Locomotion/Advanced Locomotion
+idle_hands_on_back_loop_001__A029  off_target=100.00 off_target_vs_nvidia=100.00  Locomotion/Basic Locomotion Neutral
+idle_hands_on_back_loop_001__A030  off_target=100.00 off_target_vs_nvidia=100.00  Locomotion/Basic Locomotion Neutral
+idle_hands_on_back_loop_001__A034  off_target=100.00 off_target_vs_nvidia=100.00  Locomotion/Basic Locomotion Neutral
+inj_torso_idle_loop_001__A121  off_target=100.00 off_target_vs_nvidia=100.00  Locomotion/Basic Locomotion Styles
+inj_torso_idle_loop_002__A121  off_target=100.00 off_target_vs_nvidia=100.00  Locomotion/Basic Locomotion Styles
+inj_torso_idle_loop_003__A121  off_target=100.00 off_target_vs_nvidia=100.00  Locomotion/Basic Locomotion Styles
+injured_torso_kick_trash_R_004__A233  off_target=100.00 off_target_vs_nvidia=100.00  Communication/Gestures
+injured_torso_kick_trash_R_006__A233  off_target=100.00 off_target_vs_nvidia=100.00  Communication/Gestures
+postmortem_convulsions_side_loop_R_001__A468  rot_err=40.50 self_coll_depth=3.00 rot_err_vs_nvidia=24.96  Locomotion/Stunts
+sitting_legs_bend_arms_back_loop_003__A190  rot_err=38.93 rot_err_vs_nvidia=29.93  Locomotion/Basic Locomotion Neutral
+handstand_idle_stop_003__A305_M  rot_err=35.76 self_coll_depth=3.04 rot_err_vs_nvidia=26.02  Sport/Sports
+handstand_ff_stop_360_R_001__A305  rot_err=35.36 rot_err_vs_nvidia=25.29  Sport/Sports
+idle_handstand_loop_004__A305_M  rot_err=35.18 rot_err_vs_nvidia=26.10  Sport/Sports
+sitting_legs_bend_arms_back_stop_003__A038  rot_err=33.60  Locomotion/Basic Locomotion Neutral
+sitting_legs_bend_arms_back_loop_002__A166  rot_err=32.46 rot_err_vs_nvidia=21.39  Locomotion/Basic Locomotion Neutral
+fire_in_the_hole_360_R_003__A474  rot_err=31.86 rot_err_vs_nvidia=18.03  Communication/Gestures
+dance_basic_double_slide_270_R_fast_001__A307_M  rot_err=24.41 rot_err_vs_nvidia=14.21  Dances/Dancing
+dance_basic_double_slide_270_R_fast_001__A310_M  rot_err=24.02 rot_err_vs_nvidia=14.48  Dances/Dancing
+triumph_two_handed_003__A045_M  rot_err=23.07 rot_err_vs_nvidia=14.23  Communication/Gestures
+tiger_jump_to_shoulder_roll_R_001__A305  rot_err=22.61 rot_err_vs_nvidia=12.26  Locomotion/Stunts
+hifive_crowd_R_002__A432_M  rot_err=22.42  Communication/Communication
+dance_basic_double_slide_270_R_fast_002__A310_M  rot_err=22.19 rot_err_vs_nvidia=12.53  Dances/Dancing
+crutches_fall_down_R_001__A517  rot_err=22.09  Everyday/Unusual Locomotion
+hifive_crowd_R_001__A432_M  rot_err=21.81 rot_err_vs_nvidia=12.85  Communication/Communication
+crowd_cheer_002__A031  rot_err=21.34 rot_err_vs_nvidia=11.26  Communication/Communication
+triumph_two_handed_001__A406  rot_err=20.89  Communication/Gestures
+handstand_jump_103__A305  skate=17.66 skate_vs_nvidia=4.35  Sport/Sports
+handstand_ff_loop_180_R_004__A305  skate=16.54  Sport/Sports
+handstand_ff_loop_180_R_001__A304  skate=16.30  Sport/Sports
+walk_arc_cw_loop_R_very_fast_001__A449_M  skate=12.49  Locomotion/Basic Locomotion Neutral
+walk_arc_cw_loop_R_very_fast_001__A448_M  skate=11.61 skate_vs_nvidia=6.55  Locomotion/Basic Locomotion Neutral
+crawl_ff_loop_270_R_003__A233_M  skate=10.84  Gaming/Unusual Locomotion
+run_loop_180_R_003__A333  skate=10.74  Locomotion/Advanced Locomotion
+crawl_ff_stop_360_004__A132_M  skate=10.71  Gaming/Unusual Locomotion
+jog_ff_loop_180_R_very_fast_002__A454  skate=10.69  Locomotion/Basic Locomotion Neutral
+crawl_ff_loop_270_R_002__A233_M  skate=10.45  Gaming/Unusual Locomotion
+run_loop_180_R_002__A335  skate=9.94  Locomotion/Advanced Locomotion
+avoid_obstacle_right_run_ff_180_R_004__A500  skate=9.94  Locomotion/Advanced Locomotion
+postmortem_convulsions_stomach_loop_R_001__A468_M  skate=9.55  Locomotion/Stunts
+jog_ff_loop_180_R_005__A206  skate=9.36  Locomotion/Baseline
+jog_ff_loop_180_R_006__A206  skate=8.91  Locomotion/Baseline
+item_pick_up_crouch_walk_R_002__A410  skate=8.79  Interactions/Object Manipulation
+kozak_dance_001__A353  skate=8.49  Dances/Dancing
+victory_dance_orange_justice_180_R_002__A322  skate=8.35  Dances/Dancing
+jog_ff_loop_180_R_002__A323_M  skate=8.28  Locomotion/Baseline
+postmortem_convulsions_loop_R_001__A470_M  skate=8.26  Locomotion/Stunts
+crawl_ff_loop_360_R_001__A229_M  floor_depth=0.81  Gaming/Unusual Locomotion
+crawl_ff_start_180_R_002__A229_M  floor_depth=0.77  Gaming/Unusual Locomotion
+crawl_ff_start_180_R_003__A126  floor_depth=0.74  Gaming/Unusual Locomotion
+sitting_legs_bend_arms_back_start_001__A167_M  floor_depth=0.66  Locomotion/Basic Locomotion Neutral
+extreme_repentance_R_001__A548_M  floor_depth=0.59  Communication/Gestures
+sitting_legs_bend_arms_front_stop_003__A247_M  floor_depth=0.56  Locomotion/Basic Locomotion Neutral
+crouch_ff_loop_225_102__A129  floor_depth=0.50  Locomotion/Advanced Locomotion
+sitting_legs_bend_arms_back_start_R_001__A414  floor_depth=0.50  Locomotion/Basic Locomotion Neutral
+spider_crawl_R_002__A360_M  floor_depth=0.43  Sport/Sports
+spider_crawl_R_004__A360_M  floor_depth=0.31  Sport/Sports
+spread_out_R_001__A432_M  floor_depth=0.26  Communication/Gestures
+faint_stand_up_lying_stomach_R_001__A493_M  floor_depth=0.13  Locomotion/Stunts
+side_roll_R_001__A304_M  floor_depth=0.12  Locomotion/Stunts
+side_roll_R_003__A304_M  floor_depth=0.12  Locomotion/Stunts
+spider_crawl_R_001__A360_M  floor_depth=0.09  Sport/Sports
+h_b_w_crouch_270_stop_001__A343_M  floor_depth=0.07  Locomotion/Advanced Locomotion
+h_b_w_crouch_270_stop_003__A343_M  floor_depth=0.06  Locomotion/Advanced Locomotion
+dozing_cross_legged_R_001__A430_M  floor_depth=0.06  Communication/Gestures
+dance_hiphop_wutang_R_102__A315  floor_depth=0.05  Dances/Dancing
+dance_vouge_dancehall_open_close_boogle_180_R_fast_002__A320  floor_depth=0.04 self_coll_depth=2.30  Dances/Dancing
+body_check_001__A341_M  self_coll_depth=4.58  Locomotion/Baseline
+body_stretch_2_003__A054_M  self_coll_depth=4.40  Sport/Sports
+body_stretch_2_003__A038_M  self_coll_depth=4.35  Sport/Sports
+sitting_legs_cross_arm_side_stop_003__A247_M  self_coll_depth=3.03  Locomotion/Basic Locomotion Neutral
+dance_vouge_hips_hips_sites_R_002__A319_M  self_coll_depth=2.61  Dances/Dancing
+dance_vouge_hips_hips_sites_R_001__A320  self_coll_depth=2.06  Dances/Dancing
+flip_180_R_002__A304_M  self_coll_depth=0.86  Locomotion/Stunts
+flip_180_R_001__A304  self_coll_depth=0.73  Locomotion/Stunts
+small_heavy_two_hands_pick_up_right_side_high_R_001__A520_M  self_coll_depth=0.50  Interactions/Object Manipulation
+idle_hands_on_back_stop_003__A214_M  self_coll_depth=0.47  Locomotion/Basic Locomotion Neutral
+crowd_cheer_002__A124  self_coll_depth=0.45  Communication/Communication
+sitting_legs_bend_arms_back_stop_R_003__A410  self_coll_depth=0.45  Locomotion/Basic Locomotion Neutral
+brush_of_dust_001__A032  self_coll_depth=0.33  Communication/Gestures
+inj_torso_stoop_down_R_max_002__A082_M  self_coll_depth=0.32  Other/Other
+body_check_001__A221_M  self_coll_depth=0.31  Locomotion/Baseline
+body_check_001__A214_M  self_coll_depth=0.29  Locomotion/Baseline
+small_heavy_two_hands_pick_up_behind_high_R_001__A523  self_coll_depth=0.26  Interactions/Object Manipulation
+sitting_legs_bend_arms_back_stop_003__A038_M  rot_err_vs_nvidia=21.52  Locomotion/Basic Locomotion Neutral
+hifive_crowd_R_002__A432  rot_err_vs_nvidia=13.38  Communication/Communication
+triumph_two_handed_002__A052_M  rot_err_vs_nvidia=11.52  Communication/Gestures
+h_b_w_crouch_270_loop_001__A342_M  rot_err_vs_nvidia=10.66  Locomotion/Advanced Locomotion
+handstand_ff_loop_180_R_001__A305_M  off_target_vs_nvidia=100.00  Sport/Sports
+itching_left_buttock_001__A032  off_target_vs_nvidia=100.00  Communication/Gestures
+jog_ff_stop_180_R_003__A202  off_target_vs_nvidia=100.00  Locomotion/Baseline
+toe_touchers_004__A361_M  skate_vs_nvidia=6.69  Sport/Sports
+walk_arc_cw_loop_002__A045  skate_vs_nvidia=5.45  Locomotion/Basic Locomotion Neutral
+sit_cross_legged_stop_002__A244_M  skate_vs_nvidia=5.38  Locomotion/Basic Locomotion Neutral
+don_t_know_with_hands_002__A234_M  skate_vs_nvidia=5.31  Communication/Communication
+don_t_know_no_hands_004__A234_M  skate_vs_nvidia=5.12  Communication/Communication
+don_t_know_2_003__A061_M  skate_vs_nvidia=4.45  Communication/Communication
+jog_ff_loop_180_R_002__A366_M  skate_vs_nvidia=4.43  Locomotion/Baseline
+jog_butt_kick_R_loop_001__A362_M  skate_vs_nvidia=4.36  Sport/Sports
+crouch_ff_loop_315_003__A148  skate_vs_nvidia=4.32  Locomotion/Advanced Locomotion
+jog_ff_loop_180_R_003__A366_M  skate_vs_nvidia=4.31  Locomotion/Baseline
+jog_ff_loop_180_R_001__A366_M  skate_vs_nvidia=4.31  Locomotion/Baseline
+rubbing_hands_002__A405_M  skate_vs_nvidia=4.20  Communication/Gestures
+confusion_001__A141  skate_vs_nvidia=4.17  Communication/Gestures
+checking_time_R_003__A237  skate_vs_nvidia=4.07  Communication/Gestures
+dance_hiphop_bounce_to_feet_R_loop_001__A325  skate_vs_nvidia=3.73  Dances/Dancing
+small_light_one_hand_pick_up_front_medium_R_001__A510_M  skate_vs_nvidia=3.44  Interactions/Object Manipulation
+crouch_ff_start_315_003__A148_M  skate_vs_nvidia=3.39  Locomotion/Advanced Locomotion
+small_light_two_hands_right_side_low_to_front_low_R_001__A517_M  skate_vs_nvidia=3.34  Interactions/Object Manipulation

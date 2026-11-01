@@ -1,0 +1,90 @@
+"""BONES-SEED dataset files: metadata, clip selection, loading clips as
+retargeter input frames (seed_g1.py), and SEED's own G1 retargets (by NVIDIA's
+soma-retargeter), for comparison
+
+Data: https://huggingface.co/datasets/bones-studio/seed. Clone it (git lfs),
+extract soma_uniform.tar.gz and g1.tar.gz in its root, and link it to data/seed
+"""
+
+import csv
+from pathlib import Path
+
+import numpy as np
+from scipy.spatial.transform import Rotation
+from seed_g1 import SEED_BONES, SEED_FPS, load_seed
+
+from frax.ik import smooth_poses
+
+DATA_DIR = Path(__file__).parents[3] / "data/seed"
+# Retargeted clips (retarget.py)
+OUT_DIR = Path(__file__).parents[3] / "data/seed_frax"
+METADATA = "metadata/seed_metadata_v004.csv"
+
+
+def read_metadata(data_dir: str | Path = DATA_DIR) -> list[dict]:
+    """One dict per clip (see SEED's README for the columns)"""
+    with open(Path(data_dir) / METADATA, newline="") as f:
+        return list(csv.DictReader(f))
+
+
+def select_clips(
+    rows: list[dict],
+    n: int | None = None,
+    seed: int = 0,
+    match: str = "",
+    names: list[str] | None = None,
+) -> list[dict]:
+    """Clips whose filename, package, or category contains `match` (and among
+    `names`, if given), then n of them at random (all if n is None)"""
+    rows = [
+        r
+        for r in rows
+        if match in r["filename"] or match in r["package"] or match in r["category"]
+    ]
+    if names is not None:
+        names = set(names)
+        rows = [r for r in rows if r["filename"] in names]
+    if n is not None and n < len(rows):
+        idx = np.random.default_rng(seed).choice(len(rows), n, replace=False)
+        rows = [rows[i] for i in sorted(idx)]
+    return rows
+
+
+def read_clip_list(path: str | Path) -> list[str]:
+    """Clip filenames, the first word of each line (hard_cases.py's lists),
+    skipping blank lines and # comments"""
+    lines = Path(path).read_text().splitlines()
+    return [line.split()[0] for line in lines if line.strip() and line[0] != "#"]
+
+
+def bvh_path(row: dict, data_dir: str | Path) -> Path:
+    """A clip's BVH file, on SEED's uniform SOMA skeleton (one for all actors)"""
+    return Path(data_dir) / row["move_soma_uniform_path"]
+
+
+def load_clip(path: str | Path, sigma_rot: float) -> dict | None:
+    """Retargeter input frames for a clip: {"poses": SEED_BONES poses (T, n, 7),
+    smoothed}, or None if the clip has NaN frames. Offline, so the bone
+    orientations can be smoothed without lag"""
+    try:
+        poses, names = load_seed(path)
+    except ValueError:
+        return None
+    frames = poses[:, [names.index(bone) for bone in SEED_BONES]]
+    if sigma_rot > 0:
+        frames = smooth_poses(frames, 1.0 / SEED_FPS, sigma_rot=sigma_rot)
+    return {"poses": frames}
+
+
+def load_g1_csv(path: str | Path) -> np.ndarray:
+    """SEED's G1 retarget of a clip, as q = [root position, root WXYZ
+    quaternion, joints] per frame (T, 36), in load_seed's world frame. The CSV
+    has the root position (cm), its extrinsic XYZ Euler angles (deg), and the
+    joints (deg), in G1's (and frax's) joint order, in a world frame turned
+    -90 deg about z from load_seed's"""
+    data = np.loadtxt(path, delimiter=",", skiprows=1)[:, 1:]
+    turn = Rotation.from_euler("z", 90, degrees=True)
+    rot = turn * Rotation.from_euler("xyz", data[:, 3:6], degrees=True)
+    pos = turn.apply(data[:, :3] / 100.0)
+    quat = rot.as_quat(scalar_first=True)
+    return np.concatenate([pos, quat, np.radians(data[:, 6:])], axis=1)

@@ -30,15 +30,20 @@ cuda12 = ["jax[cuda12]"]
 cuda13 = ["jax[cuda13]"]
 tpu = ["jax[tpu]"]
 dev = ["mkdocs-material", "mkdocstrings[python]", "ruff"]
-examples = [
-    "mujoco>=3.3.1", # Require newer mujoco versions for MjSpec URDF loading
-    "cbfpy[elastiqp]>=0.1.0",
+# frax.ik: differential IK, retargeting, and global IK
+ik = [
     "elastiqp[jax]>=0.1.0",
     "jax>=0.9.1", # for elastiqp
+    "scipy",
+]
+examples = [
+    "frax[ik]",
+    "mujoco>=3.3.1", # Require newer mujoco versions for MjSpec URDF loading
+    "cbfpy[elastiqp]>=0.1.0",
     "viser[urdf]",
 ]
-test = ["pin", "pytest>=9", "mujoco"]
-all = ["frax[dev,examples,test]"]
+test = ["frax[ik]", "pin", "pytest>=9", "mujoco"]
+all = ["frax[dev,ik,examples,test]"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

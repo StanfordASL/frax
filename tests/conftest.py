@@ -12,6 +12,13 @@ from timing.timing_utils import configure_env
 
 configure_env("cpu", "float64")
 
+import jax  # noqa: E402 (after configure_env)
+
+# Several CPU devices, for the multi-device tests of frax.ik (e.g.
+# GlobalIKSolver(devices=...)). This must be set before any JAX op (importing frax
+# runs one), and the default device is still cpu:0
+jax.config.update("jax_num_cpu_devices", 4)
+
 
 @pytest.fixture(autouse=True)
 def seed_numpy():

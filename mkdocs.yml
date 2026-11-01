@@ -22,12 +22,14 @@ nav:
   - index.md
   - Guides:
     - Modeling Collision Geometry: modeling_collision.md
+    - Inverse Kinematics (frax.ik): ik.md
 - API Reference:
   - Core:
     - "Robot": api/robot.md
     - "Manipulator": api/manipulator.md
     - "Humanoid": api/humanoid.md
     - "Quadruped": api/quadruped.md
+  - "Inverse Kinematics": api/ik.md
 
 theme:
   name: material

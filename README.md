@@ -92,6 +92,35 @@ Here, we're enforcing
 
 ... all with easy prototyping of the constraint design, in simple functions of the robot kinematics and dynamics (such as, `robot.ee_manipulability_index(q) >= eps`).
 
+## Inverse kinematics and retargeting: `frax.ik`
+
+`frax.ik` does differential IK on any `frax` robot: a `DiffIKSolver` stacks tasks (weighted least-squares targets, e.g. `EETask`, `FrameTask`, `JointTask`) and constraints (joint limits, self-collision, obstacles, the floor, or your own barrier functions) into one QP over the velocity per step. On top of this, it offers motion retargeting (online, frame by frame, or offline, many clips spread across devices) and parallel global IK
+
+```
+pip install "frax[ik]"
+```
+
+```python
+import jax
+import numpy as np
+from frax import load_panda
+from frax.ik import DiffIKSolver, EETask, JointLimits
+
+jax.config.update("jax_enable_x64", True)  # The QP solver needs double precision
+
+robot = load_panda()
+solver = DiffIKSolver(robot, tasks=[EETask(robot)], constraints=[JointLimits(robot)])
+q = robot.default_configuration
+target = robot.ee_transform(q)
+ref = {"ee_pos": target[:3, 3] + np.array([0.0, 0.2, 0.0]), "ee_rmat": target[:3, :3]}
+step = jax.jit(solver.step)  # A pure function of (state, ref, dt)
+state = solver.init(q)
+for _ in range(200):
+    state, v, info = step(state, ref, 0.01)
+```
+
+See [the `frax.ik` guide](docs/ik.md) for details, and `examples/ik` for interactive demos (Panda, A2) and retargeting the LAFAN1 and BONES-SEED motion datasets to the Unitree G1
+
 ## Usage tips
 
 - If you would like to use `frax`'s collision methods, you must first define a spherized collision model of your robot (or, use our pre-built collision models for the Franka Panda/FR3 and the Unitree G1). Check out [this page](docs/modeling_collision.md) for more info!
@@ -117,6 +146,8 @@ I recently improved the handling of free-floating joints and added a position + 
 
 - Joint limits are specified now only in terms of the actuated joints
 - Terms like `num_joints` are deprecated in favor of `nq` and `nv`
+
+The Unitree G1's collision model has also been updated: it is now left/right symmetric, its foot spheres rest on the soles, and its self-collision pairs are defined by link (every sphere on one link against every sphere on the other, see `frax/robots/unitree_g1.py`), rather than by individual spheres
 
 I'll update this list if more changes come up. The old Euler functionality still remains for now, if specified. Changes to fixed-base robot workflows are very minimal (just some variable renaming).
 

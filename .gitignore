@@ -11,3 +11,4 @@ scripts/benchmarks/results/
 MUJOCO_LOG.TXT
 scripts/benchmarks/cpp/bench_mujoco_cpp
 scripts/benchmarks/cpp/bench_pinocchio_cpp
+/data/
