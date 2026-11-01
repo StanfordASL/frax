@@ -2,10 +2,11 @@ import numpy as np
 
 from frax.assets import G1_ASSETS_DIR
 from frax.core.humanoid import Humanoid
-from frax.utils.collision_utils import bubblify_to_mine
+from frax.utils.collision_utils import bubblify_to_mine, link_pairs_to_sc_data
 
 floating_root_urdf = G1_ASSETS_DIR / "floating_g1_29dof_rev_1_0.urdf"
 fixed_root_urdf = G1_ASSETS_DIR / "g1_29dof_rev_1_0.urdf"
+# Left/right symmetric, with the foot spheres resting on the sole
 collision_model_file = G1_ASSETS_DIR / "bubblify/g1_29dof_rev_1_0_spherized.yml"
 root_link_name = "pelvis"
 
@@ -48,111 +49,65 @@ right_hand_parent_joint_name = "right_wrist_yaw_joint"
 left_foot_parent_joint_name = "left_ankle_roll_joint"
 right_foot_parent_joint_name = "right_ankle_roll_joint"
 
-# NOTE: This self-collision model is still somewhat approximate,
-# but it will cover most cases from a typical teleoperation scenario
+# Self-collision is defined by pairs of links: every sphere on one link against
+# every sphere on the other, so editing the spheres doesn't break the pairs.
+# Pairs are given for the left side, and mirrored to the right. Links that always
+# touch (neighbors, the shoulders and the torso, the hips and the pelvis) are left out
+_UPPER_ARM = ("shoulder_pitch", "shoulder_roll", "shoulder_yaw")
+_FOREARM = ("elbow", "wrist_roll", "wrist_pitch", "wrist_yaw")  # and hand
+_THIGH = ("hip_pitch", "hip_roll", "hip_yaw", "knee")
+_LEG = ("hip_yaw", "knee", "ankle_roll")  # thigh, shin, foot
 
-# Terms in the collision model where you can replace "left" with "right"
-# and vice versa
-asymmetric_sc_terms = (
-    # LEFT ARM TO RIGHT ARM
-    ("left_wrist_yaw_link", 0, "right_wrist_yaw_link", 0, 0.0),
-    ("left_wrist_yaw_link", 0, "right_wrist_pitch_link", 0, 0.0),
-    ("left_wrist_yaw_link", 0, "right_wrist_roll_link", 0, 0.0),
-    ("left_wrist_yaw_link", 0, "right_elbow_link", 0, 0.0),
-    ("left_wrist_pitch_link", 0, "right_wrist_pitch_link", 0, 0.0),
-    ("left_wrist_pitch_link", 0, "right_wrist_roll_link", 0, 0.0),
-    ("left_wrist_pitch_link", 0, "right_elbow_link", 0, 0.0),
-    ("left_wrist_roll_link", 0, "right_wrist_roll_link", 0, 0.0),
-    ("left_wrist_roll_link", 0, "right_elbow_link", 0, 0.0),
-    ("left_elbow_link", 0, "right_elbow_link", 0, 0.0),
-    # LEFT ARM TO LEFT LEG
-    # Hand to upper leg
-    ("left_wrist_yaw_link", 0, "left_hip_pitch_link", 0, 0.0),
-    ("left_wrist_yaw_link", 0, "left_hip_roll_link", 0, 0.0),
-    ("left_wrist_yaw_link", 0, "left_hip_roll_link", 1, 0.0),
-    ("left_wrist_yaw_link", 0, "left_hip_yaw_link", 0, 0.0),
-    ("left_wrist_yaw_link", 0, "left_hip_yaw_link", 1, 0.0),
-    # Forearm to upper leg
-    ("left_wrist_pitch_link", 0, "left_hip_pitch_link", 0, 0.0),
-    ("left_wrist_pitch_link", 0, "left_hip_roll_link", 0, 0.0),
-    ("left_wrist_pitch_link", 0, "left_hip_roll_link", 1, 0.0),
-    ("left_wrist_pitch_link", 0, "left_hip_yaw_link", 0, 0.0),
-    ("left_wrist_pitch_link", 0, "left_hip_yaw_link", 1, 0.0),
-    ("left_wrist_roll_link", 0, "left_hip_pitch_link", 0, 0.0),
-    ("left_wrist_roll_link", 0, "left_hip_roll_link", 0, 0.0),
-    ("left_wrist_roll_link", 0, "left_hip_roll_link", 1, 0.0),
-    ("left_wrist_roll_link", 0, "left_hip_yaw_link", 0, 0.0),
-    ("left_wrist_roll_link", 0, "left_hip_yaw_link", 1, 0.0),
-    # LEFT ARM TO RIGHT LEG
-    # Hand to upper leg
-    ("left_wrist_yaw_link", 0, "right_hip_pitch_link", 0, 0.0),
-    ("left_wrist_yaw_link", 0, "right_hip_roll_link", 0, 0.0),
-    ("left_wrist_yaw_link", 0, "right_hip_roll_link", 1, 0.0),
-    ("left_wrist_yaw_link", 0, "right_hip_yaw_link", 0, 0.0),
-    ("left_wrist_yaw_link", 0, "right_hip_yaw_link", 1, 0.0),
-    # LEFT ARM TO PELVIS
-    ("left_wrist_yaw_link", 0, "pelvis", 0, 0.0),
-    ("left_wrist_pitch_link", 0, "pelvis", 0, 0.0),
-    ("left_wrist_roll_link", 0, "pelvis", 0, 0.0),
-    # LEFT ARM TO TORSO
-    # Forearm to torso
-    ("left_wrist_yaw_link", 0, "torso_link", 0, 0.0),
-    ("left_wrist_yaw_link", 0, "torso_link", 1, 0.0),
-    ("left_wrist_yaw_link", 0, "torso_link", 2, 0.0),
-    ("left_wrist_pitch_link", 0, "torso_link", 0, 0.0),
-    ("left_wrist_pitch_link", 0, "torso_link", 1, 0.0),
-    ("left_wrist_pitch_link", 0, "torso_link", 2, 0.0),
-    ("left_wrist_roll_link", 0, "torso_link", 0, 0.0),
-    ("left_wrist_roll_link", 0, "torso_link", 1, 0.0),
-    ("left_wrist_roll_link", 0, "torso_link", 2, 0.0),
-    # Elbow to torso
-    ("left_shoulder_yaw_link", 0, "torso_link", 2, 0.0),
-    # LEFT LEG TO RIGHT LEG
-    ("left_ankle_roll_link", 1, "right_knee_link", 0, 0.0),
-    ("left_ankle_roll_link", 1, "right_knee_link", 1, 0.0),
-    ("left_ankle_roll_link", 1, "right_knee_link", 2, 0.0),
+
+def _links(side, names):
+    return [f"{side}_{name}_link" for name in names]
+
+
+def _mirror(link: str) -> str:
+    if link.startswith("left_"):
+        return "right_" + link[len("left_") :]
+    if link.startswith("right_"):
+        return "left_" + link[len("right_") :]
+    return link
+
+
+def _symmetric(left_pairs) -> tuple:
+    """Link pairs, and their mirror images, without duplicates"""
+    return tuple(
+        dict.fromkeys(
+            tuple(sorted(pair))
+            for a, b in left_pairs
+            for pair in ((a, b), (_mirror(a), _mirror(b)))
+        )
+    )
+
+
+# Upper body: the forearm and hand against the other arm, the torso, and the
+# pelvis, and the upper arm against the torso
+_upper_body_sc_pairs = (
+    [
+        (a, b)
+        for a in _links("left", _FOREARM)
+        for b in _links("right", _UPPER_ARM + _FOREARM)
+    ]
+    + [(a, b) for a in _links("left", _FOREARM) for b in ("torso_link", "pelvis")]
+    + [("left_shoulder_yaw_link", "torso_link")]
 )
-
-# Terms in the collision model where there is a self-collision pair
-# between a matching sphere on the left and right sides
-symmetric_sc_terms = (
-    ("left_wrist_yaw_link", 0, "right_wrist_yaw_link", 0, 0.0),
-    ("left_elbow_link", 0, "right_elbow_link", 0, 0.0),
-    ("left_ankle_roll_link", 1, "right_ankle_roll_link", 1, 0.0),
-    ("left_hip_yaw_link", 0, "right_hip_yaw_link", 0, 0.0),
-    ("left_ankle_roll_link", 1, "right_ankle_roll_link", 1, 0.0),
+# Lower body: the forearms and hands against the thighs, the upper arm against its
+# own thigh, and the legs against each other
+_lower_body_sc_pairs = (
+    [(a, b) for a in _links("left", _FOREARM) for b in _links("left", _THIGH)]
+    + [(a, b) for a in _links("left", _FOREARM) for b in _links("right", _THIGH)]
+    + [("left_shoulder_yaw_link", b) for b in _links("left", ("hip_roll", "hip_yaw"))]
+    + [(a, b) for a in _links("left", _LEG) for b in _links("right", _LEG)]
 )
+self_collision_link_pairs = _symmetric(_upper_body_sc_pairs + _lower_body_sc_pairs)
 
 
-# NOTE: this approach assumes that the collision model is symmetric
-# As currently constructed, the model for the G1 is symmetric, so this works
-def symmetrize(entries):
-    """Helper function: 'symmetrizes' the asymmetric collision pairs across the left/right sides"""
-
-    # Swap "left" with "right" and vice versa if indicated in the link name
-    # Otherwise, leave as-is (for things like torso/pelvis links)
-    def change_side(name):
-        if name.startswith("left"):
-            name = "right" + name.lstrip("left")
-        elif name.startswith("right"):
-            name = "left" + name.lstrip("right")
-        return name
-
-    # Go through the list of asymmetric collision pairs, swap left <=> right,
-    # and merge the existing and newly-constructed pairs
-    entries = list(entries)
-    new_entries = []
-    for entry in entries:
-        new_entries.append(entry)
-        first_name = change_side(entry[0])
-        second_name = change_side(entry[2])
-        new_entry = (first_name, entry[1], second_name, entry[3], entry[4])
-        new_entries.append(new_entry)
-    return tuple(new_entries)
-
-
-# Final self-collision data
-g1_sc_data = tuple(list(symmetrize(asymmetric_sc_terms)) + list(symmetric_sc_terms))
+def g1_sc_data() -> tuple:
+    """Self-collision data (sphere pairs) for `bubblify_to_mine`, from
+    self_collision_link_pairs and the collision model"""
+    return link_pairs_to_sc_data(collision_model_file, self_collision_link_pairs)
 
 
 # EE offsets
@@ -189,7 +144,7 @@ def load_fixed_root_g1() -> Humanoid:
             joint_to_child_mapping,
             root_link_name=root_link_name,
             add_floating_base=False,
-            sc_data=g1_sc_data,
+            sc_data=g1_sc_data(),
             verbose=False,
         ),
     )
@@ -231,7 +186,7 @@ def load_g1(floating_base: str = "quaternion") -> Humanoid:
             joint_to_child_mapping,
             root_link_name=root_link_name,
             add_floating_base=True,
-            sc_data=g1_sc_data,
+            sc_data=g1_sc_data(),
             verbose=False,
         ),
     )

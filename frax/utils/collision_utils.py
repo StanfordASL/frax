@@ -1,8 +1,42 @@
 """Collision utils"""
 
-from typing import Optional, Tuple, Union
+from typing import Iterable, Optional, Tuple, Union
 from pathlib import Path
 import yaml
+
+
+def link_pairs_to_sc_data(
+    filepath: Union[str, Path],
+    link_pairs: Iterable[Tuple[str, str]],
+    tol: float = 0.0,
+) -> Tuple[Tuple[str, int, str, int, float], ...]:
+    """Expands self-collision pairs of links into pairs of spheres: every sphere on
+    one link against every sphere on the other. Defining self-collision by link
+    means that the pairs stay valid when the spheres in the collision model change
+
+    Args:
+        filepath (Union[str, Path]): Path to the bubblify YAML file
+        link_pairs (Iterable[Tuple[str, str]]): (first link, second link) for each
+            pair of links to check
+        tol (float, optional): Tolerance for every sphere pair. Defaults to 0.0.
+
+    Returns:
+        Tuple[Tuple[str, int, str, int, float], ...]: Self-collision data, in the
+            format expected by `bubblify_to_mine`
+    """
+    with open(filepath, "r") as file:
+        all_spheres = yaml.safe_load(file)["collision_spheres"]
+    sc_data = []
+    for link_a, link_b in link_pairs:
+        for link in (link_a, link_b):
+            if not all_spheres.get(link):
+                raise ValueError(f"No collision spheres for link: {link}")
+        sc_data += [
+            (link_a, i, link_b, j, tol)
+            for i in range(len(all_spheres[link_a]))
+            for j in range(len(all_spheres[link_b]))
+        ]
+    return tuple(sc_data)
 
 
 def bubblify_to_mine(

@@ -31,7 +31,9 @@ To do this with [bubblify](https://github.com/bheijden/bubblify) (my preferred m
 ### 3. Create a self-collision model
 Now, given the spheres from the collision model, we'll define self-collision pairs to pay attention to. This could be an exhaustive list of every pair of spheres on the model, but this would be needlessly complex for most practical situations. 
 
-An example of how to define these pairs is located in `frax/robots/franka_panda.py` -- in general, you'll specify the link name and sphere index for both spheres, as well as an optional tolerance/inflation factor. 
+An example of how to define these pairs is located in `frax/robots/franka_panda.py` -- in general, you'll specify the link name and sphere index for both spheres, as well as an optional tolerance/inflation factor.
+
+Alternatively, you can define the pairs by link, with `frax.utils.collision_utils.link_pairs_to_sc_data`: every sphere on one link is checked against every sphere on the other. This checks more pairs, but the pairs stay valid when you edit the spheres. See `frax/robots/unitree_g1.py` for an example. 
 
 ### 4. Verify
 Now, check that the collision model looks correct once it's loaded into `frax`. There's an example script at `scripts/visualize_collision_model.py` which will bring up the following, for the Panda:
