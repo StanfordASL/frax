@@ -215,11 +215,6 @@ class SelfCollisionConstraint(_SphereConstraint):
         self.margin = margin
         self._set_num_rows(len(robot.sc_pairs), max_rows)
 
-    # TODO it seems weird that this method is defined in this class
-    # but not in others, and barely used elsewhere
-    def barrier(self, q) -> Array:
-        return self.robot.self_collision_distances(q) - self.margin
-
     def rows(self, q, ref):
         joint_tfs = self.robot.joint_to_world_transforms(q)
         pos = self.robot._link_collision_positions(joint_tfs)
@@ -332,16 +327,10 @@ class FloorConstraint(_SphereConstraint):
         )
         self._set_num_rows(len(self.sphere_idxs), max_rows)
 
-    def _barrier(self, joint_tfs) -> Array:
-        pos = self.robot._link_collision_positions(joint_tfs)[self.sphere_idxs]
-        return pos[:, 2] - self.radii[self.sphere_idxs] - self.margin
-
-    def barrier(self, q) -> Array:
-        return self._barrier(self.robot.joint_to_world_transforms(q))
-
     def rows(self, q, ref):
         joint_tfs = self.robot.joint_to_world_transforms(q)
-        h = self._barrier(joint_tfs)
+        pos = self.robot._link_collision_positions(joint_tfs)[self.sphere_idxs]
+        h = pos[:, 2] - self.radii[self.sphere_idxs] - self.margin
         keep = self._keep(h)
         spheres = jnp.asarray(self.sphere_idxs)[keep]
         Jv, Jw = self.robot._joint_jacobians(joint_tfs)

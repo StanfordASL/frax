@@ -270,7 +270,6 @@ def test_floor_matches_autodiff(g1, g1_q_random):
     G_ref, h_ref = _cbf_rows(heights, q, 3.0, g1)
     np.testing.assert_allclose(h, h_ref, atol=TOL)
     np.testing.assert_allclose(G, G_ref, atol=TOL)
-    np.testing.assert_allclose(con.barrier(q), h_ref / 3.0, atol=TOL)
 
 
 def test_floor_max_rows_keeps_lowest(g1, g1_q_random):

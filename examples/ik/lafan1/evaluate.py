@@ -52,7 +52,7 @@ from lafan1_g1 import (
 from scipy.ndimage import label, maximum_filter1d
 
 from frax import load_g1
-from frax.ik import FloorConstraint, smooth_poses
+from frax.ik import smooth_poses
 
 SNAP = 10.0  # rad/s
 JERK = 5.0  # rad/s
@@ -104,8 +104,12 @@ class Evaluator:
             jax.vmap(lambda q: robot.joint_to_world_transforms(q)[np.array(frames)])
         )
         self.preprocess = jax.jit(jax.vmap(preprocess))
-        floor = FloorConstraint(robot)
-        self.floor = jax.jit(jax.vmap(lambda q: jnp.min(floor.barrier(q))))
+
+        def floor_clearance(q):
+            pos, radii = robot.link_collision_data(q)
+            return jnp.min(pos[:, 2] - radii)
+
+        self.floor = jax.jit(jax.vmap(floor_clearance))
         bone = {b: i for i, b in enumerate(LAFAN1_BONES)}
         self.groups = {
             g: (

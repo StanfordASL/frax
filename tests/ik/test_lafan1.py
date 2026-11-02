@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from scipy.spatial.transform import Rotation
 
-from frax.ik import FloorConstraint, OnlineRetargeter
+from frax.ik import OnlineRetargeter
 
 sys.path.append(str(Path(__file__).parents[2] / "examples/ik/lafan1"))
 from lafan1_g1 import (
@@ -139,23 +139,28 @@ def test_retargets_g1_motion(g1, g1_q0, self_collision):
     assert np.max(np.linalg.norm(tracked - target, axis=-1)) < 1e-3
 
 
+def _floor_clearance(robot, q):
+    """Height of each collision sphere's bottom above z = 0"""
+    pos, radii = robot.link_collision_data(jnp.asarray(q))
+    return np.asarray(pos[:, 2] - radii)
+
+
 def test_stays_above_floor(g1, g1_q0):
     """Bone poses from a G1 motion sunk below the floor are retargeted above it,
     online as offline, and the floor constraint is inactive when standing on it"""
     dt = 1.0 / LAFAN1_FPS
-    floor = FloorConstraint(g1)
-    assert np.min(floor.barrier(jnp.asarray(g1_q0))) > -1e-3
+    assert np.min(_floor_clearance(g1, g1_q0)) > -1e-3
     qs = np.tile(g1_q0, (20, 1))
     qs[:, 2] -= np.linspace(0.0, 0.05, len(qs))  # Sink 5 cm
     frames = _bone_poses(g1, qs)
 
     retargeter = make_retargeter(g1)
     q_offline, _, _ = retargeter.retarget_clip(frames, dt)
-    heights = np.stack([np.asarray(floor.barrier(q)) for q in q_offline])
+    heights = np.stack([_floor_clearance(g1, q) for q in q_offline])
     assert np.min(heights) > -2e-3
     online = OnlineRetargeter(retargeter)
     online_q = np.stack([online.step(frame, dt) for frame in frames])
     np.testing.assert_allclose(q_offline, online_q, atol=1e-9)
     # Without it, the robot follows the targets down (the soles start 2 cm up)
     sunk, _, _ = make_retargeter(g1, floor=False).retarget_clip(frames, dt)
-    assert np.min(floor.barrier(sunk[-1])) < -0.025
+    assert np.min(_floor_clearance(g1, sunk[-1])) < -0.025
