@@ -19,7 +19,7 @@ from numpy.typing import ArrayLike
 
 from frax.core.manipulator import Manipulator
 from frax.core.robot import Robot
-from frax.utils.rotation_utils import rmat_to_quat_wxyz
+from frax.utils.rotation_utils import orientation_error_quat
 from frax.utils.spatial_utils import offset_transforms_and_jacobians
 
 
@@ -137,14 +137,6 @@ class JointTask(Task):
         return self.J, -self.gain * e, self.weight
 
 
-def rotation_error(R: Array, R_des: Array) -> Array:
-    """World-frame rotation error of R from R_des: 2 sign(w) vec(quat(R R_des^T)),
-    the error's axis times 2 sin(angle / 2). Unlike sin(angle) * axis, it only
-    vanishes at zero error"""
-    quat = rmat_to_quat_wxyz(R @ R_des.T)
-    return 2.0 * jnp.where(quat[0] < 0.0, -1.0, 1.0) * quat[1:]
-
-
 def _init_pose(task, n, gain_pos, gain_rot, weight_pos, weight_rot, pos_key, rot_key):
     """Set a pose task's gains (n, 1), keys, per-row weights and num_rows. Each
     frame has [position xyz] rows if pos_key is set, then [rotation xyz] rows if
@@ -173,7 +165,7 @@ def _pose_rows(task, tfs: Array, J: Array, ref) -> tuple[Array, Array, Array]:
     if pos:
         v_des.append(-task.gain_pos * (tfs[:, :3, 3] - ref[task.pos_key]))
     if rot:
-        rot_error = jax.vmap(rotation_error)(tfs[:, :3, :3], ref[task.rot_key])
+        rot_error = jax.vmap(orientation_error_quat)(tfs[:, :3, :3], ref[task.rot_key])
         v_des.append(-task.gain_rot * rot_error)
     J = J[:, slice(0 if pos else 3, 6 if rot else 3)]
     return (

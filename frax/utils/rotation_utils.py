@@ -363,6 +363,21 @@ def orientation_error_3D(R_cur: Array, R_des: Array) -> Array:
     )
 
 
+def orientation_error_quat(R_cur: Array, R_des: Array) -> Array:
+    """Determine the orientation error vector between two rotation matrices,
+    using quaternions for better resolution even at high error
+
+    Args:
+        R_cur (Array): Current rotation matrix, shape (3, 3)
+        R_des (Array): Desired rotation matrix, shape (3, 3)
+
+    Returns:
+        Array: Rotation error, shape (3,)
+    """
+    quat = rmat_to_quat_wxyz(R_cur @ R_des.T)
+    return 2.0 * jnp.where(quat[0] < 0.0, -1.0, 1.0) * quat[1:]
+
+
 def rotate_vector_by_quat_wxyz(q: Array, v: Array) -> Array:
     """Applies a rotation (defined by a WXYZ quaternion) to a vector
 

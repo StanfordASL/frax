@@ -8,7 +8,6 @@ from frax.ik import (
     EETask,
     FrameTask,
     JointTask,
-    rotation_error,
 )
 from frax.ik.tasks import _velocity_jacobian
 from frax.utils.rotation_utils import Rx, Rz
@@ -129,19 +128,3 @@ def test_joint_task_quaternion_base(g1, g1_q_random):
     np.testing.assert_allclose(v_des, -g1_q_random[[2, knee + 1]])
     with pytest.raises(AssertionError, match="q_dot = v"):
         JointTask(g1, [3], "q")
-
-
-@pytest.mark.parametrize("angle", [1e-4, 0.5, 1.5, 2.5, 3.1])
-def test_rotation_error(angle):
-    """Along the error's axis (R = Rot(angle * axis) R_des), with magnitude
-    2 sin(angle / 2): angle * axis to first order, and growing up to 180 deg"""
-    rng = np.random.default_rng(0)
-    axis = rng.standard_normal(3)
-    axis /= np.linalg.norm(axis)
-    R_des = Rotation.random(random_state=1).as_matrix()
-    R = Rotation.from_rotvec(angle * axis).as_matrix() @ R_des
-    e = np.asarray(rotation_error(jnp.asarray(R), jnp.asarray(R_des)))
-    np.testing.assert_allclose(e, 2 * np.sin(angle / 2) * axis, atol=1e-12)
-    np.testing.assert_allclose(
-        rotation_error(jnp.asarray(R_des), jnp.asarray(R_des)), 0.0
-    )

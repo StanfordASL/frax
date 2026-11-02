@@ -25,7 +25,6 @@ from frax.ik.tasks import (
     JointTask,
     ResidualTask,
     Task,
-    rotation_error,
 )
 from frax.ik.utils import load_bvh, resample_poses, save_motion, smooth_poses
 
@@ -56,7 +55,6 @@ __all__ = [
     "device_vmap",
     "load_bvh",
     "resample_poses",
-    "rotation_error",
     "sample_configurations",
     "save_motion",
     "smooth_poses",
