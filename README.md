@@ -12,6 +12,10 @@ With `frax`, you can design high-performance inverse-kinematics and inverse-dyna
 
 On CPU, you can expect compute times for typical controllers in the *low microseconds range (~25-100 kHz)*, and on GPU or TPU, `frax` can compute dynamics terms at upwards of *100 million computations per second*, depending on your batch size. 
 
+### New: Inverse kinematics and retargeting with `frax.ik`
+
+`frax` `0.2.0` now includes new utilities for fast, flexible IK pipelines! For full details, check out the [the `frax.ik` guide](docs/ik.md) and the examples in `examples/ik` (humanoid retargeting, as well as interactive manipulator and quadruped IK demos).
+
 ## Installation
 
 ### From PyPI
@@ -27,9 +31,6 @@ git clone https://github.com/danielpmorton/frax
 cd frax
 pip install -e .
 ```
-
-> [!TIP]
-> If you are running on CPU, I highly recommend using JAX version `0.4.30` for the best possible performance. See [below](#performance-tips) for additional performance tips!
 
 If you're installing from source, I highly recommend using a `uv`-managed virtual environment. In this case, `pip` commands can be replaced with `uv pip`
 
@@ -92,35 +93,6 @@ Here, we're enforcing
 
 ... all with easy prototyping of the constraint design, in simple functions of the robot kinematics and dynamics (such as, `robot.ee_manipulability_index(q) >= eps`).
 
-## Inverse kinematics and retargeting: `frax.ik`
-
-`frax.ik` does differential IK on any `frax` robot: a `DiffIKSolver` stacks tasks (weighted least-squares targets, e.g. `EETask`, `FrameTask`, `JointTask`) and constraints (joint limits, self-collision, obstacles, the floor, or your own barrier functions) into one QP over the velocity per step. On top of this, it offers motion retargeting (online, frame by frame, or offline, many clips spread across devices) and parallel global IK
-
-```
-pip install "frax[ik]"
-```
-
-```python
-import jax
-import numpy as np
-from frax import load_panda
-from frax.ik import DiffIKSolver, EETask, JointLimits
-
-jax.config.update("jax_enable_x64", True)  # The QP solver needs double precision
-
-robot = load_panda()
-solver = DiffIKSolver(robot, tasks=[EETask(robot)], constraints=[JointLimits(robot)])
-q = robot.default_configuration
-target = robot.ee_transform(q)
-ref = {"ee_pos": target[:3, 3] + np.array([0.0, 0.2, 0.0]), "ee_rmat": target[:3, :3]}
-step = jax.jit(solver.step)  # A pure function of (state, ref, dt)
-state = solver.init(q)
-for _ in range(200):
-    state, v, info = step(state, ref, 0.01)
-```
-
-See [the `frax.ik` guide](docs/ik.md) for details, and `examples/ik` for interactive demos (Panda, A2) and retargeting the LAFAN1 and BONES-SEED motion datasets to the Unitree G1
-
 ## Usage tips
 
 - If you would like to use `frax`'s collision methods, you must first define a spherized collision model of your robot (or, use our pre-built collision models for the Franka Panda/FR3 and the Unitree G1). Check out [this page](docs/modeling_collision.md) for more info!
@@ -130,11 +102,11 @@ See [the `frax.ik` guide](docs/ik.md) for details, and `examples/ik` for interac
 
 ## Performance tips
 
-- Currently, for the best performance on CPU, I recommend JAX version `0.4.30`. This is due to a degradation in the XLA compiler performance in recent JAX versions, but the JAX/XLA team is currently working on addressing this: see https://github.com/jax-ml/jax/issues/26021
-- I also recommend using double precision with `jax.config.update("jax_enable_x64", True)` or by setting the environment variable `JAX_ENABLE_X64=True`. This is especially the case if you are running on CPU, whereas on GPU, this is a more nuanced decision. Generally, running in double precision on GPU will lead to about a 2-6x slowdown, depending on your batch size, because GPUs are so well-suited for single-precision operations. This choice will be application-dependent -- you might need high precision, or maybe you can get away with being a little less precise.
+- If you're not planning on using `frax.ik` and only need fast dynamics on CPU, I recommend JAX version `0.4.30`. This is due to a degradation in the XLA compiler performance in recent JAX versions, but the JAX/XLA team is currently working on addressing this: see https://github.com/jax-ml/jax/issues/26021
+- If you're running on CPU, take advantage of double precision with `jax.config.update("jax_enable_x64", True)` or by setting the environment variable `JAX_ENABLE_X64=True`. On GPU, this is a more nuanced decision. Generally, running in double precision on GPU will lead to about a 2-6x slowdown, depending on your batch size, because GPUs are so well-suited for single-precision operations. This choice will be application-dependent -- you might need high precision, or maybe you can get away with being a little less precise.
 - I've also found that for typical CPU workflows with `frax`, it's better to configure JAX/XLA to run on a single thread. Generally, for robot controller design, the matrices involved are not quite large enough to require multithreading (unless you are doing something more parallelizable like MPPI). In this case, restricting it to a single thread can improve performance *and* also make it easier to share CPU resources across processes (multiple ROS nodes, for instance). You can use `source scripts/setup_cpu_env.sh` to load my recommended config, or feel free to modify as needed. 
-- If you are designing QP-based controllers, the QP should (almost always) be solved in double precision, otherwise you may get garbage results.
 - If you only need to solve for the dynamics of **one** robot instance, and you have a GPU on your computer, it will be significantly faster to use CPU. To force CPU usage, use `jax.config.update("jax_platforms", "cpu")` or set the environment variable `JAX_PLATFORMS=cpu`.
+- For certain batched operations, it often is fastest to parallelize across multiple CPU devices, rather than running on GPU. Check out how we handle batched dataset retargeting across multiple CPU devices in `frax.ik`!
 - `frax` by default does **not** wrap every method with a `@jax.jit` decorator. When calling any JAX code, add a JIT decorator to the top-most function call to ensure the best performance. 
 - If you have any code that is **outside** of a jitted region, use `numpy` operations and arrays. **Inside** a jitted region, use `jax.numpy`. 
 
@@ -142,14 +114,13 @@ For general advice on JAX, check out the [quickstart guide](https://docs.jax.dev
 
 ## New, breaking changes:
 
-I recently improved the handling of free-floating joints and added a position + WXYZ quaternion representation (following MuJoCo) rather than just position + intrinsic Euler XYZ. This should lead to fewer issues with gimbal lock, but I needed to update some terminology now that `nq != nv`. For instance:
+- I recently improved the handling of free-floating joints and added a position + WXYZ quaternion representation (following MuJoCo) rather than just position + intrinsic Euler XYZ. This should lead to fewer issues with gimbal lock, but I needed to update some terminology now that `nq != nv`. For instance:
+  - Joint limits are specified now only in terms of the actuated joints
+  - Terms like `num_joints` are deprecated in favor of `nq` and `nv`
+- I've updated the Unitree G1's collision model: there are now more collision bodies, more self-collision pairs, and better contact geometry at the feet. This new model is better for the retargeting in `frax.ik`.
+- The convention for `fext` has changed slightly in `forward_dynamics`, for the better. Previously, this was poorly documented and untested, and had an uncommon frame convention. Now, it uses a more intuitive convention: wrenches are applied at the link CoM frame, with axes aligned with the world frame.
 
-- Joint limits are specified now only in terms of the actuated joints
-- Terms like `num_joints` are deprecated in favor of `nq` and `nv`
-
-The Unitree G1's collision model has also been updated: it is now left/right symmetric, its foot spheres rest on the soles, and its self-collision pairs are defined by link (every sphere on one link against every sphere on the other, see `frax/robots/unitree_g1.py`), rather than by individual spheres
-
-I'll update this list if more changes come up. The old Euler functionality still remains for now, if specified. Changes to fixed-base robot workflows are very minimal (just some variable renaming).
+I'll update this list if more changes come up.
 
 ## TODOs / upcoming features
 
@@ -190,3 +161,13 @@ The following features are unplanned:
 }
 ```
 
+If you use `frax.ik`, please also cite ElastiQP, the solver that makes this possible:
+
+```
+@article{morton2026elastiqp,
+  author={Morton, Daniel and Arrizabalaga, Jon and Manchester, Zachary and Pavone, Marco},
+  title={Elasti{QP}: An Always-Feasible QP Solver for Constrained Robot Control},
+  journal={arXiv preprint arXiv:2609.19080},
+  year={2026},
+}
+```
