@@ -196,16 +196,16 @@ class Robot:
                 )
             ]
         )
-        # Set up padded collision positions for vmapping with static shape
+        # Padded collision model: useful for vmapping with static shape
         (
             self.padded_collision_positions,
             self.collision_slice_indices,
         ) = self._process_collision_data(collision_positions, collision_radii)
+        # Flat collision model: useful for indexing by certain spheres or parents
         self.flat_collision_radii = np.asarray(
             jax.tree_util.tree_flatten(self.collision_radii)[0]
         )
-        # Parent joint of each sphere in the (unpadded) collision model
-        self.collision_sphere_parent_idxs = (
+        self.flat_collision_parent_idxs = (
             np.repeat(np.arange(self.nv), [len(r) for r in collision_radii])
             if self.has_collision_data
             else np.zeros(0, dtype=int)
@@ -760,6 +760,56 @@ class Robot:
         all_pts_flat = transformed_pts_padded.reshape(-1, 3)
         pts_unpadded = all_pts_flat[self.collision_slice_indices]
         return pts_unpadded
+
+    def link_collision_jacobians(self, q: Array) -> Array:
+        """Compute the linear Jacobians of all collision sphere centers
+
+        Args:
+            q (Array): Configuration vector, shape (nq,)
+
+        Returns:
+            Array: Collision sphere Jacobians, shape (num_collision_spheres, 3, nv)
+        """
+        if not self.has_collision_data:
+            return jnp.array([])
+        joint_transforms = self.joint_to_world_transforms(q)
+        joint_Jvs, joint_Jws = self._joint_jacobians(joint_transforms)
+        return self._link_collision_jacobians(joint_transforms, joint_Jvs, joint_Jws)
+
+    def _link_collision_jacobians(
+        self,
+        joint_transforms: Array,
+        joint_Jvs: Array,
+        joint_Jws: Array,
+        sphere_idxs: Optional[Array] = None,
+    ) -> Array:
+        """Helper function: Compute the linear Jacobians of collision sphere centers,
+        using the precomputed transforms and jacobians for the joints
+
+        Args:
+            joint_transforms (Array): Transformation matrices for every joint, shape (nv, 4, 4)
+            joint_Jvs (Array): Linear jacobians for every joint, shape (nv, 3, nv)
+            joint_Jws (Array): Angular jacobians for every joint, shape (nv, 3, nv)
+            sphere_idxs (Optional[Array]): Indices of a subset of spheres, shape (n,).
+                Defaults to all spheres
+
+        Returns:
+            Array: Collision sphere Jacobians, shape (n, 3, nv)
+        """
+        # Sphere centers relative to their parent joints' origins, in world frame.
+        # Shape (nv, max_spheres, 3)
+        spheres_wrt_joints = jnp.einsum(
+            "jab,jsb->jsa", joint_transforms[:, :3, :3], self.padded_collision_positions
+        )
+        # Shape (nv, max_spheres, 3, nv)
+        # ("for each dof, there are up to max_spheres Jacobians, each of shape 3 x nv")
+        padded_sphere_Jvs = jax.vmap(
+            point_jacobians, in_axes=(None, None, 1), out_axes=1
+        )(joint_Jvs, joint_Jws, spheres_wrt_joints)
+        idxs = self.collision_slice_indices
+        if sphere_idxs is not None:
+            idxs = jnp.asarray(idxs)[sphere_idxs]
+        return padded_sphere_Jvs.reshape(-1, 3, self.nv)[idxs]
 
     def self_collision_distances(self, q: Array) -> Array:
         if not self.has_collision_data or not self.has_sc_data:

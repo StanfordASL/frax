@@ -227,3 +227,37 @@ def test_joint_jacobians(robot, states):
         atol=1e-7,
         err_msg="Joint angular Jacobians mismatch",
     )
+
+
+def test_link_collision_jacobians(robot, states):
+    """Test collision sphere Jacobians against autodiff of the sphere positions,
+    for all spheres and for a subset"""
+    if not robot.has_collision_data:
+        pytest.skip("No collision data")
+    qs, _ = states
+    idxs = np.arange(robot.flat_collision_radii.shape[0])[::-3]
+
+    @jax.jit
+    @jax.vmap
+    def compute(q):
+        E = robot.velocity_to_qdot_map(q)
+        tfs = robot.joint_to_world_transforms(q)
+        Jv, Jw = robot._joint_jacobians(tfs)
+        J_analytical = robot.link_collision_jacobians(q)
+        J_subset = robot._link_collision_jacobians(tfs, Jv, Jw, jnp.asarray(idxs))
+        J_autodiff = jax.jacfwd(robot.link_collision_positions)(q) @ E
+        return J_analytical, J_subset, J_autodiff
+
+    J_analytical, J_subset, J_autodiff = compute(qs)
+    np.testing.assert_allclose(
+        J_analytical,
+        J_autodiff,
+        atol=1e-7,
+        err_msg="Collision sphere Jacobians mismatch",
+    )
+    np.testing.assert_allclose(
+        J_subset,
+        J_autodiff[:, idxs],
+        atol=1e-7,
+        err_msg="Collision sphere Jacobians (subset) mismatch",
+    )

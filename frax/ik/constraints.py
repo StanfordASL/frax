@@ -185,7 +185,7 @@ class _SphereConstraint(InequalityConstraint):
     def __init__(self, robot: Robot, gain: float, penalty: float):
         assert robot.has_collision_data
         self.robot = robot
-        self.sphere_joints = robot.collision_sphere_parent_idxs
+        self.sphere_joints = robot.flat_collision_parent_idxs
         self.radii = np.asarray(robot.flat_collision_radii)
         self.gain = gain
         self.penalty = penalty
@@ -204,11 +204,6 @@ class _SphereConstraint(InequalityConstraint):
         if self.max_rows is None:
             return slice(None)
         return jax.lax.top_k(-h, self.max_rows)[1]
-
-    @staticmethod
-    def _point_jacobians(joint_tfs, Jv, Jw, joints, pos):
-        """Linear Jacobians (P, 3, nv) of world points pos (P, 3) fixed to joints (P,)"""
-        return point_jacobians(Jv[joints], Jw[joints], pos - joint_tfs[joints, :3, 3])
 
     @staticmethod
     def _distance_rows(delta, offsets, J_rel):
@@ -289,15 +284,15 @@ class SelfCollisionConstraint(_SphereConstraint):
         pos = self.robot._link_collision_positions(joint_tfs)
         return jnp.concatenate([pos, self.root_positions]) if self.root else pos
 
-    def _jacobians(self, joint_tfs, Jv, Jw, pos, spheres):
+    def _jacobians(self, joint_tfs, Jv, Jw, spheres):
         """Linear Jacobians (P, 3, nv) of spheres (P,), indexed as in pairs_a"""
         if not self.root:
-            joints = jnp.asarray(self.sphere_joints)[spheres]
-            return self._point_jacobians(joint_tfs, Jv, Jw, joints, pos[spheres])
+            return self.robot._link_collision_jacobians(joint_tfs, Jv, Jw, spheres)
         # The root's spheres don't move: zero Jacobians
         on_robot = spheres < len(self.radii)
-        joints = jnp.asarray(self.sphere_joints)[jnp.where(on_robot, spheres, 0)]
-        J = self._point_jacobians(joint_tfs, Jv, Jw, joints, pos[spheres])
+        J = self.robot._link_collision_jacobians(
+            joint_tfs, Jv, Jw, jnp.where(on_robot, spheres, 0)
+        )
         return jnp.where(on_robot[:, None, None], J, 0.0)
 
     def barrier(self, q) -> Array:
@@ -313,8 +308,8 @@ class SelfCollisionConstraint(_SphereConstraint):
         keep = self._keep(jnp.linalg.norm(delta, axis=-1) - self.pair_offsets)
         a, b = jnp.asarray(self.pairs_a)[keep], jnp.asarray(self.pairs_b)[keep]
         Jv, Jw = self.robot._joint_jacobians(joint_tfs)
-        J_rel = self._jacobians(joint_tfs, Jv, Jw, pos, b) - self._jacobians(
-            joint_tfs, Jv, Jw, pos, a
+        J_rel = self._jacobians(joint_tfs, Jv, Jw, b) - self._jacobians(
+            joint_tfs, Jv, Jw, a
         )
         offsets = jnp.asarray(self.pair_offsets)[keep]
         h, dh = self._distance_rows(delta[keep], offsets, J_rel)
@@ -384,8 +379,7 @@ class ObstacleConstraint(_SphereConstraint):
         keep = self._keep(jnp.where(active, dist - offsets, _INACTIVE_DISTANCE))
         spheres = jnp.asarray(self.row_spheres)[keep]
         Jv, Jw = self.robot._joint_jacobians(joint_tfs)
-        joints = jnp.asarray(self.sphere_joints)[spheres]
-        J = self._point_jacobians(joint_tfs, Jv, Jw, joints, pos[spheres])
+        J = self.robot._link_collision_jacobians(joint_tfs, Jv, Jw, spheres)
         h, dh = self._distance_rows(delta[keep], offsets[keep], J)
         active = active[keep]
         h = jnp.where(active, h, _INACTIVE_DISTANCE)
@@ -458,7 +452,8 @@ class FloorConstraint(_SphereConstraint):
         keep = self._keep(h)
         Jv, Jw = self.robot._joint_jacobians(joint_tfs)
         joints = jnp.asarray(self.row_joints)[keep]
-        J = self._point_jacobians(joint_tfs, Jv, Jw, joints, pos[keep])
+        r = pos[keep] - joint_tfs[joints, :3, 3]
+        J = point_jacobians(Jv[joints], Jw[joints], r)
         return -J[:, 2], self.gain * h[keep]
 
 
