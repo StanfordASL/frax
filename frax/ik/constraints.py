@@ -185,9 +185,7 @@ class _SphereConstraint(InequalityConstraint):
     def __init__(self, robot: Robot, gain: float, penalty: float):
         assert robot.has_collision_data
         self.robot = robot
-        # Map from each (flattened, unpadded) sphere to its parent joint
-        max_spheres = np.asarray(robot.padded_collision_positions).shape[1]
-        self.sphere_joints = np.asarray(robot.collision_slice_indices) // max_spheres
+        self.sphere_joints = robot.collision_sphere_parent_idxs
         self.radii = np.asarray(robot.flat_collision_radii)
         self.gain = gain
         self.penalty = penalty

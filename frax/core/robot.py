@@ -204,6 +204,12 @@ class Robot:
         self.flat_collision_radii = np.asarray(
             jax.tree_util.tree_flatten(self.collision_radii)[0]
         )
+        # Parent joint of each sphere in the (unpadded) collision model
+        self.collision_sphere_parent_idxs = (
+            np.repeat(np.arange(self.nv), [len(r) for r in collision_radii])
+            if self.has_collision_data
+            else np.zeros(0, dtype=int)
+        )
 
         self.total_mass = np.sum(self.link_masses)
         self.inverse_total_mass = 1.0 / self.total_mass
