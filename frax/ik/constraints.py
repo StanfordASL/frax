@@ -189,15 +189,6 @@ class _SphereConstraint(InequalityConstraint):
             return slice(None)
         return jax.lax.top_k(-h, self.max_rows)[1]
 
-    # TODO this is confusingly named, with bad variable naming too
-    @staticmethod
-    def _distance_rows(delta, offsets, J_rel):
-        """Barrier values |delta| - offsets and their Jacobians n . J_rel, with
-        n = delta / |delta|"""
-        dist = jnp.linalg.norm(delta, axis=-1)
-        n = delta / dist[..., None]
-        return dist - offsets, jnp.einsum("...i,...ij->...j", n, J_rel)
-
 
 @jax.tree_util.register_static
 class SelfCollisionConstraint(_SphereConstraint):
@@ -298,15 +289,15 @@ class ObstacleConstraint(_SphereConstraint):
         offsets = offsets.reshape(-1)
         active = jnp.repeat(obstacles.active, len(idxs))
         dist = jnp.linalg.norm(delta, axis=-1)
-        keep = self._keep(jnp.where(active, dist - offsets, _INACTIVE_DISTANCE))
+        h = jnp.where(active, dist - offsets, _INACTIVE_DISTANCE)
+        keep = self._keep(h)
         spheres = jnp.asarray(self.row_spheres)[keep]
         Jv, Jw = self.robot._joint_jacobians(joint_tfs)
         J = self.robot._link_collision_jacobians(joint_tfs, Jv, Jw, spheres)
-        h, dh = self._distance_rows(delta[keep], offsets[keep], J)
-        active = active[keep]
-        h = jnp.where(active, h, _INACTIVE_DISTANCE)
-        dh = jnp.where(active[:, None], dh, 0.0)
-        return -dh, self.gain * h
+        normals = delta[keep] / dist[keep, None]
+        dh = jnp.einsum("ki,kij->kj", normals, J)
+        dh = jnp.where(active[keep, None], dh, 0.0)
+        return -dh, self.gain * h[keep]
 
 
 @jax.tree_util.register_static
