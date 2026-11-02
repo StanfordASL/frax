@@ -1,12 +1,20 @@
-"""Velocity-level constraints: inequalities G v <= h, relaxed with an L1
-penalty, and equalities A v = b, either elastic (L1-relaxed) or hard
+"""IK constraints
 
-Gains are in 1/s, as for tasks: gain * dt <= 1 avoids overshooting a boundary
-or an equality within a step
+Notes:
+- We use ElastiQP for our solver, which allows us to use efficient
+  elastic inequality constraints, and hard equalities (where applicable)
+- Each inequality has an L1 relaxation with associated penalty w,
+  typically left at a default high value like 1e6, though this can be
+  tuned on a per-task basis. If this penalty is greater than the optimal
+  dual multiplier for a feasible problem, the relaxation is exact
+- For tuning gains, ensure that gain * dt <= 1 to avoid overshoot
+- Since this solver operates on generalized velocities, all inequalities
+  deal with v rather than a delta q. This is slightly different from
+  other diff IK libraries like pink or mink
 """
 
 from collections.abc import Callable, Sequence
-from typing import Literal, NamedTuple
+from typing import Literal, NamedTuple, Any
 
 import jax
 import jax.numpy as jnp
@@ -17,31 +25,39 @@ from numpy.typing import ArrayLike
 from frax.core.robot import Robot
 from frax.ik.tasks import _velocity_jacobian, point_jacobians
 
-DEFAULT_PENALTY = 1e6
+
+DEFAULT_PENALTY = 1e6  # Default elastic penalty value
+_INACTIVE_DISTANCE = 1e3  # Value assigned to inactive obstacles
 
 
 class InequalityConstraint:
-    """Base velocity-level inequality constraint, G v <= h, relaxed with an L1
-    penalty. Subclasses define `robot` (the frax robot whose configuration space
-    it acts on), `num_rows`, `penalty` (scalar or shape (num_rows,)), and `rows`"""
+    """Base (elastic) inequality constraint G v <= h"""
 
     robot: Robot
     num_rows: int
     penalty: ArrayLike
 
-    def rows(self, q: Array, ref) -> tuple[Array, Array]:
-        """Constraint rows G (num_rows, nv) and h (num_rows,) at the current
-        configuration q (nq,)"""
+    def rows(self, q: Array, ref: Any) -> tuple[Array, Array]:
+        """Rows of G v <= h for this constraint, evaluated at q
+
+        Args:
+            q (Array): Configuration, shape (nq,)
+            ref (Any): A pytree (such as a dict) containing problem data
+                that is updated each step
+
+        Returns:
+            G (Array): Inequality matrix rows, shape (num_rows, nv)
+            h (Array): Inequality vector rows, shape (num_rows,)
+        """
         raise NotImplementedError
 
 
 class EqualityConstraint:
-    """Base velocity-level equality constraint, A v = b. Subclasses define
-    `robot` (as InequalityConstraint), `num_rows`, `elastic`, `penalty` (scalar
-    or shape (num_rows,)), and `rows`
+    """Base equality constraint Av = b
 
-    An elastic equality has an L1 penalty on |A v - b|, so it gives way when
-    constraints conflict. Otherwise it is a hard equality row of the QP
+    ElastiQP allows for hard equalities when applicable. Generally,
+    you should use an elastic equality for any soft task terms that
+    may not be feasible by construction
     """
 
     robot: Robot
@@ -49,17 +65,25 @@ class EqualityConstraint:
     elastic: bool
     penalty: ArrayLike
 
-    def rows(self, q: Array, ref) -> tuple[Array, Array]:
-        """Constraint rows A (num_rows, nv) and b (num_rows,) at the current
-        configuration q (nq,)"""
+    def rows(self, q: Array, ref: Any) -> tuple[Array, Array]:
+        """Rows of A v <= b for this constraint, evaluated at q
+
+        Args:
+            q (Array): Configuration, shape (nq,)
+            ref (Any): A pytree (such as a dict) containing problem data
+                that is updated each step
+
+        Returns:
+            A (Array): Equality matrix rows, shape (num_rows, nv)
+            b (Array): Equality vector rows, shape (num_rows,)
+        """
         raise NotImplementedError
 
 
 def _limits(
     x: ArrayLike | Literal["robot"] | None, robot_x: np.ndarray, n: int, sign: float
 ) -> np.ndarray:
-    """Limit array of shape (n,), with "robot" as the robot's own (robot_x), and
-    None as no limit (sign * inf)"""
+    # Helper function to handle the different ways of passing a joint limit
     if isinstance(x, str):
         assert x == "robot", f'A limit must be an array, "robot", or None, got {x!r}'
         x = robot_x
@@ -72,17 +96,18 @@ def _limits(
 
 @jax.tree_util.register_static
 class JointLimits(InequalityConstraint):
-    """Joint position and velocity limits, as one box on the actuated joint
-    velocities (the floating base has none):
+    """Joint position and velocity limits on the actuated joint velocities
 
         max(v_min, gain * (q_min - q)) <= v <= min(v_max, gain * (q_max - q))
 
-    Each limit defaults to "robot", the robot's own (its actuated_joint_*
-    arrays), and may be None (no limit) or infinite per joint. Limits have one
-    entry per actuated joint
+    Limits default to "robot" to use the robot's own actuated joint position/
+    velocity limits, but you can also pass None (no limit) or an array of
+    custom limits.
+
+    Currently, limits on floating bases are not implemented.
 
     Args:
-        robot: frax robot
+        robot (Robot): The frax robot model
         q_min (ArrayLike | str | None): Lower position limits, shape (num_actuated,).
             Defaults to robot.actuated_joint_lower_limits
         q_max (ArrayLike | str | None): Upper position limits, shape (num_actuated,).
@@ -111,7 +136,6 @@ class JointLimits(InequalityConstraint):
         self.q_min = _limits(q_min, robot.actuated_joint_lower_limits, n, -1)
         self.q_max = _limits(q_max, robot.actuated_joint_upper_limits, n, 1)
         self.v_max = _limits(v_max, robot.actuated_joint_max_velocities, n, 1)
-        # The robot's lower velocity limits are -v_max, whatever v_max is
         self.v_min = _limits(v_min, -self.v_max, n, -1)
         self.upper_idxs = np.flatnonzero(
             np.isfinite(self.q_max) | np.isfinite(self.v_max)
@@ -122,7 +146,7 @@ class JointLimits(InequalityConstraint):
         I = np.eye(n)
         G = np.vstack([I[self.upper_idxs], -I[self.lower_idxs]])
         self.num_rows = G.shape[0]
-        assert self.num_rows > 0, "No finite limits"
+        assert self.num_rows > 0
         # Zero columns for the floating base
         self.G = np.hstack([np.zeros((self.num_rows, robot.nv_floating)), G])
         self.gain = gain
@@ -144,12 +168,10 @@ class SphereObstacles(NamedTuple):
     active: Array  # (K,) bool
 
 
-# Barrier value assigned to ignored rows: far enough to never be selected or active
-_INACTIVE_DISTANCE = 1e3
-
-
 class _SphereConstraint(InequalityConstraint):
-    """Shared machinery for CBF constraints gain * h(q) >= -dh/dq v on a frax
+    """Helper class for CBFs operating on spherical collision models
+
+    Shared machinery for CBF constraints gain * h(q) >= -dh/dq v on a frax
     robot's collision spheres, with analytic Jacobians
 
     With max_rows set, only the max_rows closest pairs are kept each step. Far
