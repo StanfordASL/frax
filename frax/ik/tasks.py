@@ -20,7 +20,7 @@ from numpy.typing import ArrayLike
 from frax.core.manipulator import Manipulator
 from frax.core.robot import Robot
 from frax.utils.rotation_utils import rmat_to_quat_wxyz
-from frax.utils.spatial_utils import point_jacobians
+from frax.utils.spatial_utils import offset_transforms_and_jacobians
 
 
 def _velocity_jacobian(robot: Robot, fn, q: Array) -> tuple[Array, Array]:
@@ -137,18 +137,6 @@ class JointTask(Task):
         return self.J, -self.gain * e, self.weight
 
 
-def offset_frames(
-    tfs: Array, Jv: Array, Jw: Array, offsets: Array
-) -> tuple[Array, Array, Array]:
-    """Frames rigidly offset from others: transforms tfs @ offsets (n, 4, 4) and
-    their Jacobians, given the parent frames' transforms tfs (n, 4, 4) and
-    Jacobians Jv, Jw (n, 3, nv). The angular Jacobian is unchanged, and the
-    linear one gains the lever arm r = p_offset - p_parent: Jv + Jw x r"""
-    tfs_offset = tfs @ offsets
-    Jv = point_jacobians(Jv, Jw, tfs_offset[:, :3, 3] - tfs[:, :3, 3])
-    return tfs_offset, Jv, Jw
-
-
 def rotation_error(R: Array, R_des: Array) -> Array:
     """World-frame rotation error of R from R_des: 2 sign(w) vec(quat(R R_des^T)),
     the error's axis times 2 sin(angle / 2). Unlike sin(angle) * axis, it only
@@ -247,7 +235,7 @@ class FrameTask(Task):
         Jv, Jw = self.robot._joint_jacobians(tfs)
         tfs, Jv, Jw = tfs[self.joints], Jv[self.joints], Jw[self.joints]
         if self.offsets is not None:
-            tfs, Jv, Jw = offset_frames(tfs, Jv, Jw, self.offsets)
+            tfs, Jv, Jw = offset_transforms_and_jacobians(tfs, Jv, Jw, self.offsets)
         return _pose_rows(self, tfs, jnp.concatenate([Jv, Jw], axis=1), ref)
 
 

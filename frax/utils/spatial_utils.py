@@ -151,3 +151,30 @@ def point_jacobians(Jv: Array, Jw: Array, r: Array) -> Array:
         Array: Linear Jacobians of the points, shape (n, 3, nv)
     """
     return Jv + jnp.cross(Jw, r[:, :, None], axisa=1, axisb=1, axisc=1)
+
+
+def offset_transforms_and_jacobians(
+    parent_transforms: Array, Jvs: Array, Jws: Array, offsets: Array
+) -> tuple[Array, Array, Array]:
+    """Computes the transforms and Jacobians for frames that are rigidly
+    offset from their parent frames
+
+    Args:
+        parent_transforms (Array): Transforms of the parent frames, shape (n, 4, 4)
+        Jvs (Array): Linear Jacobians of the parent frames, shape (n, 3, nv)
+        Jws (Array): Angular Jacobians of the parent frames, shape (n, 3, nv)
+        offsets (Array): Transforms of the offset frames in their parent frames,
+            shape (n, 4, 4)
+
+    Returns:
+        Tuple[Array, Array, Array]:
+            tfs_offset (Array): Transforms of the offset frames, shape (n, 4, 4)
+            Jv_offset (Array): Linear Jacobians of the offset frames, shape (n, 3, nv)
+            Jw (Array): Angular Jacobians of the offset frames (unchanged), shape (n, 3, nv)
+    """
+    # Transforms are shifted, linear jacobian gets a lever arm term, angular unchanged
+    tfs_offset = parent_transforms @ offsets
+    Jv_offset = point_jacobians(
+        Jvs, Jws, tfs_offset[:, :3, 3] - parent_transforms[:, :3, 3]
+    )
+    return tfs_offset, Jv_offset, Jws
