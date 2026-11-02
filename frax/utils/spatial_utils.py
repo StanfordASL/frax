@@ -136,3 +136,18 @@ def shift_wrenches(wrenches: Array, point: Array) -> Array:
     """
     f, n = wrenches[..., :3], wrenches[..., 3:]
     return jnp.concatenate([f, n - jnp.cross(point, f)], axis=-1)
+
+
+def point_jacobians(Jv: Array, Jw: Array, r: Array) -> Array:
+    """Linear Jacobians of points rigidly attached to frames: Jv + Jw x r, column-wise
+
+    Args:
+        Jv (Array): Linear Jacobians of the frames, shape (n, 3, nv)
+        Jw (Array): Angular Jacobians of the frames, shape (n, 3, nv)
+        r (Array): Positions of the points relative to their frames' origins,
+            in the world frame, shape (n, 3)
+
+    Returns:
+        Array: Linear Jacobians of the points, shape (n, 3, nv)
+    """
+    return Jv + jnp.cross(Jw, r[:, :, None], axisa=1, axisb=1, axisc=1)

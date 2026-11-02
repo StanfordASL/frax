@@ -29,6 +29,7 @@ from frax.utils.spatial_utils import (
     spatial_motion_cross,
     spatial_force_cross,
     shift_wrenches,
+    point_jacobians,
 )
 from frax.utils.rotation_utils import (
     quat_wxyz_to_rmat,
@@ -870,11 +871,7 @@ class Robot:
 
         # Shift the linear jacobians from the joint origin to the link COM
         # Jv_com = Jv_joint + Jw x (p_com - p_joint)
-        # TODO: this is a bit of an array broadcasting mess right now
-        r = link_com_pos - joint_pos
-        link_Jvs = joint_Jvs + jnp.cross(
-            joint_Jws.transpose(0, 2, 1), r[:, jnp.newaxis, :]
-        ).transpose(0, 2, 1)
+        link_Jvs = point_jacobians(joint_Jvs, joint_Jws, link_com_pos - joint_pos)
 
         # Angular vel is the same for all points on a link, so the link_Jws = joint_Jws
         return link_Jvs, joint_Jws

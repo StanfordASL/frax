@@ -20,6 +20,7 @@ from numpy.typing import ArrayLike
 from frax.core.manipulator import Manipulator
 from frax.core.robot import Robot
 from frax.utils.rotation_utils import rmat_to_quat_wxyz
+from frax.utils.spatial_utils import point_jacobians
 
 
 def _velocity_jacobian(robot: Robot, fn, q: Array) -> tuple[Array, Array]:
@@ -134,12 +135,6 @@ class JointTask(Task):
     def linearize(self, q, ref):
         e = q[self.q_idxs] - ref[self.ref_key]
         return self.J, -self.gain * e, self.weight
-
-
-def point_jacobians(Jv: Array, Jw: Array, r: Array) -> Array:
-    """Linear Jacobians (n, 3, nv) of points at offsets r (n, 3) (world frame)
-    from frames with Jacobians Jv, Jw (n, 3, nv): Jv + Jw x r, column-wise"""
-    return Jv + jnp.cross(Jw, r[:, :, None], axisa=1, axisb=1, axisc=1)
 
 
 def offset_frames(

@@ -23,7 +23,8 @@ from jax import Array
 from numpy.typing import ArrayLike
 
 from frax.core.robot import Robot
-from frax.ik.tasks import _velocity_jacobian, point_jacobians
+from frax.ik.tasks import _velocity_jacobian
+from frax.utils.spatial_utils import point_jacobians
 
 
 DEFAULT_PENALTY = 1e6  # Default elastic penalty value
