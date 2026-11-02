@@ -1,19 +1,14 @@
 """BONES-SEED motion capture -> Unitree G1 retargeting: BVH loading, and the
 retargeter
 
-The task and tuning follow `examples/lafan1/lafan1_g1.py`, retargeting SEED's
+The task and tuning follow `examples/ik/lafan1/lafan1_g1.py`, retargeting SEED's
 SOMA skeletons directly, rather than via NVIDIA's soma-retargeter
-(https://github.com/NVIDIA/soma-retargeter), which made SEED's own G1 retargets
+(https://github.com/NVIDIA/soma-retargeter), which made SEED's own G1 retargets.
+The rotation offsets come from soma-retargeter's zero pose, where SOMA matches
+G1's zero configuration
 
-Differences from LAFAN1:
-- SEED's "uniform" clips share one SOMA skeleton for all actors, so the scales
-  and floor offset are constants
-- The rotation offsets come from soma-retargeter's zero pose, where SOMA
-  matches G1's zero configuration, then are leveled (FOOT_TILT, TORSO_PITCH)
-- The arms are calibrated rolled out (ARM_ABDUCTION) and self-collision is on,
-  since G1's hips are wide for its arms
-- A shoulder posture task keeps raised arms out of G1's flipped shoulder solution
-- SEED is 120 fps, so the gains are 120 (the damping carries over)
+SEED's "uniform" clips share one SOMA skeleton for all actors, so the scales and
+floor offset are constants
 """
 
 from pathlib import Path
@@ -49,7 +44,7 @@ def load_seed(filepath: str | Path) -> tuple[np.ndarray, list[str]]:
     ValueError if any frame has NaNs, as a few SEED clips do
 
     Returns:
-        Tuple[np.ndarray, List[str]]: Poses [position, WXYZ quaternion], shape
+        tuple[np.ndarray, list[str]]: Poses [position, WXYZ quaternion], shape
             (T, B, 7), and the B bone names
     """
     return load_bvh(filepath, BVH_TO_WORLD)
@@ -157,7 +152,6 @@ GAIN = 60.0
 DAMPING = 10.0
 SHOULDER_DAMPING = 1000.0
 WRIST_DAMPING = 100.0
-# Self-collision rows kept per step (the closest pairs), and the CBF gain
 SELF_COLLISION_ROWS = 64
 SELF_COLLISION_GAIN = GAIN
 # Shoulder roll (rad) the arms are calibrated at: human arms hanging straight
@@ -229,8 +223,7 @@ def make_retargeter(
     """Input frames ({"poses": human bone poses (n, 7)}) -> G1 configuration
 
     Args:
-        robot: G1, with a quaternion floating base and frax's collision model
-            (`load_g1()`), whose foot spheres rest on the sole
+        robot (Humanoid): G1 from `load_g1()`
         floor (bool): Keep the robot's collision spheres above the floor
         self_collision (bool): Self-collision avoidance (the G1's self-collision pairs)
         arm_abduction (float): Shoulder roll (rad) that the arms are calibrated
@@ -246,8 +239,7 @@ def make_retargeter(
             toward the calibration pose (see SHOULDER_POSTURE_WEIGHT)
     """
     offsets = rot_offsets(robot, arm_abduction)
-    # The calibration pose's shoulders: rolled out by arm_abduction
-    posture = jnp.array(
+    shoulder_posture = jnp.array(
         [
             (1.0 if side == "left" else -1.0) * arm_abduction * (axis == "roll")
             for side in ("left", "right")
@@ -256,7 +248,7 @@ def make_retargeter(
     )
 
     def preprocess_frame(frame: dict) -> dict:
-        return preprocess(frame, offsets) | {"shoulder_posture": posture}
+        return preprocess(frame, offsets) | {"shoulder_posture": shoulder_posture}
 
     def initial_q(frame: dict) -> Array:
         """The robot's default joint positions, with the root at the first target

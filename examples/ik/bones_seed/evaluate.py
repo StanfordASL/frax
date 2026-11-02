@@ -5,14 +5,11 @@ metrics (--clips), and the clips with the worst snaps (clip, frame, joint group)
 to look at in view.py. --save keeps the per clip metrics (a CSV), to report
 again (--load) or pick hard cases from (hard_cases.py)
 
-The metrics are examples/lafan1/evaluate.py's, against the human's own
+The metrics are examples/ik/lafan1/evaluate.py's, against the human's own
 (unsmoothed) bone orientations, so smoothing counts as error. Also:
 - self_coll: % frames with some pair of G1's self-collision links
-  (the G1's self-collision pairs) > SELF_COLLISION_TOL into each other
+  > SELF_COLLISION_TOL into each other
 - self_coll_depth: deepest such penetration (cm), mean over clips
-
-The metrics only use the human's bone orientations and foot contacts, not the
-scaled position targets, so they apply to any retargeter
 """
 
 import os
@@ -202,10 +199,17 @@ _evaluator = None  # Each worker process's own
 
 
 def score_clip(bvh: Path, sigma_rot: float, qs: dict) -> dict | None:
-    """A clip's metrics, as {source: metrics} for the sources' retargets
-    {source: path}, with the clip's frames, its worst snap (worst_snap, _frame,
-    _group: excess speed, frame, group), and its snaps per group. None if the
-    human clip has NaN frames"""
+    """Score each source's retarget of one clip
+
+    Args:
+        bvh (Path): Human clip
+        sigma_rot (float): Orientation smoothing for the human clip (s)
+        qs (dict): Path to each source's retarget, as {source: path}
+
+    Returns:
+        dict | None: Metrics for each source, as {source: metrics}. None if the
+            human clip has NaN frames
+    """
     global _evaluator
     if _evaluator is None:
         _evaluator = Evaluator(load_g1())
@@ -238,7 +242,7 @@ def save_metrics(path: Path, results: dict):
 
 
 def load_metrics(path: Path) -> dict:
-    """save_metrics' {source: {clip: metrics}}"""
+    """Load metrics written by save_metrics, as {source: {clip: metrics}}"""
     results = defaultdict(dict)
     with open(path, newline="") as f:
         for r in csv.DictReader(f):
@@ -267,7 +271,7 @@ def row(m: dict) -> str:
 
 
 def evaluate(args, meta: dict, names: list) -> dict:
-    """{source: {clip: metrics}}, over worker processes"""
+    """Score every clip over worker processes, as {source: {clip: metrics}}"""
     data_dir = Path(args.data_dir)
     paths = {
         "frax": lambda n: Path(args.frax_dir) / f"{n}.npz",

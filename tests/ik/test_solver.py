@@ -116,7 +116,7 @@ def test_elastic_equality_yields_to_obstacle(elastic):
     assert np.linalg.norm(qs - np.asarray(center), axis=1).min() >= radius - 1e-3
     if elastic:
         assert np.abs(qs[:, 1]).max() > 0.2  # Left the line to pass the obstacle
-        np.testing.assert_allclose(qs[-1], [2.0, 0.0], atol=1e-3)  # And returned
+        np.testing.assert_allclose(qs[-1], [2.0, 0.0], atol=1e-3)
     else:
         np.testing.assert_allclose(qs[:, 1], 0.0, atol=1e-8)
         assert qs[-1, 0] < 1.0 - radius + 0.05

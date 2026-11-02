@@ -30,8 +30,8 @@ def _frame_twists(tf_fn, robot, q, v):
     """World-frame linear and angular velocities (n, 6) of frames tf_fn(q)
     (n, 4, 4) along the integrated motion, d/dt tf_fn(integrate(q, v, t)) at t = 0"""
     tfs, dtfs = jax.jvp(lambda t: tf_fn(robot.integrate(q, v, t)), (0.0,), (1.0,))
-    W = dtfs[:, :3, :3] @ jnp.swapaxes(tfs[:, :3, :3], 1, 2)  # skew(w)
-    w = jnp.stack([W[:, 2, 1], W[:, 0, 2], W[:, 1, 0]], axis=1)
+    skew_w = dtfs[:, :3, :3] @ jnp.swapaxes(tfs[:, :3, :3], 1, 2)
+    w = jnp.stack([skew_w[:, 2, 1], skew_w[:, 0, 2], skew_w[:, 1, 0]], axis=1)
     return jnp.concatenate([dtfs[:, :3, 3], w], axis=1)
 
 

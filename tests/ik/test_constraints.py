@@ -104,7 +104,7 @@ def test_joint_limits_quaternion_base(g1, g1_q_random):
     and positions read past the quaternion"""
     q_min, q_max = g1.actuated_joint_lower_limits, g1.actuated_joint_upper_limits
     v_max = g1.actuated_joint_max_velocities
-    con = JointLimits(g1, gain=2.0)  # The robot's own limits
+    con = JointLimits(g1, gain=2.0)
     G, h = con.rows(jnp.asarray(g1_q_random), {})
     n = g1.num_actuated_joints
     np.testing.assert_allclose(

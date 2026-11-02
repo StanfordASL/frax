@@ -7,15 +7,6 @@ with GMR's weights and rotation offsets, solved with one diff IK QP per frame
 orientation; positions are only tracked for the pelvis, feet and wrists, since
 G1's proportions differ from a human's
 
-Differences from GMR:
-- The legs scale by G1's leg length over LAFAN1's, so the feet stay within reach
-  and planted feet stay planted; the upper body scales by G1's reach
-- The shoulders are heavily damped, against G1's shoulder gimbal singularity
-- A floor constraint keeps the robot above the floor (LAFAN1's knees and hands
-  pass through it when kneeling or crawling)
-- Offline, bone orientations are smoothed (`smooth_poses`), against jitter
-  from LAFAN1's rough hand and foot orientations
-
 LAFAN1: https://github.com/ubisoft/ubisoft-laforge-animation-dataset
 """
 
@@ -39,10 +30,9 @@ from frax.ik import (
 from frax.utils.rotation_utils import quat_wxyz_to_rmat, rmat_to_quat_wxyz
 
 LAFAN1_FPS = 30
-DATA_DIR = Path(__file__).parents[3] / "data/lafan1"  # BVH files
+DATA_DIR = Path(__file__).parents[3] / "data/lafan1"
 # Retargeted clips (retarget.py)
 OUT_DIR = Path(__file__).parents[3] / "data/lafan1_frax"
-# BVH (Y-up) -> world (Z-up)
 Y_UP_TO_Z_UP = np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]])
 
 
@@ -53,7 +43,7 @@ def load_lafan1(filepath: str | Path) -> tuple[np.ndarray, list[str]]:
     the toe orientation
 
     Returns:
-        Tuple[np.ndarray, List[str]]: Poses [position, WXYZ quaternion], shape
+        tuple[np.ndarray, list[str]]: Poses [position, WXYZ quaternion], shape
             (T, B, 7), and the B bone names
     """
     poses, names = load_bvh(filepath, Y_UP_TO_Z_UP)
@@ -185,7 +175,7 @@ def make_retargeter(
     """Human bone poses (n, 7) -> G1 configuration
 
     Args:
-        robot: G1 from `load_g1()`, whose foot spheres rest on the sole
+        robot (Humanoid): G1 from `load_g1()`
         floor (bool): Keep the robot's collision spheres above the floor
         self_collision (bool): Self-collision avoidance (the G1's self-collision pairs)
         weight_pos, weight_rot (np.ndarray): Per-frame weights, in

@@ -2,9 +2,8 @@
 spread across CPU cores, and save each clip's configurations (play them back
 with view.py, and score them with evaluate.py)
 
-As in examples/lafan1/retarget.py, OfflineRetargeter spreads the clips across
-cores. SEED is large, so clips load in chunks, in worker processes, while the
-previous chunk retargets. Saved clips are skipped, so an interrupted run resumes
+SEED is large, so clips load in chunks, in worker processes, while the previous
+chunk retargets. Saved clips are skipped, so an interrupted run resumes
 
 --refine then redoes the saved clips whose first frame is off target, solving
 it by global IK (slower, so only where needed: retarget, then refine)
@@ -60,9 +59,8 @@ CHUNK = 1024  # Clips loaded at once
 
 
 def first_frame_error(robot):
-    """(clip, its configurations) -> the worst tracked link's orientation error
-    (deg) in the first frame, against the human's own bone orientations (as
-    evaluate.py scores)"""
+    """Returns a function of (clip, configurations) giving the worst tracked link's
+    orientation error (deg) in the first frame, as evaluate.py scores it"""
     links = np.array([robot.joint_name_to_index[name] for name in G1_JOINT_NAMES])
 
     @jax.jit

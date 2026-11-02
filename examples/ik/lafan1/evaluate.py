@@ -80,8 +80,7 @@ for side, s in (("left", "Left"), ("right", "Right")):
 
 
 def _angle(Ra, Rb) -> np.ndarray:
-    """Angles (rad) between rotation matrices (..., 3, 3): atan2 of the relative
-    rotation's sine (from its skew part) and cosine (from its trace)"""
+    """Angles (rad) between rotation matrices (..., 3, 3)"""
     rel = np.swapaxes(Ra, -1, -2) @ Rb
     skew = rel - np.swapaxes(rel, -1, -2)
     sin = 0.5 * np.linalg.norm(skew[..., [2, 0, 1], [1, 2, 0]], axis=-1)

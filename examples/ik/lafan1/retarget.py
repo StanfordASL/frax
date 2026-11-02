@@ -2,9 +2,6 @@
 the clips spread across CPU cores, and save each clip's configurations (play
 them back with view.py)
 
-Each core is a JAX device, and frax.ik's OfflineRetargeter spreads the clips
-across them. The BVH files load in parallel, in worker processes
-
 Data: python examples/ik/lafan1/download.py (LAFAN1 is CC BY-NC-ND 4.0, for
 non-commercial use only)
 """
