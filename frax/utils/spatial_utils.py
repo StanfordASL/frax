@@ -122,20 +122,20 @@ def spatial_force_cross(velocity: Array, force: Array) -> Array:
     )
 
 
-def shift_wrenches(wrenches: Array, point: Array) -> Array:
-    """Changes the reference point of spatial forces (wrenches)
-
-    A wrench [f; n] taken about point A becomes [f; n - p x f] about point B, where p = B - A
+def shift_wrenches(wrenches: Array, offsets: Array) -> Array:
+    """Changes the reference point of wrenches [force, torque]
 
     Args:
-        wrenches (Array): Spatial forces about their current reference points, shape (..., 6)
-        point (Array): New reference points, relative to the current ones, shape (..., 3)
+        wrenches (Array): Wrenches about their current reference points, shape (..., 6)
+        offsets (Array): New reference points, relative to the current ones, shape (..., 3)
 
     Returns:
-        Array: Spatial forces about the new reference points, shape (..., 6)
+        Array: Wrenches about the new reference points, shape (..., 6)
     """
-    f, n = wrenches[..., :3], wrenches[..., 3:]
-    return jnp.concatenate([f, n - jnp.cross(point, f)], axis=-1)
+    # For a wrench [f, tau] defined at some point A,
+    # at point B, we have [f, tau - p x f] where p = B - A
+    f, tau = wrenches[..., :3], wrenches[..., 3:]
+    return jnp.concatenate([f, tau - jnp.cross(offsets, f)], axis=-1)
 
 
 def point_jacobians(Jv: Array, Jw: Array, r: Array) -> Array:
