@@ -3,6 +3,13 @@
 Requires the `ik` extra: `pip install "frax[ik]"`
 """
 
+try:
+    import elastiqp
+except ImportError as e:
+    raise ImportError(
+        "frax.ik requires elastiqp and jax>=0.9.1. Please pip install 'frax[ik]'"
+    ) from e
+
 from frax.ik.constraints import (
     DEFAULT_PENALTY,
     BarrierConstraint,
