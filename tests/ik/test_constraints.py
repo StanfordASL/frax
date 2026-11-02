@@ -280,33 +280,37 @@ def test_residual_equality_matches_autodiff(g1, g1_q_random):
 
 
 def test_floor_matches_autodiff(g1, g1_q_random):
-    """Sphere bottoms (excluding some joints' spheres), then points, above z = 0"""
+    """Bottoms of the checked spheres (not the knee's or waist's) above z = 0"""
     exclude = [
         g1.joint_name_to_index[n] for n in ("left_knee_joint", "waist_pitch_joint")
     ]
-    points = [
-        (
-            g1.joint_name_to_index["left_ankle_roll_joint"],
-            np.array([0.1, 0.02, -0.035]),
-        ),
-        (g1.joint_name_to_index["right_wrist_yaw_joint"], np.array([0.0, 0.0, 0.0])),
-    ]
-    con = FloorConstraint(g1, exclude_joints=exclude, points=points, gain=3.0)
+    idxs = np.flatnonzero(~np.isin(g1.flat_collision_parent_idxs, exclude))
+    assert 0 < len(idxs) < len(g1.flat_collision_radii)
+    con = FloorConstraint(g1, sphere_idxs=idxs, gain=3.0)
+    assert con.num_rows == len(idxs)
     q = jnp.asarray(g1_q_random)
     G, h = jax.jit(con.rows)(q, {})
-    kept = ~np.isin(con.sphere_joints, exclude)
-    assert 0 < kept.sum() < len(kept)
-    assert con.num_rows == kept.sum() + len(points)
 
     def heights(q):
         pos, radii = g1.link_collision_data(q)
-        tfs = g1.joint_to_world_transforms(q)
-        pts = [tfs[j, :3, :3] @ o + tfs[j, :3, 3] for j, o in points]
-        return jnp.concatenate([(pos[:, 2] - radii)[kept], jnp.stack(pts)[:, 2]])
+        return (pos[:, 2] - radii)[idxs]
 
     G_ref, h_ref = _cbf_rows(heights, q, 3.0, g1)
     np.testing.assert_allclose(h, h_ref, atol=TOL)
     np.testing.assert_allclose(G, G_ref, atol=TOL)
+    np.testing.assert_allclose(con.barrier(q), h_ref / 3.0, atol=TOL)
+
+
+def test_floor_max_rows_keeps_lowest(g1, g1_q_random):
+    q = jnp.asarray(g1_q_random)
+    G_all, h_all = FloorConstraint(g1).rows(q, {})
+    con = FloorConstraint(g1, max_rows=5)
+    G, h = jax.jit(con.rows)(q, {})
+    assert con.num_rows == 5
+    lowest = np.argsort(np.asarray(h_all))[:5]
+    order = np.argsort(np.asarray(h))
+    np.testing.assert_allclose(h[order], h_all[lowest], atol=TOL)
+    np.testing.assert_allclose(G[order], G_all[lowest], atol=TOL)
 
 
 def test_sphere_constraint_margins(g1, g1_q_random, obstacles):
@@ -315,7 +319,7 @@ def test_sphere_constraint_margins(g1, g1_q_random, obstacles):
     for make in (
         lambda m: SelfCollisionConstraint(g1, gain=2.0, margin=m),
         lambda m: ObstacleConstraint(g1, obstacles, gain=2.0, margin=m),
-        lambda m: FloorConstraint(g1, points=[(5, np.zeros(3))], gain=2.0, margin=m),
+        lambda m: FloorConstraint(g1, gain=2.0, margin=m),
     ):
         G0, h0 = make(0.0).rows(q, {})
         G1, h1 = make(0.03).rows(q, {})

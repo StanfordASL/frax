@@ -24,7 +24,6 @@ from numpy.typing import ArrayLike
 
 from frax.core.robot import Robot
 from frax.ik.tasks import _velocity_jacobian
-from frax.utils.spatial_utils import point_jacobians
 
 
 DEFAULT_PENALTY = 1e6  # Default elastic penalty value
@@ -389,17 +388,14 @@ class ObstacleConstraint(_SphereConstraint):
 
 @jax.tree_util.register_static
 class FloorConstraint(_SphereConstraint):
-    """Floor at z = 0: h = z_i - r_i - margin for each robot collision sphere i,
-    and h = z_k - margin for each point k fixed to a joint frame (e.g. a foot's
-    sole outline, where the spheres are too coarse)
+    """Floor at z = 0: h = z_i - r_i - margin for each robot collision sphere i
+    in sphere_idxs
 
     Args:
         robot: frax robot, with collision data
-        exclude_joints (ArrayLike): Joints whose collision spheres aren't
-            checked (e.g. feet whose spheres overhang the sole)
-        points (Sequence[tuple[int, ArrayLike]]): (joint index, offset (3,) in
-            the joint frame) for each extra point
-        max_rows (int | None): If set, keep only this many lowest rows per step
+        sphere_idxs (ArrayLike | None): Indices of the robot's collision spheres
+            to check. Defaults to all
+        max_rows (int | None): If set, keep only this many lowest spheres per step
         gain (float): CBF gain (1/s): how fast the robot may approach the floor
         penalty (float): Relaxation penalty
         margin (float): Height kept above the floor
@@ -408,8 +404,7 @@ class FloorConstraint(_SphereConstraint):
     def __init__(
         self,
         robot: Robot,
-        exclude_joints: ArrayLike = (),
-        points: Sequence[tuple[int, ArrayLike]] = (),
+        sphere_idxs: ArrayLike | None = None,
         max_rows: int | None = None,
         gain: float = 10.0,
         penalty: float = DEFAULT_PENALTY,
@@ -417,43 +412,28 @@ class FloorConstraint(_SphereConstraint):
     ):
         super().__init__(robot, gain, penalty)
         self.margin = margin
-        self.sphere_idxs = np.flatnonzero(~np.isin(self.sphere_joints, exclude_joints))
-        self.point_joints = np.array([j for j, _ in points], dtype=int)
-        self.point_offsets = np.array([o for _, o in points], dtype=float).reshape(
-            -1, 3
+        self.sphere_idxs = (
+            np.arange(len(self.radii))
+            if sphere_idxs is None
+            else np.asarray(sphere_idxs)
         )
-        # Each row's joint and radius: the checked spheres, then the points
-        self.row_joints = np.concatenate(
-            [self.sphere_joints[self.sphere_idxs], self.point_joints]
-        )
-        self.row_radii = np.concatenate(
-            [self.radii[self.sphere_idxs], np.zeros(len(self.point_joints))]
-        )
-        self._set_num_rows(len(self.row_joints), max_rows)
+        self._set_num_rows(len(self.sphere_idxs), max_rows)
 
-    def _heights(self, joint_tfs) -> tuple[Array, Array]:
-        """World positions (rows, 3) of the checked spheres' centers, then the
-        points, and their barrier values h (rows,)"""
-        spheres = self.robot._link_collision_positions(joint_tfs)[self.sphere_idxs]
-        T = joint_tfs[self.point_joints]
-        points = T[:, :3, 3] + jnp.einsum(
-            "pij,pj->pi", T[:, :3, :3], self.point_offsets
-        )
-        pos = jnp.concatenate([spheres, points])
-        return pos, pos[:, 2] - self.row_radii - self.margin
+    def _barrier(self, joint_tfs) -> Array:
+        pos = self.robot._link_collision_positions(joint_tfs)[self.sphere_idxs]
+        return pos[:, 2] - self.radii[self.sphere_idxs] - self.margin
 
     def barrier(self, q) -> Array:
-        """Barrier values h, spheres then points, shape (spheres + points,)"""
-        return self._heights(self.robot.joint_to_world_transforms(q))[1]
+        """Barrier values h of the checked spheres, shape (len(sphere_idxs),)"""
+        return self._barrier(self.robot.joint_to_world_transforms(q))
 
     def rows(self, q, ref):
         joint_tfs = self.robot.joint_to_world_transforms(q)
-        pos, h = self._heights(joint_tfs)
+        h = self._barrier(joint_tfs)
         keep = self._keep(h)
+        spheres = jnp.asarray(self.sphere_idxs)[keep]
         Jv, Jw = self.robot._joint_jacobians(joint_tfs)
-        joints = jnp.asarray(self.row_joints)[keep]
-        r = pos[keep] - joint_tfs[joints, :3, 3]
-        J = point_jacobians(Jv[joints], Jw[joints], r)
+        J = self.robot._link_collision_jacobians(joint_tfs, Jv, Jw, spheres)
         return -J[:, 2], self.gain * h[keep]
 
 
