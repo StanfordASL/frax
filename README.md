@@ -21,24 +21,27 @@ On CPU, you can expect compute times for typical controllers in the *low microse
 ### From PyPI
 
 ```
-pip install frax
+pip install "frax[ik]"
 ```
+
+If you're getting started, `frax[ik]` will pull in all `frax` functionality, including the new IK logic. But if you just want the core kinematics/dynamics terms, or compatibility with older JAX (before `0.9.1`), you can install `frax` directly.
 
 ### From source
 
 ```
 git clone https://github.com/danielpmorton/frax
 cd frax
-pip install -e .
+pip install -e ".[ik]"
 ```
 
 If you're installing from source, I highly recommend using a `uv`-managed virtual environment. In this case, `pip` commands can be replaced with `uv pip`
 
 For more fine-grained control over the JAX install for GPU/TPU, you can also use the `[cuda12]`, `[cuda13]`, or `[tpu]` tags.
 
-To run the examples, please install from source with the `[examples]` tag, i.e. `pip install -e ".[examples]"`
-
 ## Examples
+
+> [!NOTE]
+> Remember to install from source with the `[examples]` dependencies: `pip install -e ".[examples]"`
 
 `frax`'s "hello world": Compute your robot's mass matrix (AKA joint-space inertia matrix)
 ```python
@@ -66,9 +69,6 @@ See the [Performance Tips](#performance-tips) section below for more advice on m
 Many more kinematics and dynamics terms are available (joint/link/frame transforms and Jacobians, gravity vector, centrifugal/coriolis forces, and many other values relevant to robot control). We also provide `Manipulator`, `Humanoid`, and `Quadruped` classes for useful helper functions based on your robot's form-factor, and `frax` comes pre-loaded with the Franka Panda, Kuka iiwa, Unitree G1, and Unitree A2. 
 
 More advanced and interactive demos are included in the `examples` directory, as seen below
-
-> [!NOTE]
-> Remember to install from source with the `[examples]` dependencies
 
 Examples of using `frax` for typical robot controllers:
 - Differential inverse kinematics: `examples/diff_ik_demo.py`
