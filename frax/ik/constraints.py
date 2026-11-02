@@ -13,7 +13,7 @@ Notes:
   other diff IK libraries like pink or mink
 """
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from typing import Literal, NamedTuple, Any
 
 import jax
@@ -184,7 +184,6 @@ class _SphereConstraint(InequalityConstraint):
     def __init__(self, robot: Robot, gain: float, penalty: float):
         assert robot.has_collision_data
         self.robot = robot
-        self.sphere_joints = robot.flat_collision_parent_idxs
         self.radii = np.asarray(robot.flat_collision_radii)
         self.gain = gain
         self.penalty = penalty
@@ -215,17 +214,12 @@ class _SphereConstraint(InequalityConstraint):
 
 @jax.tree_util.register_static
 class SelfCollisionConstraint(_SphereConstraint):
-    """Self-collision avoidance: h = |p_b - p_a| - r_a - r_b - tol - margin for
-    each of the robot's self-collision pairs (including any spheres fixed to the
-    world root), with the robot's per-pair tolerances tol. With `pairs` set, the
-    sphere pairs are instead every sphere on one joint against every sphere on
-    another, for each pair of joints
+    """Self-collision avoidance: h = d - margin for each of the robot's
+    self-collision pairs (sc_pairs, including any spheres fixed to the world
+    root), with d = |p_b - p_a| - r_a - r_b - tol its self_collision_distances
 
     Args:
-        robot: frax robot, with collision data (and self-collision data,
-            if pairs is None)
-        pairs (Sequence[tuple[int, int, float]] | None): (joint a, joint b,
-            tol) for each pair of joints to check. Defaults to the robot's pairs
+        robot: frax robot, with collision and self-collision data
         max_rows (int | None): If set, keep only this many closest pairs per step
         gain (float): CBF gain (1/s): how fast the spheres may approach each other
         penalty (float): Relaxation penalty
@@ -235,84 +229,29 @@ class SelfCollisionConstraint(_SphereConstraint):
     def __init__(
         self,
         robot: Robot,
-        pairs: Sequence[tuple[int, int, float]] | None = None,
         max_rows: int | None = None,
         gain: float = 10.0,
         penalty: float = DEFAULT_PENALTY,
         margin: float = 0.0,
     ):
         super().__init__(robot, gain, penalty)
-        if pairs is None:
-            assert robot.has_sc_data
-            sphere_pairs = np.asarray(robot.body_sc_pairs)
-            tols = np.asarray(robot.body_sc_tols)
-        else:
-            sphere_pairs, tols = [], []
-            for joint_a, joint_b, tol in pairs:
-                a = np.flatnonzero(self.sphere_joints == joint_a)
-                b = np.flatnonzero(self.sphere_joints == joint_b)
-                assert len(a) and len(b), f"No spheres on joint {joint_a} or {joint_b}"
-                sphere_pairs += [(i, j) for i in a for j in b]
-                tols += [tol] * (len(a) * len(b))
-            sphere_pairs, tols = np.array(sphere_pairs), np.array(tols)
-        radii = self.radii
+        assert robot.has_sc_data
         self.margin = margin
-        offsets = radii[sphere_pairs[:, 0]] + radii[sphere_pairs[:, 1]] + tols + margin
-        # Spheres fixed to the world root only pair through the robot's own
-        # pairs. They are indexed after the robot's spheres, as fixed points
-        self.root = pairs is None and robot.has_root_collision_data
-        if self.root:
-            root_pairs = np.asarray(robot.root_sc_pairs)
-            self.root_positions = np.asarray(robot.root_collision_positions)
-            root_offsets = (
-                np.asarray(robot.root_collision_radii)[root_pairs[:, 0]]
-                + radii[root_pairs[:, 1]]
-                + np.asarray(robot.root_sc_tols)
-                + margin
-            )
-            root_pairs = np.stack([len(radii) + root_pairs[:, 0], root_pairs[:, 1]], 1)
-            sphere_pairs = np.concatenate([sphere_pairs, root_pairs])
-            offsets = np.concatenate([offsets, root_offsets])
-        # Sphere indices (the robot's, then the root's) and offsets, per pair
-        self.pairs_a, self.pairs_b = sphere_pairs[:, 0], sphere_pairs[:, 1]
-        self.pair_offsets = offsets
-        self._set_num_rows(len(sphere_pairs), max_rows)
-
-    def _positions(self, joint_tfs):
-        """World positions of the robot's collision spheres, then the root's"""
-        pos = self.robot._link_collision_positions(joint_tfs)
-        return jnp.concatenate([pos, self.root_positions]) if self.root else pos
-
-    def _jacobians(self, joint_tfs, Jv, Jw, spheres):
-        """Linear Jacobians (P, 3, nv) of spheres (P,), indexed as in pairs_a"""
-        if not self.root:
-            return self.robot._link_collision_jacobians(joint_tfs, Jv, Jw, spheres)
-        # The root's spheres don't move: zero Jacobians
-        on_robot = spheres < len(self.radii)
-        J = self.robot._link_collision_jacobians(
-            joint_tfs, Jv, Jw, jnp.where(on_robot, spheres, 0)
-        )
-        return jnp.where(on_robot[:, None, None], J, 0.0)
+        self._set_num_rows(len(robot.sc_pairs), max_rows)
 
     def barrier(self, q) -> Array:
-        """Barrier values h of every pair, shape (num_pairs,)"""
-        pos = self._positions(self.robot.joint_to_world_transforms(q))
-        dist = jnp.linalg.norm(pos[self.pairs_b] - pos[self.pairs_a], axis=-1)
-        return dist - self.pair_offsets
+        """Barrier values h of every pair, shape (num_sc_pairs,)"""
+        return self.robot.self_collision_distances(q) - self.margin
 
     def rows(self, q, ref):
         joint_tfs = self.robot.joint_to_world_transforms(q)
-        pos = self._positions(joint_tfs)
-        delta = pos[self.pairs_b] - pos[self.pairs_a]
-        keep = self._keep(jnp.linalg.norm(delta, axis=-1) - self.pair_offsets)
-        a, b = jnp.asarray(self.pairs_a)[keep], jnp.asarray(self.pairs_b)[keep]
+        pos = self.robot._link_collision_positions(joint_tfs)
+        dists = self.robot._self_collision_distances_from_link_data(pos, self.radii)
+        h = dists - self.margin
+        keep = self._keep(h)
         Jv, Jw = self.robot._joint_jacobians(joint_tfs)
-        J_rel = self._jacobians(joint_tfs, Jv, Jw, b) - self._jacobians(
-            joint_tfs, Jv, Jw, a
-        )
-        offsets = jnp.asarray(self.pair_offsets)[keep]
-        h, dh = self._distance_rows(delta[keep], offsets, J_rel)
-        return -dh, self.gain * h
+        J = self.robot._self_collision_jacobian(joint_tfs, Jv, Jw, pos, keep)
+        return -J, self.gain * h[keep]
 
 
 @jax.tree_util.register_static

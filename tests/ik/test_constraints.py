@@ -135,34 +135,6 @@ def test_self_collision_matches_frax(robot_name, request):
     np.testing.assert_allclose(G, G_ref, atol=TOL)
 
 
-def test_self_collision_joint_pairs_matches_autodiff(g1, g1_q_random):
-    """Joint pairs check every sphere on one joint against every sphere on the
-    other"""
-    idx = g1.joint_name_to_index
-    hand, hip = idx["left_wrist_yaw_joint"], idx["left_hip_roll_joint"]
-    pairs = [(hand, hip, 0.0), (hand, idx["right_elbow_joint"], -0.02)]
-    con = SelfCollisionConstraint(g1, pairs=pairs, gain=3.0)
-    q = jnp.asarray(g1_q_random)
-    G, h = jax.jit(con.rows)(q, {})
-    joints = np.asarray(con.sphere_joints)
-
-    def distances(q):
-        pos, radii = g1.link_collision_data(q)
-        return jnp.stack(
-            [
-                jnp.linalg.norm(pos[j] - pos[i]) - radii[i] - radii[j] - tol
-                for a, b, tol in pairs
-                for i in np.flatnonzero(joints == a)
-                for j in np.flatnonzero(joints == b)
-            ]
-        )
-
-    G_ref, h_ref = _cbf_rows(distances, q, 3.0, g1)
-    assert con.num_rows == len(h_ref)
-    np.testing.assert_allclose(h, h_ref, atol=TOL)
-    np.testing.assert_allclose(G, G_ref, atol=TOL)
-
-
 def _obstacle_distances(robot, q, obstacles, sphere_idxs):
     pos, radii = robot.link_collision_data(q)
     pos, radii = pos[sphere_idxs], radii[sphere_idxs]

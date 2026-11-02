@@ -129,6 +129,7 @@ class Robot:
         self.collision_radii = collision_radii # RAGGED
         self.root_collision_positions = np.asarray(root_collision_positions, dtype=float)
         self.root_collision_radii = np.asarray(root_collision_radii, dtype=float)
+        # TODO: Consider reworking how self collision pairs and tolerances are stored (see below)
         self.root_sc_pairs = np.asarray(root_sc_pairs, dtype=int)
         self.root_sc_tols = np.asarray(root_sc_tols, dtype=float)
         self.body_sc_pairs = np.asarray(body_sc_pairs, dtype=int)
@@ -210,6 +211,13 @@ class Robot:
             if self.has_collision_data
             else np.zeros(0, dtype=int)
         )
+        # Self-collision pairs and tolerances
+        # Note: sc_pairs and sc_tols are stored with [body, root] convention
+        # and root pairs use a [root sphere, body sphere] convention
+        root_pairs = self.root_sc_pairs.reshape(-1, 2).copy()
+        root_pairs[:, 0] += len(self.flat_collision_radii)
+        self.sc_pairs = np.concatenate([self.body_sc_pairs.reshape(-1, 2), root_pairs])
+        self.sc_tols = np.concatenate([self.body_sc_tols, self.root_sc_tols])
 
         self.total_mass = np.sum(self.link_masses)
         self.inverse_total_mass = 1.0 / self.total_mass
@@ -824,41 +832,84 @@ class Robot:
     def _self_collision_distances_from_link_data(
         self, positions: Array, radii: Array
     ) -> Array:
-        # Compute distances between spheres on different links of the body
-        # Note: just use the spheres of the full-body collision model associated
-        # with the self-collision model (typically a subset)
-        pairs = self.body_sc_pairs
-        idxs_a = pairs[:, 0]
-        idxs_b = pairs[:, 1]
-        pos_a = positions[idxs_a]
-        pos_b = positions[idxs_b]
-        rad_a = radii[idxs_a]
-        rad_b = radii[idxs_b]
-        center_deltas = pos_b - pos_a
-        tols = self.body_sc_tols
-        body_to_body_dists = (
-            jnp.linalg.norm(center_deltas, axis=-1) - rad_a - rad_b - tols
+        # Distances between the spheres of each self-collision pair. The spheres
+        # fixed to the root are indexed after the body's, and do not require FK
+        positions = jnp.concatenate(
+            [positions, self.root_collision_positions.reshape(-1, 3)]
         )
-        if not self.has_root_collision_data:
-            return body_to_body_dists
-        # Compute distances to the fixed-to-world root
-        # (note that these spheres on the root do not require FK)
-        root_sc_pairs = self.root_sc_pairs
-        root_idxs = root_sc_pairs[:, 0]
-        body_idxs = root_sc_pairs[:, 1]
-        root_pos = self.root_collision_positions[root_idxs]
-        body_pos = positions[body_idxs]
-        root_rad = self.root_collision_radii[root_idxs]
-        body_rad = radii[body_idxs]
-        root_center_deltas = body_pos - root_pos
-        root_tols = self.root_sc_tols
-        root_to_body_dists = (
-            jnp.linalg.norm(root_center_deltas, axis=-1)
-            - root_rad
-            - body_rad
-            - root_tols
+        radii = jnp.concatenate([radii, self.root_collision_radii])
+        idxs_a, idxs_b = self.sc_pairs[:, 0], self.sc_pairs[:, 1]
+        center_dists = jnp.linalg.norm(positions[idxs_b] - positions[idxs_a], axis=-1)
+        return center_dists - radii[idxs_a] - radii[idxs_b] - self.sc_tols
+
+    def self_collision_jacobian(self, q: Array) -> Array:
+        """Compute the Jacobian of the self-collision distances
+
+        Args:
+            q (Array): Configuration vector, shape (nq,)
+
+        Returns:
+            Array: Self-collision distance Jacobian, shape (num_sc_pairs, nv)
+        """
+        if not self.has_collision_data or not self.has_sc_data:
+            return jnp.array([])
+        joint_transforms = self.joint_to_world_transforms(q)
+        joint_Jvs, joint_Jws = self._joint_jacobians(joint_transforms)
+        positions = self._link_collision_positions(joint_transforms)
+        return self._self_collision_jacobian(
+            joint_transforms, joint_Jvs, joint_Jws, positions
         )
-        return jnp.concatenate([body_to_body_dists, root_to_body_dists])
+
+    def _self_collision_jacobian(
+        self,
+        joint_transforms: Array,
+        joint_Jvs: Array,
+        joint_Jws: Array,
+        positions: Array,
+        pair_idxs: Optional[Array] = None,
+    ) -> Array:
+        """Helper function: Compute the Jacobian of the self-collision distances,
+        using the precomputed joint data and collision sphere positions
+
+        Args:
+            joint_transforms (Array): Transformation matrices for every joint, shape (nv, 4, 4)
+            joint_Jvs (Array): Linear jacobians for every joint, shape (nv, 3, nv)
+            joint_Jws (Array): Angular jacobians for every joint, shape (nv, 3, nv)
+            positions (Array): Positions of the collision spheres in world frame,
+                shape (num_collision_spheres, 3)
+            pair_idxs (Optional[Array]): Indices of a subset of the self-collision
+                pairs, shape (n,). Defaults to all pairs
+
+        Returns:
+            Array: Self-collision distance Jacobian, shape (n, nv)
+        """
+        pairs = self.sc_pairs
+        if pair_idxs is not None:
+            pairs = jnp.asarray(pairs)[pair_idxs]
+        idxs_a, idxs_b = pairs[:, 0], pairs[:, 1]
+        positions = jnp.concatenate(
+            [positions, self.root_collision_positions.reshape(-1, 3)]
+        )
+        center_deltas = positions[idxs_b] - positions[idxs_a]
+        normals = center_deltas / jnp.linalg.norm(center_deltas, axis=-1)[:, None]
+
+        def _sphere_jacobians(sphere_idxs):
+            # Mask to identify spheres on the robot body as opposed to on the fixed root
+            # Spheres on the fixed root don't move (J = 0)
+            on_body = sphere_idxs < len(self.flat_collision_radii)
+            Jvs = self._link_collision_jacobians(
+                joint_transforms,
+                joint_Jvs,
+                joint_Jws,
+                # If a sphere idx corresponds to a root sphere, temporarily
+                # compute a placeholder (index 0), and mask out later
+                jnp.where(on_body, sphere_idxs, 0),
+            )
+            # Mask out any placeholder jacobian computation for root spheres
+            return jnp.where(on_body[:, None, None], Jvs, 0.0)
+
+        J_rel = _sphere_jacobians(idxs_b) - _sphere_jacobians(idxs_a)
+        return jnp.einsum("pi,pij->pj", normals, J_rel)
 
     def _joint_jacobians(self, joint_transforms: Array) -> Tuple[Array, Array]:
         """Helper function: Compute an array containing the linear (Jv) and angular (Jw)

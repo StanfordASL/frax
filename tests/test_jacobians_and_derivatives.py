@@ -261,3 +261,38 @@ def test_link_collision_jacobians(robot, states):
         atol=1e-7,
         err_msg="Collision sphere Jacobians (subset) mismatch",
     )
+
+
+def test_self_collision_jacobian(robot, states):
+    """Test the self-collision Jacobian against autodiff of the self-collision
+    distances, for all pairs and for a subset (including any root pairs)"""
+    if not robot.has_sc_data:
+        pytest.skip("No self-collision data")
+    qs, _ = states
+    idxs = np.arange(len(robot.sc_pairs))[::-3]
+
+    @jax.jit
+    @jax.vmap
+    def compute(q):
+        E = robot.velocity_to_qdot_map(q)
+        tfs = robot.joint_to_world_transforms(q)
+        Jv, Jw = robot._joint_jacobians(tfs)
+        pos = robot._link_collision_positions(tfs)
+        J_analytical = robot.self_collision_jacobian(q)
+        J_subset = robot._self_collision_jacobian(tfs, Jv, Jw, pos, jnp.asarray(idxs))
+        J_autodiff = jax.jacfwd(robot.self_collision_distances)(q) @ E
+        return J_analytical, J_subset, J_autodiff
+
+    J_analytical, J_subset, J_autodiff = compute(qs)
+    np.testing.assert_allclose(
+        J_analytical,
+        J_autodiff,
+        atol=1e-7,
+        err_msg="Self-collision Jacobian mismatch",
+    )
+    np.testing.assert_allclose(
+        J_subset,
+        J_autodiff[:, idxs],
+        atol=1e-7,
+        err_msg="Self-collision Jacobian (subset) mismatch",
+    )
