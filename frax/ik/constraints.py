@@ -66,7 +66,7 @@ class EqualityConstraint:
     penalty: ArrayLike
 
     def rows(self, q: Array, ref: Any) -> tuple[Array, Array]:
-        """Rows of A v <= b for this constraint, evaluated at q
+        """Rows of A v = b for this constraint, evaluated at q
 
         Args:
             q (Array): Configuration, shape (nq,)
@@ -80,10 +80,9 @@ class EqualityConstraint:
         raise NotImplementedError
 
 
-def _limits(
+def _resolve_limits(
     x: ArrayLike | Literal["robot"] | None, robot_x: np.ndarray, n: int, sign: float
 ) -> np.ndarray:
-    # Helper function to handle the different ways of passing a joint limit
     if isinstance(x, str):
         assert x == "robot", f'A limit must be an array, "robot", or None, got {x!r}'
         x = robot_x
@@ -133,10 +132,10 @@ class JointLimits(InequalityConstraint):
         assert gain > 0
         self.robot = robot
         n = robot.nv - robot.nv_floating  # Actuated joints
-        self.q_min = _limits(q_min, robot.actuated_joint_lower_limits, n, -1)
-        self.q_max = _limits(q_max, robot.actuated_joint_upper_limits, n, 1)
-        self.v_max = _limits(v_max, robot.actuated_joint_max_velocities, n, 1)
-        self.v_min = _limits(v_min, -self.v_max, n, -1)
+        self.q_min = _resolve_limits(q_min, robot.actuated_joint_lower_limits, n, -1)
+        self.q_max = _resolve_limits(q_max, robot.actuated_joint_upper_limits, n, 1)
+        self.v_max = _resolve_limits(v_max, robot.actuated_joint_max_velocities, n, 1)
+        self.v_min = _resolve_limits(v_min, -self.v_max, n, -1)
         self.upper_idxs = np.flatnonzero(
             np.isfinite(self.q_max) | np.isfinite(self.v_max)
         )
@@ -161,25 +160,13 @@ class JointLimits(InequalityConstraint):
 
 
 class SphereObstacles(NamedTuple):
-    """Spherical obstacles. Inactive ones are ignored"""
-
-    centers: Array  # (K, 3)
-    radii: Array  # (K,)
-    active: Array  # (K,) bool
+    centers: Array
+    radii: Array
+    active: Array
 
 
 class _SphereConstraint(InequalityConstraint):
-    """Helper class for CBFs operating on spherical collision models
-
-    Shared machinery for CBF constraints gain * h(q) >= -dh/dq v on a frax
-    robot's collision spheres, with analytic Jacobians
-
-    With max_rows set, only the max_rows closest pairs are kept each step. Far
-    pairs can't become active within a step, but too few rows let dropped pairs
-    penetrate, so size it for the most simultaneous contacts expected. The
-    barrier values are computed for every pair, but the Jacobians only for the
-    kept rows
-    """
+    """Helper class for CBFs operating on spherical collision models"""
 
     def __init__(self, robot: Robot, gain: float, penalty: float):
         assert robot.has_collision_data
@@ -189,7 +176,6 @@ class _SphereConstraint(InequalityConstraint):
         self.penalty = penalty
 
     def _set_num_rows(self, num_candidates: int, max_rows: int | None):
-        """Call once the number of candidate rows is known"""
         self.max_rows = (
             None if max_rows is None or max_rows >= num_candidates else max_rows
         )
@@ -197,12 +183,13 @@ class _SphereConstraint(InequalityConstraint):
         assert self.num_rows > 0
 
     def _keep(self, h):
-        """The rows kept, given every candidate's barrier value h: all of them,
-        or the max_rows lowest"""
+        # If max_rows is set, keep only the closest constraints in the QP rather
+        # than solving the QP with a potentially much larger set of constraints
         if self.max_rows is None:
             return slice(None)
         return jax.lax.top_k(-h, self.max_rows)[1]
 
+    # TODO this is confusingly named, with bad variable naming too
     @staticmethod
     def _distance_rows(delta, offsets, J_rel):
         """Barrier values |delta| - offsets and their Jacobians n . J_rel, with
@@ -214,16 +201,14 @@ class _SphereConstraint(InequalityConstraint):
 
 @jax.tree_util.register_static
 class SelfCollisionConstraint(_SphereConstraint):
-    """Self-collision avoidance: h = d - margin for each of the robot's
-    self-collision pairs (sc_pairs, including any spheres fixed to the world
-    root), with d = |p_b - p_a| - r_a - r_b - tol its self_collision_distances
+    """Self-collision avoidance: h = robot.self_collision_distances(q) - margin
 
     Args:
-        robot: frax robot, with collision and self-collision data
+        robot (Robot): Robot, with collision and self-collision data
         max_rows (int | None): If set, keep only this many closest pairs per step
-        gain (float): CBF gain (1/s): how fast the spheres may approach each other
+        gain (float): CBF gain (1/s)
         penalty (float): Relaxation penalty
-        margin (float): Safety distance kept between every pair, on top of tol
+        margin (float): Additional safety margin between every collision pair
     """
 
     def __init__(
@@ -239,8 +224,9 @@ class SelfCollisionConstraint(_SphereConstraint):
         self.margin = margin
         self._set_num_rows(len(robot.sc_pairs), max_rows)
 
+    # TODO it seems weird that this method is defined in this class
+    # but not in others, and barely used elsewhere
     def barrier(self, q) -> Array:
-        """Barrier values h of every pair, shape (num_sc_pairs,)"""
         return self.robot.self_collision_distances(q) - self.margin
 
     def rows(self, q, ref):
@@ -260,16 +246,15 @@ class ObstacleConstraint(_SphereConstraint):
     robot sphere i in sphere_idxs and obstacle k
 
     Args:
-        robot: frax robot, with collision data
-        obstacles (SphereObstacles): Obstacles, which also fix the obstacle count K
-        sphere_idxs (ArrayLike | None): Indices of the robot's collision spheres
-            to check. Defaults to all
-        ref_key (str | None): If set, ref[ref_key] (a SphereObstacles with the
-            same K) replaces `obstacles` on each step, for moving obstacles
+        robot (Robot): Robot, with collision data
+        obstacles (SphereObstacles): Obstacles. Their count K is fixed
+        sphere_idxs (ArrayLike | None): Robot collision spheres to check.
+            Defaults to all
+        ref_key (str | None): If set, ref[ref_key] replaces `obstacles` each step
         max_rows (int | None): If set, keep only this many closest pairs per step
-        gain (float): CBF gain (1/s): how fast the spheres may approach the obstacles
+        gain (float): CBF gain (1/s)
         penalty (float): Relaxation penalty
-        margin (float): Safety distance kept from every obstacle
+        margin (float): Safety distance from every obstacle
     """
 
     def __init__(
@@ -296,7 +281,6 @@ class ObstacleConstraint(_SphereConstraint):
             if sphere_idxs is None
             else np.asarray(sphere_idxs)
         )
-        # Each row's sphere, with rows ordered (obstacle, sphere)
         self.row_spheres = np.tile(self.sphere_idxs, self.num_obstacles)
         self.ref_key = ref_key
         self._set_num_rows(len(self.row_spheres), max_rows)
@@ -327,15 +311,14 @@ class ObstacleConstraint(_SphereConstraint):
 
 @jax.tree_util.register_static
 class FloorConstraint(_SphereConstraint):
-    """Floor at z = 0: h = z_i - r_i - margin for each robot collision sphere i
-    in sphere_idxs
+    """Floor at z = 0: h = z_i - r_i - margin for each robot sphere i in sphere_idxs
 
     Args:
-        robot: frax robot, with collision data
-        sphere_idxs (ArrayLike | None): Indices of the robot's collision spheres
-            to check. Defaults to all
+        robot (Robot): Robot, with collision data
+        sphere_idxs (ArrayLike | None): Robot collision spheres to check.
+            Defaults to all
         max_rows (int | None): If set, keep only this many lowest spheres per step
-        gain (float): CBF gain (1/s): how fast the robot may approach the floor
+        gain (float): CBF gain (1/s)
         penalty (float): Relaxation penalty
         margin (float): Height kept above the floor
     """
@@ -363,7 +346,6 @@ class FloorConstraint(_SphereConstraint):
         return pos[:, 2] - self.radii[self.sphere_idxs] - self.margin
 
     def barrier(self, q) -> Array:
-        """Barrier values h of the checked spheres, shape (len(sphere_idxs),)"""
         return self._barrier(self.robot.joint_to_world_transforms(q))
 
     def rows(self, q, ref):
@@ -378,17 +360,15 @@ class FloorConstraint(_SphereConstraint):
 
 @jax.tree_util.register_static
 class BarrierConstraint(InequalityConstraint):
-    """Kinematic CBF on a user-defined barrier h(q, ref) >= 0:
-    dh/dq E(q) v >= -gain * h
+    """CBF on a user-defined barrier h(q, ref) >= 0: dh/dq E(q) v >= -gain * h
 
-    The Jacobian is by forward-mode autodiff, so this suits custom barriers with a handful
-    of rows. Prefer analytic Jacobians (e.g. the sphere constraints) for many
+    The Jacobian is by forward-mode autodiff, so this suits a handful of rows
 
     Args:
-        robot: frax robot
-        h_fn (Callable): (q, ref) -> h, shape (num_rows,). The safe set is h >= 0
+        robot (Robot): Robot model
+        h_fn (Callable): (q, ref) -> h, shape (num_rows,)
         num_rows (int): Number of barriers
-        gain (float): CBF gain (1/s): how fast the boundary may be approached
+        gain (float): CBF gain (1/s)
         penalty (ArrayLike): Scalar or per-row relaxation penalty
     """
 
@@ -418,21 +398,20 @@ class BarrierConstraint(InequalityConstraint):
         return -dh, self.gain * h
 
 
+# TODO: It feels a bit confusing how the elastic term is handled. Right now it's
+# just stored in self and handled externally
 @jax.tree_util.register_static
 class ResidualEquality(EqualityConstraint):
-    """Kinematic equality on a user-defined residual e(q, ref) = 0, held with
-    error dynamics de/dq E(q) v = -gain * e
-
-    The Jacobian is computed with autodiff (as in BarrierConstraint)
+    """Equality on a user-defined residual e(q, ref) = 0: de/dq E(q) v = -gain * e
 
     Args:
-        robot: frax robot
+        robot (Robot): Robot model
         residual_fn (Callable): (q, ref) -> e, shape (num_rows,)
         num_rows (int): Residual dimension
-        gain (float): Gain (1/s) at which a violated equality is restored
-        elastic (bool): Relax with an L1 penalty instead of holding exactly
-        penalty (ArrayLike): Scalar or per-row relaxation penalty
-            (if elastic)
+        gain (float): Gain (1/s)
+        elastic (bool): Whether to treat this equality as elastic,
+            with an l1 relaxation term
+        penalty (ArrayLike): Scalar or per-row relaxation penalty, if elastic
     """
 
     def __init__(

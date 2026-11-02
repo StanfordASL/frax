@@ -1,14 +1,4 @@
-"""A retargeter (input frames -> configurations), and drivers that run it
-online or offline
-
-`Retargeter` is pure: `init` converges onto a clip's first frame, `step` steps
-towards each later one, and `retarget_clip` runs both over a whole clip in one
-jitted lax.scan. The drivers hold the state, and run the same logic:
-- Online: `OnlineRetargeter` holds the solver state, and calls the jitted step
-  per frame
-- Offline: `OfflineRetargeter` runs retarget_clip over many clips, spread
-  across devices, and keeps their compiled shapes
-"""
+"""Online and offline motion retargeting"""
 
 import time
 from collections.abc import Callable, Sequence
@@ -26,13 +16,14 @@ from frax.ik.solver import DiffIKSolver, SolverInfo, SolverState
 
 @jax.tree_util.register_static
 class Retargeter:
-    """Input frames -> configurations, via a diff IK solver. The first frame
-    is converged onto; each later frame takes one solver step
+    """Differential IK-based motion retargeter.
 
-    With global_ik_init, the first frame is solved by global IK (see
-    `GlobalIKSolver`) from initial_q, then converged onto, for clips whose
-    start converges from initial_q to a poor local solution, e.g. a limb wound
-    against its limits
+    Given a sequence of frames, this class solves for the robot
+    configurations q, based on the input DiffIKSolver
+
+    As opposed to just using a DiffIK solver, this adds logic for
+    converging to an initial configuration on the first step, and
+    processing a whole sequence in a single scan
 
     Args:
         solver (DiffIKSolver): Diff IK solver
@@ -40,10 +31,10 @@ class Retargeter:
         initial_q (Callable): First input frame -> initial guess for q
         converge_max_iters (int): Max iterations to converge onto the first frame
         converge_dt (float | None): Largest convergence stepsize. Defaults to
-            1 / solver.max_gain, a full Gauss-Newton step
+            1 / solver.max_gain (full Gauss-Newton step)
         converge_tol (float): Convergence tolerance on max |v|
-        global_ik_init (GlobalIKSolver | None): If set, solves the first frame
-            by global IK (usually built on the same solver)
+        global_ik_init (GlobalIKSolver | None): If set, solves the first frame by
+            global IK before converging, to avoid poor local solutions.
         global_ik_seed (int): Seed for the global IK samples
     """
 
@@ -71,8 +62,11 @@ class Retargeter:
         self.global_ik_seed = global_ik_seed
 
     def init(self, frame) -> tuple[SolverState, Array]:
-        """Converge onto the first frame. Returns the state and the number of
-        iterations"""
+        """Converge onto the first frame
+
+        Returns:
+            tuple[SolverState, Array]: State, and the number of iterations
+        """
         q, ref = self.initial_q(frame), self.preprocess(frame)
         if self.global_ik_init is not None:
             key = jax.random.key(self.global_ik_seed)
@@ -95,8 +89,11 @@ class Retargeter:
 
     @jax.jit
     def retarget_clip(self, frames, dt: float) -> tuple[Array, SolverInfo, Array]:
-        """Retarget a full clip of input frames (leading time axis T) in one
-        jitted call: init on the first frame, then a lax.scan of step
+        """Retarget a full clip of input frames
+
+        Args:
+            frames (Any): Input frames, with leading time axis T (any pytree)
+            dt (float): Time between frames
 
         Returns:
             tuple[Array, SolverInfo, Array]:
@@ -116,28 +113,22 @@ class Retargeter:
         return jnp.concatenate([init_state.q[None], q]), infos, init_iters
 
 
-def _pad(clip, length: int):
-    """Extend a clip to length by holding its last frame. Retargeting runs
-    forward in time, so the extra frames don't change the clip's own"""
+def _pad_with_last_frame(clip, length: int):
     return jax.tree.map(
         lambda x: np.concatenate([x, np.repeat(x[-1:], length - len(x), 0)]), clip
     )
 
 
 class OfflineRetargeter:
-    """Retargets many clips offline (as Retargeter.retarget_clip), spread across
-    devices (see `frax.ik.parallel`)
-
-    Clips go out longest first, one per device, padded to a multiple of bucket
-    frames, so little is padded and only a few shapes are compiled. Compiled
-    shapes are kept across calls, so a large dataset can be run in chunks
+    """Retargets many clips, spread across devices. Clips are padded to a multiple
+    of bucket frames, and compiled shapes are cached across calls
 
     Args:
         retargeter (Retargeter): Retargeter
         dt (float): Time between frames
         bucket (int): Padded clip lengths are multiples of this
         devices ("all" | "default" | Sequence[jax.Device]): Devices to spread the
-            clips across (see `frax.ik.parallel`). Defaults to all of jax.devices()
+            clips across. Defaults to "all"
     """
 
     def __init__(
@@ -155,14 +146,17 @@ class OfflineRetargeter:
             )
         )
         self.compiled = {}
-        self.compile_time = 0.0  # s, over all calls
+        self.compile_time = 0.0
 
+    # TODO: Check if clips are indeed a list or if they are a generic pytree
     def __call__(self, clips: list) -> list:
-        """Each clip's configurations, shape (T, nq)
+        """Retarget clips
 
         Args:
-            clips (list): Input frames per clip, each with a leading time axis T
-                (an array, or a pytree of them)
+            clips (list): Input frames per clip, each with leading time axis T
+
+        Returns:
+            list: Configurations per clip, shape (T, nq)
         """
         n = len(self.devices)
         lengths = [len(jax.tree.leaves(clip)[0]) for clip in clips]
@@ -171,11 +165,11 @@ class OfflineRetargeter:
         pending = []
         for group in groups:
             length = -(-lengths[group[0]] // self.bucket) * self.bucket
-            # Full groups only (the last is topped up with copies), so every
-            # group of a length shares one compiled shape
+            # Top up the last group so it shares the compiled shape
             members = [clips[i] for i in group] + [clips[group[0]]] * (n - len(group))
             batch = jax.tree.map(
-                lambda *x: np.stack(x), *[_pad(clip, length) for clip in members]
+                lambda *x: np.stack(x),
+                *[_pad_with_last_frame(clip, length) for clip in members],
             )
             leaves, structure = jax.tree.flatten(batch)
             key = (structure, tuple(x.shape for x in leaves))
@@ -183,7 +177,7 @@ class OfflineRetargeter:
                 start = time.perf_counter()
                 self.compiled[key] = self.retarget.lower(batch).compile()
                 self.compile_time += time.perf_counter() - start
-            # Dispatch is asynchronous: every group is queued before any is waited on
+            # Asynchronous dispatch
             pending.append(self.compiled[key](batch))
         qs = [None] * len(clips)
         for group, q in zip(groups, pending):
@@ -207,9 +201,11 @@ class OnlineRetargeter:
         self._step = jax.jit(retargeter.step)
 
     def compile(self, example_frame) -> None:
-        """AOT compilation of the init and step functions, given an example of
-        a frame seen during online operation. (Note that this example frame
-        may be a pytree of jax.ShapeDtypeStruct)."""
+        """Compile the init and step functions ahead of time
+
+        Args:
+            example_frame (Any): Example input frame (may be jax.ShapeDtypeStructs)
+        """
         state, _ = jax.eval_shape(self._init, example_frame)
         self._init.lower(example_frame).compile()
         self._step.lower(state, example_frame, 0.0).compile()

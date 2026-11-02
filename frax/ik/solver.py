@@ -19,19 +19,18 @@ from frax.ik.constraints import (
 from frax.ik.tasks import Task
 
 
+# TODO: Consider renaming the qp_xyz term
 class SolverState(NamedTuple):
     q: Array
-    qp_xyz: tuple[Array, Array, Array]  # Previous QP solution, for warm-starting
+    qp_xyz: tuple[Array, Array, Array]  # Warm start data
 
 
 class SolverInfo(NamedTuple):
     qp_iters: Array
     qp_converged: Array
-    # The objective at the step's starting q (see DiffIKSolver.objective)
     objective: Array
 
 
-# converge() stops once its stepsize falls below this fraction of the full step
 MIN_STEP_RATIO = 1e-3
 _GAIN_ATTRS = ("gain", "gain_pos", "gain_rot")
 
@@ -49,33 +48,27 @@ def _max_gain(terms) -> float | None:
 
 @jax.tree_util.register_static
 class DiffIKSolver:
-    """Differential IK as an elastic QP over the velocity v, which the robot
-    then integrates into q:
+    """Differential IK (with an elastic QP)
 
         min  sum_tasks || weight * (J v - v_des) ||^2 + (reg + lam) * ||v||^2
         s.t. G v <= h  (inequalities and elastic equalities, L1-relaxed)
              A v == b  (hard equalities)
 
-    with Levenberg-Marquardt damping lam = damping * sum_tasks || weight * v_des ||^2,
-    the task cost at q. Gauss-Newton ignores the residuals' curvature, which grows
-    with the residuals, so with a target out of reach a step can overshoot and
-    settle into a cycle instead of the best compromise. The damping grows with
-    the residuals and vanishes as the tasks are met (Sugihara 2011)
-
-    q (nq,) and v (nv,) differ in size for a quaternion floating base (nq =
-    nv + 1), with q_dot = E(q) v (frax's velocity_to_qdot_map). The first
-    nq_floating / nv_floating entries are the floating base, if any
+    The Levenberg-Marquardt damping lam = damping * sum_tasks || weight * v_des ||^2
+    keeps unreachable targets from cycling, and vanishes as the tasks are met
 
     Args:
-        robot: frax robot: the configuration space and its integrator
+        robot (Robot): Robot model
         tasks (Sequence[Task]): Tracking tasks
-        constraints (Sequence[InequalityConstraint | EqualityConstraint]): Inequality and
-            equality constraints (may be empty)
-        regularization (ArrayLike): Tikhonov regularization on v, scalar or per
-            entry of v, shape (nv,)
-        damping (float): Levenberg-Marquardt damping, per unit of task cost
-        solver_tol (float): QP solver tolerance
-        warm_start (bool): Warm-start each QP from the previous solution
+        constraints (Sequence[InequalityConstraint | EqualityConstraint]):
+            Constraints. Defaults to an empty tuple (unconstrained)
+        regularization (ArrayLike): Tikhonov regularization on v,
+            scalar or shape (nv,). Defaults to 1e-8
+        damping (float): Levenberg-Marquardt damping, per unit of task cost.
+            Defaults to 0.0 (no damping)
+        solver_tol (float): QP solver tolerance. Defaults to 1e-5
+        warm_start (bool): Whether to warm-start each QP from the previous
+            solution. Defaults to True.
     """
 
     def __init__(
@@ -99,7 +92,6 @@ class DiffIKSolver:
         self.damping = damping
         self.solver_tol = solver_tol
         self.warm_start = warm_start
-        # 1 / max_gain is a full Gauss-Newton step, the largest stable stepsize
         self.max_gain = _max_gain(self.tasks + self.constraints)
         for c in self.constraints:
             assert isinstance(c, InequalityConstraint | EqualityConstraint), (
@@ -121,7 +113,6 @@ class DiffIKSolver:
         def penalties(c):
             return np.broadcast_to(np.asarray(c.penalty, dtype=float), (c.num_rows,))
 
-        # Inequality rows, then each elastic equality's upper and lower rows
         self.penalty = np.concatenate(
             [penalties(c) for c in self.inequalities]
             + [np.tile(penalties(c), 2) for c in self.elastic_equalities]
@@ -134,9 +125,10 @@ class DiffIKSolver:
         qp_xyz = (jnp.zeros(nv), jnp.zeros(self.n_eq), jnp.zeros(self.n_ineq))
         return SolverState(q=jnp.asarray(q0), qp_xyz=qp_xyz)
 
+    # TODO improve the organization of the returns
     def _rows(self, q: Array, ref):
-        """Stacked task rows (J, v_des, w), inequality rows (G, h) (elastic
-        equalities as +-pairs), hard equality rows (A, b), and the objective at q"""
+        """Stacked task (J, v_des, w), inequality (G, h), and hard equality (A, b)
+        rows, and the objective at q"""
         robot = self.robot
         assert q.shape == (robot.nq,), f"q has shape {q.shape}, expected ({robot.nq},)"
         Js, v_des, ws = zip(*(task.linearize(q, ref) for task in self.tasks))
@@ -161,24 +153,32 @@ class DiffIKSolver:
             A = jnp.concatenate(As)
             b = jnp.concatenate(bs)
 
-        # The QP's objective at v = 0: task terms, plus the L1 penalties of the
-        # rows violated at v = 0 (hard equalities at DEFAULT_PENALTY)
         objective = jnp.sum((w * v_des) ** 2) + jnp.maximum(-h, 0.0) @ self.penalty
         if b is not None:
+            # TODO: This seems like a bug, why is this not using the self.penalty
             objective += DEFAULT_PENALTY * jnp.sum(jnp.abs(b))
         return (J, v_des, w), (G, h), (A, b), objective
 
     def objective(self, q: Array, ref) -> Array:
-        """How well q solves the problem: the QP's objective at v = 0, i.e.
-        sum_tasks || weight * v_des ||^2 plus the L1 penalties of violated rows
-        (hard equalities at DEFAULT_PENALTY)"""
+        """The QP objective, evaluated at q and any provided reference data"""
         return self._rows(q, ref)[3]
 
     def solve(
         self, q: Array, ref, warm_xyz: tuple[Array, Array, Array]
     ) -> tuple[Array, tuple[Array, Array, Array], SolverInfo]:
-        """Solve the diff IK QP at q. Returns the velocity, the QP solution, and
-        info (including the objective at q)"""
+        """Solve the differential IK QP
+
+        Args:
+            q (Array): Configuration, shape (nq,)
+            ref (Any): Per-step reference data (any pytree)
+            warm_xyz (tuple[Array, Array, Array]): QP warm start
+
+        Returns:
+            tuple[Array, tuple[Array, Array, Array], SolverInfo]:
+                v (Array): Generalized velocity, shape (nv,)
+                qp_xyz (tuple[Array, Array, Array]): QP solution data
+                info (SolverInfo): Solver info, with the objective at q
+        """
         (J, v_des, w), (G, h), (A, b), objective = self._rows(q, ref)
         WJ = w[:, None] * J
         lam = self.damping * jnp.sum((w * v_des) ** 2)
@@ -203,7 +203,16 @@ class DiffIKSolver:
     def step(
         self, state: SolverState, ref, dt: float
     ) -> tuple[SolverState, Array, SolverInfo]:
-        """One diff IK step. Returns the new state, the velocity, and info"""
+        """One diff IK step
+
+        Args:
+            state (SolverState): Current state
+            ref (Any): Per-step reference data (any pytree)
+            dt (float): Timestep
+
+        Returns:
+            tuple[SolverState, Array, SolverInfo]: New state, velocity, and info
+        """
         v, qp_xyz, info = self.solve(state.q, ref, state.qp_xyz)
         q = self.robot.integrate(state.q, v, dt)
         return SolverState(q=q, qp_xyz=qp_xyz), v, info
@@ -212,13 +221,21 @@ class DiffIKSolver:
         self, state: SolverState, ref, max_iters: int, dt_max: float, tol: float
     ) -> tuple[SolverState, Array]:
         """Iterate on a fixed reference, accepting only steps that lower the
-        objective: an accepted step doubles dt (up to dt_max), a rejected one
-        halves it. Stops once max |v| <= tol, or dt < MIN_STEP_RATIO * dt_max (no
-        step helps, e.g. an unreachable target)
+        objective. Accepted steps double dt (up to dt_max), rejected ones halve it
 
-        A redundant robot needs a nullspace task (e.g. posture) for v to vanish
+        Stops once max |v| <= tol (a redundant robot needs a posture task for
+        this), or dt < MIN_STEP_RATIO * dt_max
 
-        Returns the state and the number of iterations (QP solves after the first)"""
+        Args:
+            state (SolverState): Initial state
+            ref (Any): Reference data (any pytree)
+            max_iters (int): Maximum iterations
+            dt_max (float): Largest stepsize
+            tol (float): Convergence tolerance on max |v|
+
+        Returns:
+            tuple[SolverState, Array]: Converged state, and the number of iterations
+        """
         state, ref = jax.lax.stop_gradient((state, ref))
         robot = self.robot
         v, qp_xyz, info = self.solve(state.q, ref, state.qp_xyz)

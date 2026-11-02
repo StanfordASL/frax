@@ -1,8 +1,10 @@
-"""Global IK by multi-start: converge the diff IK solver from many sampled
-configurations, and keep the best result
+"""Global IK with multi-start SQP
 
-For continuous motion, use the diff IK solver directly. Global IK is for when a
-jump is acceptable, e.g. to pick a goal configuration or start a clip
+Note: for continuous motion control, you should probably stick to
+differential IK. Global IK is useful for if instantaneous jumps are
+acceptable: for instance, finding a configuration that achieves a
+desired initial or goal pose, without worrying about continuity from
+your current state.
 """
 
 from collections.abc import Sequence
@@ -20,15 +22,19 @@ from frax.ik.parallel import _resolve_devices, device_vmap
 from frax.ik.solver import DiffIKSolver
 
 
+# TODO check on the type annotation of sampled and if it is even necessary
 class GlobalIKResult(NamedTuple):
-    q: Array  # Selected configuration (nq,)
-    cost: Array  # Its objective
-    qs: Array  # Every converged start (num_samples, nq). Without sampling, all q
-    costs: Array  # Their objectives (num_samples,)
-    iters: Array  # Convergence iterations per start (num_samples,)
-    sampled: Array  # Whether the random starts were used (see `cost_tol`)
+    q: Array  # Best configuration
+    cost: Array  # Best cost
+    qs: Array  # Every converged q from multiple samples
+    costs: Array  # Every cost from multiple samples
+    iters: Array  # Convergence iterations per sample
+    sampled: Array
 
 
+# TODO: It's a little weird that there is no sampling for the floating base?
+# And should we do the same thing as the JointLimits constraint where it defaults
+# to using the robot limits but can be adjusted?
 def sample_configurations(
     robot: Robot,
     q: Array,
@@ -37,9 +43,23 @@ def sample_configurations(
     q_min: Array,
     q_max: Array,
 ) -> Array:
-    """num_samples configurations (num_samples, nq): q itself, then actuated
-    joints uniform within [q_min, q_max] (shape (nq - nq_floating,)), with any
-    floating base kept at q's"""
+    """Sample configurations for global IK
+
+    Currently, we sample uniformly for the actuated joints, and keep
+    the floating base DoFs at the nominal configuration
+
+    Args:
+        robot (Robot): Robot model
+        q (Array): Nominal configuration, shape (nq,).
+            This is also included as the first sample
+        key (Array): PRNG key
+        num_samples (int): Number of samples, including q
+        q_min (Array): Lower joint bounds, shape (num_actuated,)
+        q_max (Array): Upper joint bounds, shape (num_actuated,)
+
+    Returns:
+        Array: Sampled configurations, shape (num_samples, nq)
+    """
     joints = jax.random.uniform(
         key,
         (num_samples - 1, robot.nq - robot.nq_floating),
@@ -55,28 +75,24 @@ def sample_configurations(
 
 @jax.tree_util.register_static
 class GlobalIKSolver:
-    """Multi-start IK: converge a diff IK solver from q and num_samples - 1
-    random configurations (see `sample_configurations`), and select a solution
-    by its objective
+    """Multi-start SQP global IK solver
 
-    With cost_tol None, the lowest objective is kept. With cost_tol set, q is
-    converged alone first and kept if its objective is at most cost_tol;
-    otherwise the solution nearest q among those within cost_tol of the lowest
 
     Args:
-        solver (DiffIKSolver): Diff IK solver, with the problem's tasks and constraints
+        solver (DiffIKSolver): Diff IK solver
         num_samples (int): Number of starts, including q
         q_min, q_max (ArrayLike | None): Sampling range for the actuated joints.
             Default to the solver's JointLimits
         max_iters (int): Max convergence iterations per start
-        dt_max (float | None): Largest convergence stepsize (see
-            DiffIKSolver.converge). Defaults to 1 / solver.max_gain
-        tol (float): Convergence tolerance on max |v| (see DiffIKSolver.converge)
-        cost_tol (float | None): Objective tolerance for acceptable solutions.
-            None selects the lowest objective
-        devices ("all" | "default" | Sequence[jax.Device]): Devices to split the
-            starts across (see `frax.ik.parallel`). Default: JAX's default device
-            alone, where the cost is linear in num_samples on CPU
+        dt_max (float | None): Largest convergence stepsize. Defaults to
+            1 / solver.max_gain
+        tol (float): Convergence tolerance on max |v|
+        cost_tol (float | None): Objective tolerance for acceptable solutions. If
+            this term is set, then we return the closest sampled solution that is
+            within cost_tol in objective. Defaults to None (select the lowest objective
+            value regardless of how far the solution is in configuration space)
+        devices ("all" | "default" | Sequence[jax.Device]): Devices to parallelize
+            the samples across. Defaults to "default" (JAX's default device).
     """
 
     def __init__(
@@ -113,8 +129,16 @@ class GlobalIKSolver:
         self.devices = tuple(_resolve_devices(devices))
 
     def solve(self, q: Array, ref, key: Array) -> GlobalIKResult:
-        """Solve from the current configuration q (nq,), for a reference ref
-        (as the solver's), with PRNG key for the samples"""
+        """Solve global IK
+
+        Args:
+            q (Array): Current configuration, shape (nq,)
+            ref (Any): Reference data (any pytree)
+            key (Array): PRNG key for the samples
+
+        Returns:
+            GlobalIKResult: Result
+        """
         solver, robot = self.solver, self.solver.robot
         joints = slice(robot.nq_floating, None)
 
@@ -137,7 +161,6 @@ class GlobalIKSolver:
             q0s = sample_configurations(
                 robot, q, key, self.num_samples, self.q_min, self.q_max
             )
-            # One device is a plain vmap
             converge_all = device_vmap(converge, self.devices, in_axes=(0, None))
             qs, iters, costs = converge_all(q0s, ref)
             return select(qs, costs, iters, jnp.array(True))

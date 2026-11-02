@@ -1,7 +1,4 @@
-"""Differential IK, retargeting, and global IK on frax robots
-
-Requires the `ik` extra: `pip install "frax[ik]"`
-"""
+"""Differential IK, retargeting, and global IK"""
 
 try:
     import elastiqp

@@ -39,11 +39,9 @@ def main(port: int):
 
     # Define tasks (QP objective terms)
     tasks = [
-        # The end-effector pose, with frax's analytic Jacobian. Reads the
-        # reference keys "ee_pos" and "ee_rmat"
+        # End-effector pose tracking
         EETask(robot, gain_pos=10.0, gain_rot=5.0),
-        # 7 joints for a 6-DOF pose leave one free motion (the elbow): a weak
-        # posture task picks it
+        # Weak posture task to resolve redundancy
         JointTask(robot, np.arange(7), "q_home", gain=1.0, weight=0.1),
     ]
 

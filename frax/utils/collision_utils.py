@@ -10,14 +10,11 @@ def link_pairs_to_sc_data(
     link_pairs: Iterable[Tuple[str, str]],
     tol: float = 0.0,
 ) -> Tuple[Tuple[str, int, str, int, float], ...]:
-    """Expands self-collision pairs of links into pairs of spheres: every sphere on
-    one link against every sphere on the other. Defining self-collision by link
-    means that the pairs stay valid when the spheres in the collision model change
+    """Expands self-collision pairs of links into all pairs of their spheres
 
     Args:
         filepath (Union[str, Path]): Path to the bubblify YAML file
-        link_pairs (Iterable[Tuple[str, str]]): (first link, second link) for each
-            pair of links to check
+        link_pairs (Iterable[Tuple[str, str]]): Pairs of link names to check
         tol (float, optional): Tolerance for every sphere pair. Defaults to 0.0.
 
     Returns:

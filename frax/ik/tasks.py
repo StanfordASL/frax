@@ -1,12 +1,9 @@
-"""Velocity-level least-squares tasks
+"""Differential IK tasks
 
-Each task linearizes about the current configuration into a set of rows
-(J, v_des, weight), and the solver minimizes sum || weight * (J v - v_des) ||^2
-over all stacked task rows
-
-Gains are in 1/s, with error dynamics e_dot = -gain * e, so they don't depend on
-the frame rate. A step of dt closes a fraction gain * dt of the error: gain * dt
-= 1 is a full Gauss-Newton step, and above it the steps overshoot
+Notes:
+- Tasks operate on the velocity level, as opposed to a delta-q.
+- In general, a task has a least-squares structure
+  || weight * (J v - v_des) ||^2
 """
 
 from collections.abc import Callable
@@ -24,16 +21,14 @@ from frax.utils.spatial_utils import offset_transforms_and_jacobians
 
 
 def _velocity_jacobian(robot: Robot, fn, q: Array) -> tuple[Array, Array]:
-    """Value y = fn(q), shape (m,), and its forward-mode Jacobian with respect
-    to v, dy/dq E(q), shape (m, nv), with E the robot's velocity_to_qdot_map"""
+    """y = fn(q), shape (m,), and its Jacobian with respect to v, shape (m, nv)"""
     E = robot.velocity_to_qdot_map(q).astype(q.dtype)
     y, jvp_fn = jax.linearize(fn, q)
     return y, jax.vmap(jvp_fn, out_axes=1)(E.T)
 
 
 class Task:
-    """Base task. Subclasses define `robot` (the frax robot whose configuration
-    space it acts on), `num_rows` and `linearize`"""
+    """Base differential IK task"""
 
     robot: Robot
     num_rows: int
@@ -43,7 +38,7 @@ class Task:
 
         Args:
             q (Array): Configuration, shape (nq,)
-            ref: Reference for the current step (any pytree)
+            ref (Any): Per-step reference data (any pytree)
 
         Returns:
             tuple[Array, Array, Array]:
@@ -60,13 +55,10 @@ def _per_row(x: ArrayLike, num_rows: int) -> np.ndarray:
 
 @jax.tree_util.register_static
 class ResidualTask(Task):
-    """Drive a residual e(q, ref) to zero with error dynamics e_dot = -gain * e
-
-    The Jacobian is computed with forward-mode autodiff, and mapped from q to v
-    by the robot's velocity_to_qdot_map
+    """Drive a residual e(q, ref) to zero, with a forward-mode autodiff Jacobian
 
     Args:
-        robot: frax robot
+        robot (Robot): Robot model
         residual_fn (Callable): (q, ref) -> e, shape (num_rows,)
         num_rows (int): Residual dimension
         gain (ArrayLike): Scalar or per-row gain (1/s)
@@ -94,19 +86,15 @@ class ResidualTask(Task):
 
 @jax.tree_util.register_static
 class JointTask(Task):
-    """Track reference values for a subset of configuration entries
+    """Track a joint-space task
 
-    Entries are indexed by velocity (e.g. a frax robot's `joint_name_to_index`),
-    and must have a corresponding configuration entry with q_dot = v (see the
-    robot's `velocity_to_configuration_index`). For a quaternion floating base,
-    that excludes the orientation, which can be tracked with a ResidualTask or
-    FrameTask instead
+    Note: this is currently configured to only deal with actuated
+    joints. For free-floating bases, use a FrameTask
 
     Args:
-        robot: frax robot
+        robot (Robot): Robot model
         idxs (ArrayLike): Indices into v to track
-        ref_key (str): Key of the reference targets for the corresponding entries
-            of q, shape (len(idxs),)
+        ref_key (str): Reference key for the targets, shape (len(idxs),)
         gain (ArrayLike): Scalar or per-joint gain (1/s)
         weight (ArrayLike): Scalar or per-joint weight
     """
@@ -137,10 +125,8 @@ class JointTask(Task):
         return self.J, -self.gain * e, self.weight
 
 
+# TODO this is confusing
 def _init_pose(task, n, gain_pos, gain_rot, weight_pos, weight_rot, pos_key, rot_key):
-    """Set a pose task's gains (n, 1), keys, per-row weights and num_rows. Each
-    frame has [position xyz] rows if pos_key is set, then [rotation xyz] rows if
-    rot_key is. An untracked component has no rows, and zero gain"""
     assert pos_key is not None or rot_key is not None, (
         "Track position, rotation, or both"
     )
@@ -156,10 +142,8 @@ def _init_pose(task, n, gain_pos, gain_rot, weight_pos, weight_rot, pos_key, rot
     task.num_rows = len(task.weight)
 
 
+# TODO this is confusing
 def _pose_rows(task, tfs: Array, J: Array, ref) -> tuple[Array, Array, Array]:
-    """Pose tracking rows for frames with transforms tfs (n, 4, 4) and
-    Jacobians J (n, 6, nv) (linear, then angular), for the task's tracked
-    components"""
     pos, rot = task.pos_key is not None, task.rot_key is not None
     v_des = []
     if pos:
@@ -175,27 +159,22 @@ def _pose_rows(task, tfs: Array, J: Array, ref) -> tuple[Array, Array, Array]:
     )
 
 
+# TODO is frame_pos and frame_rmats really the best name
 @jax.tree_util.register_static
 class FrameTask(Task):
-    """Track world-frame positions and/or orientations of a set of frax robot
-    joint frames (each link's parent joint origin, optionally offset), with
-    frax's analytic Jacobians
-
-    Set pos_key or rot_key to None to track only the other component: its rows
-    are dropped, and its gain and weight are ignored
+    """Track world-frame positions and/or orientations of joint frames
 
     Args:
-        robot: frax robot
-        joints (ArrayLike): Indices of the joints whose frames are tracked,
-            shape (n,)
+        robot (Robot): Robot model
+        joints (ArrayLike): Indices of the tracked joints, shape (n,)
         gain_pos, gain_rot (ArrayLike): Scalar or per-frame gains (1/s)
         weight_pos, weight_rot (ArrayLike): Scalar or per-frame weights
-        pos_key (str | None): Reference key for target positions, shape (n, 3)
+        pos_key (str | None): Reference key for target positions, shape (n, 3).
+            None to not track position
         rot_key (str | None): Reference key for target rotation matrices,
-            shape (n, 3, 3)
-        offsets (ArrayLike | None): Transforms of the tracked frames relative
-            to their joint frames, shape (4, 4) (shared) or (n, 4, 4). Defaults
-            to identity
+            shape (n, 3, 3). None to not track rotation
+        offsets (ArrayLike | None): Tracked frames in their joint frames, shape
+            (4, 4) or (n, 4, 4). Defaults to None (identity)
     """
 
     def __init__(
@@ -231,22 +210,20 @@ class FrameTask(Task):
         return _pose_rows(self, tfs, jnp.concatenate([Jv, Jw], axis=1), ref)
 
 
+# TODO: It feels like this task is redundant with FrameTask?
 @jax.tree_util.register_static
 class EETask(Task):
-    """Track the world-frame position and/or orientation of a frax
-    Manipulator's end effector (including its `ee_offset`), with frax's
-    analytic Jacobian
-
-    Set pos_key or rot_key to None to track only the other component (as
-    FrameTask)
+    """Track the world-frame position and/or orientation of a Manipulator's end
+    effector (including its `ee_offset`)
 
     Args:
-        robot: frax Manipulator
+        robot (Manipulator): Manipulator model
         gain_pos, gain_rot (float): Gains (1/s)
         weight_pos, weight_rot (float): Weights
-        pos_key (str | None): Reference key for the target position, shape (3,)
+        pos_key (str | None): Reference key for the target position, shape (3,).
+            None to not track position
         rot_key (str | None): Reference key for the target rotation matrix,
-            shape (3, 3)
+            shape (3, 3). None to not track rotation
     """
 
     def __init__(

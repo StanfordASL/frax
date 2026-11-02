@@ -1,5 +1,4 @@
-"""Utilities for motion clips: loading BVH files, smoothing, and saving
-retargeted motions"""
+"""IK and motion utilities"""
 
 from pathlib import Path
 
@@ -12,9 +11,8 @@ from frax.core.robot import Robot
 
 
 def _parse_bvh(filepath: str | Path):
-    """Bone names, parents, local positions (T, B, 3), and local rotation
-    matrices (T, B, 3, 3). A bone's position channels, if it has any, replace
-    its offset. Raises ValueError if any frame has NaNs"""
+    """Bone names, parents, local positions (T, B, 3), and local rotations
+    (T, B, 3, 3)"""
     names, parents, offsets, channels, stack = [], [], [], [], []
     lines = iter(Path(filepath).read_text().splitlines())
     for line in lines:
@@ -24,7 +22,7 @@ def _parse_bvh(filepath: str | Path):
         if tokens[0] in ("ROOT", "JOINT"):
             parents.append(stack[-1] if stack else -1)
             names.append(tokens[1])
-        elif tokens[0] == "End":  # End Site: skip its block
+        elif tokens[0] == "End":  # Skip the End Site block
             next(lines), next(lines), next(lines)
         elif tokens[0] == "{":
             stack.append(len(names) - 1)
@@ -61,17 +59,13 @@ def _parse_bvh(filepath: str | Path):
 def load_bvh(
     filepath: str | Path, to_world: ArrayLike | None = None, scale: float = 0.01
 ) -> tuple[np.ndarray, list[str]]:
-    """Global bone poses from a BVH file, by forward kinematics
-
-    Each bone's rotation channels are intrinsic Euler angles (deg), in channel
-    order. Its position channels, if it has any, replace its offset (most files
-    give them for the root only, some for every bone)
+    """Global bone poses from a BVH file
 
     Args:
         filepath (str | Path): BVH file
-        to_world (ArrayLike | None): Rotation matrix (3, 3) from the BVH's
-            frame to the world's, e.g. Y-up to Z-up. Default: identity
-        scale (float): BVH length unit (m). Default: cm
+        to_world (ArrayLike | None): Rotation from the BVH frame to the world,
+            shape (3, 3). Defaults to identity
+        scale (float): BVH length unit (m). Defaults to cm
 
     Returns:
         tuple[np.ndarray, list[str]]: Poses [position, WXYZ quaternion], shape
@@ -84,7 +78,7 @@ def load_bvh(
     T, B = local_pos.shape[:2]
     rot = np.zeros((T, B, 3, 3))
     pos = np.zeros((T, B, 3))
-    for i, parent in enumerate(parents):  # Parents always precede their children
+    for i, parent in enumerate(parents):  # Parents precede their children
         if parent < 0:
             rot[:, i], pos[:, i] = local_rot[:, i], local_pos[:, i]
         else:
@@ -102,16 +96,14 @@ def load_bvh(
 def smooth_poses(
     poses: ArrayLike, dt: float, sigma_pos: float = 0.0, sigma_rot: float = 0.0
 ) -> np.ndarray:
-    """Zero-phase Gaussian smoothing of a clip of poses along time, for offline
-    retargeting (smoothing online would add lag). Quaternions are sign-aligned,
-    filtered componentwise and renormalized, close to the geodesic mean for the
-    small rotations within a kernel
+    """Zero-phase Gaussian smoothing of a clip of poses along time,
+    for offline retargeting
 
     Args:
         poses (ArrayLike): Poses [position, WXYZ quaternion], shape (T, ..., 7)
         dt (float): Time between poses
-        sigma_pos (float): Position kernel standard deviation (s). 0: no smoothing
-        sigma_rot (float): Orientation kernel standard deviation (s). 0: no smoothing
+        sigma_pos (float): Position kernel standard deviation (s). 0 to not smooth
+        sigma_rot (float): Rotation kernel standard deviation (s). 0 to not smooth
 
     Returns:
         np.ndarray: Smoothed poses, shape (T, ..., 7)
@@ -123,7 +115,7 @@ def smooth_poses(
         )
     if sigma_rot > 0:
         quat = poses[..., 3:]
-        # Flip each quaternion into the hemisphere of the previous one
+        # Sign-align, so componentwise filtering approximates the geodesic mean
         flips = np.sum(quat[1:] * quat[:-1], axis=-1) < 0
         signs = np.cumprod(np.where(flips, -1.0, 1.0), axis=0)
         quat[1:] *= signs[..., None]
@@ -133,12 +125,7 @@ def smooth_poses(
 
 
 def resample_poses(poses: ArrayLike, fps_in: float, fps_out: float) -> np.ndarray:
-    """Resample a clip of poses to a new frame rate, over the same duration from
-    the first pose: positions linearly, orientations by slerp
-
-    Downsampling aliases fast motion unless the clip is low-passed first (e.g.
-    smooth_poses with sigmas ~ 0.5 / fps_out). Upsampling only interpolates, so
-    the velocity jumps at the original frames
+    """Resample a clip of poses to a new frame rate
 
     Args:
         poses (ArrayLike): Poses [position, WXYZ quaternion], shape (T, ..., 7)
@@ -152,22 +139,18 @@ def resample_poses(poses: ArrayLike, fps_in: float, fps_out: float) -> np.ndarra
     poses = np.asarray(poses, dtype=float)
     T = len(poses)
     assert T >= 2, "Need at least two poses to resample"
-    flat = poses.reshape(T, -1, 7)  # (T, n, 7)
+    flat = poses.reshape(T, -1, 7)
     n = flat.shape[1]
 
-    # Output frame times, in units of input frames (1e-9: float rounding)
     T_out = int(np.floor((T - 1) * fps_out / fps_in + 1e-9)) + 1
-    times = np.arange(T_out) * fps_in / fps_out
-    # Each output frame is a fraction alpha of the way from input frame i to i + 1
-    i = np.minimum(times.astype(int), T - 2)
-    alpha = times - i
-    before, after = flat[i], flat[i + 1]  # (T_out, n, 7)
+    frame_times = np.arange(T_out) * fps_in / fps_out  # In input frames
+    i = np.minimum(frame_times.astype(int), T - 2)
+    alpha = frame_times - i
+    before, after = flat[i], flat[i + 1]
 
     a = alpha[:, None, None]
     pos = (1 - a) * before[..., :3] + a * after[..., :3]
 
-    # Slerp: rotate from `before` by a fraction alpha of the relative rotation
-    # to `after`, which turns the short way (angle <= pi)
     rot_before = Rotation.from_quat(before[..., 3:].reshape(-1, 4), scalar_first=True)
     rot_after = Rotation.from_quat(after[..., 3:].reshape(-1, 4), scalar_first=True)
     relative = (rot_before.inv() * rot_after).as_rotvec()
@@ -180,16 +163,12 @@ def resample_poses(poses: ArrayLike, fps_in: float, fps_out: float) -> np.ndarra
 
 
 def save_motion(path: str | Path, robot: Robot, q: ArrayLike, fps: float) -> None:
-    """Save a retargeted motion as an .npz file (load with np.load), with fields
-    - q: configurations, shape (T, nq), float32. The first nq_floating entries
-      are the floating base, if any (a quaternion base's are [root position,
-      root WXYZ quaternion]), then the joints in joint_names order
-    - fps: frame rate
-    - joint_names: the robot's actuated joints
+    """Save a motion as an .npz file with fields q (float32), fps, and the
+    actuated joint_names
 
     Args:
         path (str | Path): Output file (.npz)
-        robot: frax robot the motion is for
+        robot (Robot): Robot model
         q (ArrayLike): Configurations, shape (T, nq)
         fps (float): Frame rate
     """

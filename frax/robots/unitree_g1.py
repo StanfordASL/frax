@@ -6,7 +6,6 @@ from frax.utils.collision_utils import bubblify_to_mine, link_pairs_to_sc_data
 
 floating_root_urdf = G1_ASSETS_DIR / "floating_g1_29dof_rev_1_0.urdf"
 fixed_root_urdf = G1_ASSETS_DIR / "g1_29dof_rev_1_0.urdf"
-# Left/right symmetric, with the foot spheres resting on the sole
 collision_model_file = G1_ASSETS_DIR / "bubblify/g1_29dof_rev_1_0_spherized.yml"
 root_link_name = "pelvis"
 
@@ -49,12 +48,10 @@ right_hand_parent_joint_name = "right_wrist_yaw_joint"
 left_foot_parent_joint_name = "left_ankle_roll_joint"
 right_foot_parent_joint_name = "right_ankle_roll_joint"
 
-# Self-collision is defined by pairs of links: every sphere on one link against
-# every sphere on the other, so editing the spheres doesn't break the pairs.
-# Pairs are given for the left side, and mirrored to the right. Links that always
-# touch (neighbors, the shoulders and the torso, the hips and the pelvis) are left out
+# Self-collision link pairs are given for the left side, and mirrored.
+# Links that always touch (e.g. neighbors) are left out
 _UPPER_ARM = ("shoulder_pitch", "shoulder_roll", "shoulder_yaw")
-_FOREARM = ("elbow", "wrist_roll", "wrist_pitch", "wrist_yaw")  # and hand
+_FOREARM = ("elbow", "wrist_roll", "wrist_pitch", "wrist_yaw")
 _THIGH = ("hip_pitch", "hip_roll", "hip_yaw", "knee")
 _LEG = ("hip_yaw", "knee", "ankle_roll")  # thigh, shin, foot
 
@@ -82,8 +79,6 @@ def _symmetric(left_pairs) -> tuple:
     )
 
 
-# Upper body: the forearm and hand against the other arm, the torso, and the
-# pelvis, and the upper arm against the torso
 _upper_body_sc_pairs = (
     [
         (a, b)
@@ -93,8 +88,6 @@ _upper_body_sc_pairs = (
     + [(a, b) for a in _links("left", _FOREARM) for b in ("torso_link", "pelvis")]
     + [("left_shoulder_yaw_link", "torso_link")]
 )
-# Lower body: the forearms and hands against the thighs, the upper arm against its
-# own thigh, and the legs against each other
 _lower_body_sc_pairs = (
     [(a, b) for a in _links("left", _FOREARM) for b in _links("left", _THIGH)]
     + [(a, b) for a in _links("left", _FOREARM) for b in _links("right", _THIGH)]
@@ -105,8 +98,6 @@ self_collision_link_pairs = _symmetric(_upper_body_sc_pairs + _lower_body_sc_pai
 
 
 def g1_sc_data() -> tuple:
-    """Self-collision data (sphere pairs) for `bubblify_to_mine`, from
-    self_collision_link_pairs and the collision model"""
     return link_pairs_to_sc_data(collision_model_file, self_collision_link_pairs)
 
 

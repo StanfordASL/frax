@@ -275,8 +275,6 @@ def test_orientation_error():
 
 @pytest.mark.parametrize("angle", [1e-4, 0.5, 1.5, 2.5, 3.1])
 def test_rotation_error(angle):
-    """Along the error's axis (R = Rot(angle * axis) R_des), with magnitude
-    2 sin(angle / 2): angle * axis to first order, and growing up to 180 deg"""
     axis = np.random.randn(3)
     axis /= np.linalg.norm(axis)
     R_des = quat_wxyz_to_rmat(random_quat())
