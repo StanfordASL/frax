@@ -87,8 +87,9 @@ class GlobalIKSolver:
     Args:
         solver (DiffIKSolver): Diff IK solver
         num_samples (int): Number of starts, including q
-        q_min, q_max (ArrayLike | None): Sampling range for the actuated joints.
-            Default to the solver's JointLimits
+        q_min, q_max (ArrayLike | "robot"): Sampling range for the actuated
+            joints. Default to "robot", for the robot's joint limits, narrowed
+            to those of any JointLimits constraints in the solver
         max_iters (int): Max convergence iterations per start
         dt_max (float | None): Largest convergence stepsize. Defaults to
             1 / solver.max_gain
@@ -105,8 +106,8 @@ class GlobalIKSolver:
         self,
         solver: DiffIKSolver,
         num_samples: int = 32,
-        q_min: ArrayLike | None = None,
-        q_max: ArrayLike | None = None,
+        q_min: ArrayLike | Literal["robot"] = "robot",
+        q_max: ArrayLike | Literal["robot"] = "robot",
         max_iters: int = 200,
         dt_max: float | None = None,
         tol: float = 1e-4,
@@ -115,16 +116,26 @@ class GlobalIKSolver:
     ):
         self.solver = solver
         self.num_samples = num_samples
-        if q_min is None or q_max is None:
-            limits = [c for c in solver.constraints if isinstance(c, JointLimits)]
-            assert limits, "Pass q_min and q_max, or give the solver JointLimits"
-            q_min = limits[0].q_min if q_min is None else q_min
-            q_max = limits[0].q_max if q_max is None else q_max
-        self.q_min = np.asarray(q_min, dtype=float)
-        self.q_max = np.asarray(q_max, dtype=float)
+
+        # Handle joint limits for determining a sampling range
+        lower = np.asarray(solver.robot.actuated_joint_lower_limits, dtype=float)
+        upper = np.asarray(solver.robot.actuated_joint_upper_limits, dtype=float)
+        for c in solver.constraints:
+            if isinstance(c, JointLimits):
+                lower = np.maximum(lower, c.q_min)
+                upper = np.minimum(upper, c.q_max)
+        for x in (q_min, q_max):
+            if isinstance(x, str):
+                assert x == "robot", (
+                    f'Sampling limits must be arrays or "robot", got {x!r}'
+                )
+        self.q_min = lower if isinstance(q_min, str) else np.asarray(q_min, dtype=float)
+        self.q_max = upper if isinstance(q_max, str) else np.asarray(q_max, dtype=float)
         assert np.all(np.isfinite(self.q_min)) and np.all(np.isfinite(self.q_max)), (
-            "Unbounded sampling range"
+            "Unbounded sampling range: pass q_min and q_max, or give the solver "
+            + "JointLimits"
         )
+
         self.max_iters = max_iters
         if dt_max is None:
             assert solver.max_gain is not None, "A term has no gain: pass dt_max"

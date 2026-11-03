@@ -145,6 +145,19 @@ def test_samples_within_limits_keep_floating_base(g1, g1_q_random):
     assert np.all(qs[1:, 7:] >= q_min) and np.all(qs[1:, 7:] <= q_max)
 
 
+def test_sampling_range_narrows_robot_limits(panda):
+    """The default range is the robot's limits, narrowed by the solver's
+    JointLimits. A JointLimits bound of None leaves the robot's"""
+    lower, upper = panda.actuated_joint_lower_limits, panda.actuated_joint_upper_limits
+    q_max = np.array(upper, dtype=float)
+    q_max[0] = 0.5
+    limits = JointLimits(panda, q_min=None, q_max=q_max)
+    solver = DiffIKSolver(panda, [EETask(panda)], [limits])
+    global_ik = GlobalIKSolver(solver)
+    np.testing.assert_allclose(global_ik.q_min, lower)
+    np.testing.assert_allclose(global_ik.q_max, q_max)
+
+
 def test_panda_reaches_random_targets(panda):
     """Reachable EE targets (FK of random configurations), from home"""
     q_min, q_max = panda.actuated_joint_lower_limits, panda.actuated_joint_upper_limits
