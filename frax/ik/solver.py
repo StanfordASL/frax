@@ -123,16 +123,22 @@ class DiffIKSolver:
         qp_warm_start = (jnp.zeros(nv), jnp.zeros(self.n_eq), jnp.zeros(self.n_ineq))
         return SolverState(q=jnp.asarray(q0), qp_warm_start=qp_warm_start)
 
-    # TODO improve the organization of the returns
-    def _rows(self, q: Array, ref):
-        """Stacked task (J, v_des, w), inequality (G, h), and hard equality (A, b)
-        rows, and the objective at q"""
+    def _qp(self, q: Array, ref):
+        """The diff IK QP at q, and its objective at v = 0 (the cost of not moving)
+
+        Returns:
+            tuple: P, c, G, h, A, b (A and b are None if there are no hard
+                equalities), and the objective at v = 0
+        """
         robot = self.robot
         assert q.shape == (robot.nq,), f"q has shape {q.shape}, expected ({robot.nq},)"
         Js, v_des, ws = zip(*(task.linearize(q, ref) for task in self.tasks))
-        J = jnp.concatenate(Js)
-        v_des = jnp.concatenate(v_des)
         w = jnp.concatenate(ws)
+        WJ = w[:, None] * jnp.concatenate(Js)
+        w_v_des = w * jnp.concatenate(v_des)
+        task_error = jnp.sum(w_v_des**2)
+        P = WJ.T @ WJ + jnp.diag(self.regularization + self.damping * task_error)
+        c = -w_v_des @ WJ
 
         Gs, hs = [jnp.zeros((0, robot.nv))], [jnp.zeros(0)]
         for con in self.inequalities:
@@ -141,21 +147,23 @@ class DiffIKSolver:
             hs.append(h)
         G = jnp.concatenate(Gs)
         h = jnp.concatenate(hs)
+        objective = task_error + jnp.maximum(-h, 0.0) @ self.penalty
+
         A = b = None
         if self.equalities:
             As, bs = zip(*(con.rows(q, ref) for con in self.equalities))
             A = jnp.concatenate(As)
             b = jnp.concatenate(bs)
-
-        objective = jnp.sum((w * v_des) ** 2) + jnp.maximum(-h, 0.0) @ self.penalty
-        if b is not None:
-            # TODO: This seems like a bug, why is this not using the self.penalty
+            # Hard equalities have no penalty, so their residual |A 0 - b| is
+            # weighted like a default elastic row's
             objective += DEFAULT_PENALTY * jnp.sum(jnp.abs(b))
-        return (J, v_des, w), (G, h), (A, b), objective
+        return P, c, G, h, A, b, objective
 
     def objective(self, q: Array, ref) -> Array:
-        """The QP objective, evaluated at q and any provided reference data"""
-        return self._rows(q, ref)[3]
+        """The QP objective at v = 0 (the cost of not moving), evaluated at q and
+        any provided reference data"""
+        *_, objective = self._qp(q, ref)
+        return objective
 
     def solve(
         self, q: Array, ref, qp_warm_start: tuple[Array, Array, Array]
@@ -174,11 +182,7 @@ class DiffIKSolver:
                     to warm-start the next QP
                 info (SolverInfo): Solver info, with the objective at q
         """
-        (J, v_des, w), (G, h), (A, b), objective = self._rows(q, ref)
-        WJ = w[:, None] * J
-        lam = self.damping * jnp.sum((w * v_des) ** 2)
-        P = WJ.T @ WJ + jnp.diag(self.regularization + lam)
-        c = -(w * v_des) @ WJ
+        P, c, G, h, A, b, objective = self._qp(q, ref)
         result = elastiqp.jax.solve(
             P,
             c,
@@ -190,9 +194,7 @@ class DiffIKSolver:
             eps_abs=self.solver_tol,
             warm_start=qp_warm_start if self.warm_start else None,
         )
-        info = SolverInfo(
-            qp_iters=result.iters, qp_converged=result.converged, objective=objective
-        )
+        info = SolverInfo(result.iters, result.converged, objective)
         return result.x, (result.x, result.y, result.z), info
 
     def step(
