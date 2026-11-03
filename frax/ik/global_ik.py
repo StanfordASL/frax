@@ -31,21 +31,18 @@ class GlobalIKResult(NamedTuple):
     sampled: Array  # Whether samples were necessary to meet the tolerance
 
 
-# TODO: It's a little weird that there is no sampling for the floating base?
-# And should we do the same thing as the JointLimits constraint where it defaults
-# to using the robot limits but can be adjusted?
 def sample_configurations(
     robot: Robot,
     q: Array,
     key: Array,
     num_samples: int,
-    q_min: Array,
-    q_max: Array,
+    q_min: ArrayLike | Literal["robot"] = "robot",
+    q_max: ArrayLike | Literal["robot"] = "robot",
 ) -> Array:
     """Sample configurations for global IK
 
-    Currently, we sample uniformly for the actuated joints, and keep
-    the floating base DoFs at the nominal configuration
+    The actuated joints are sampled uniformly. The floating base stays at q's:
+    it has no joint limits to sample within, and is usually pinned by a task
 
     Args:
         robot (Robot): Robot model
@@ -53,12 +50,22 @@ def sample_configurations(
             This is also included as the first sample
         key (Array): PRNG key
         num_samples (int): Number of samples, including q
-        q_min (Array): Lower joint bounds, shape (num_actuated,)
-        q_max (Array): Upper joint bounds, shape (num_actuated,)
+        q_min (ArrayLike | "robot"): Lower joint bounds, shape (num_actuated,).
+            Defaults to "robot", for robot.actuated_joint_lower_limits
+        q_max (ArrayLike | "robot"): Upper joint bounds, shape (num_actuated,).
+            Defaults to "robot", for robot.actuated_joint_upper_limits
 
     Returns:
         Array: Sampled configurations, shape (num_samples, nq)
     """
+    if isinstance(q_min, str):
+        assert q_min == "robot", f'q_min must be an array or "robot", got {q_min!r}'
+        q_min = np.asarray(robot.actuated_joint_lower_limits, dtype=float)
+        assert np.all(np.isfinite(q_min)), "Unbounded joint limits: pass q_min"
+    if isinstance(q_max, str):
+        assert q_max == "robot", f'q_max must be an array or "robot", got {q_max!r}'
+        q_max = np.asarray(robot.actuated_joint_upper_limits, dtype=float)
+        assert np.all(np.isfinite(q_max)), "Unbounded joint limits: pass q_max"
     joints = jax.random.uniform(
         key,
         (num_samples - 1, robot.nq - robot.nq_floating),

@@ -138,9 +138,7 @@ def test_devices_match_single_device(panda):
 
 def test_samples_within_limits_keep_floating_base(g1, g1_q_random):
     q_min, q_max = g1.actuated_joint_lower_limits, g1.actuated_joint_upper_limits
-    qs = sample_configurations(
-        g1, jnp.asarray(g1_q_random), jax.random.key(2), 8, q_min, q_max
-    )
+    qs = sample_configurations(g1, jnp.asarray(g1_q_random), jax.random.key(2), 8)
     assert qs.shape == (8, g1.nq)
     np.testing.assert_allclose(qs[0], g1_q_random)
     np.testing.assert_allclose(qs[:, :7], np.tile(g1_q_random[:7], (8, 1)))
