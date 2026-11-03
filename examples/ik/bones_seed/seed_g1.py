@@ -44,8 +44,8 @@ def load_seed(filepath: str | Path) -> tuple[np.ndarray, list[str]]:
     ValueError if any frame has NaNs, as a few SEED clips do
 
     Returns:
-        tuple[np.ndarray, list[str]]: Poses [position, WXYZ quaternion], shape
-            (T, B, 7), and the B bone names
+        poses (np.ndarray): Poses [position, WXYZ quaternion], shape (T, B, 7)
+        names (list[str]): The B bone names
     """
     return load_bvh(filepath, BVH_TO_WORLD)
 

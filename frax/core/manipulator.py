@@ -107,9 +107,8 @@ class Manipulator(Robot):
             v (Array): Generalized velocities, shape (nv,)
 
         Returns:
-            Tuple[Array, Array]:
-                J (Array): EE Jacobian, shape (6, nv)
-                Jdot (Array): Time derivative of the EE Jacobian, shape (6, nv)
+            J (Array): EE Jacobian, shape (6, nv)
+            Jdot (Array): Time derivative of the EE Jacobian, shape (6, nv)
         """
         transforms = self.joint_to_world_transforms(q)
         return self._ee_jacobian_and_derivative(v, transforms)
@@ -150,13 +149,12 @@ class Manipulator(Robot):
             v (Array): Generalized velocities, shape (nv,)
 
         Returns:
-            Tuple[Array, Array, Array, Array, Array, Array]:
-                M: Mass matrix, shape (nv, nv)
-                M_inv: Inverse of the mass matrix, shape (nv, nv)
-                G: Gravity vector, shape (nv,)
-                C: Centrifugal/coriolis vector, shape (nv,)
-                J: End effector basic Jacobian, shape (6, nv)
-                T: End effector transformation matrix, shape (4, 4)
+            M (Array): Mass matrix, shape (nv, nv)
+            M_inv (Array): Inverse of the mass matrix, shape (nv, nv)
+            G (Array): Gravity vector, shape (nv,)
+            C (Array): Centrifugal/coriolis vector, shape (nv,)
+            J (Array): End effector basic Jacobian, shape (6, nv)
+            T (Array): End effector transformation matrix, shape (4, 4)
         """
         joint_transforms = self.joint_to_world_transforms(q)
         M = self._mass_matrix(joint_transforms)
@@ -175,9 +173,8 @@ class Manipulator(Robot):
             q (Array): Configuration vector, shape (nq,)
 
         Returns:
-            Tuple[Array, Array]:
-                J: End effector basic Jacobian, shape (6, nv)
-                T: End effector transformation matrix, shape (4, 4)
+            J (Array): End effector basic Jacobian, shape (6, nv)
+            T (Array): End effector transformation matrix, shape (4, 4)
         """
         joint_transforms = self.joint_to_world_transforms(q)
         J = self._ee_jacobian(joint_transforms)
@@ -197,10 +194,9 @@ class Manipulator(Robot):
             q (Array): Configuration vector, shape (nq,)
 
         Returns:
-            Tuple[Array, Array, Array]:
-                M_inv: Inverse of the mass matrix, shape (nv, nv)
-                J: End effector basic Jacobian, shape (6, nv)
-                T: End effector transformation matrix, shape (4, 4)
+            M_inv (Array): Inverse of the mass matrix, shape (nv, nv)
+            J (Array): End effector basic Jacobian, shape (6, nv)
+            T (Array): End effector transformation matrix, shape (4, 4)
         """
         joint_transforms = self.joint_to_world_transforms(q)
         J = self._ee_jacobian(joint_transforms)

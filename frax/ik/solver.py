@@ -176,11 +176,10 @@ class DiffIKSolver:
             qp_warm_start (tuple[Array, Array, Array]): QP warm start (x, y, z)
 
         Returns:
-            tuple[Array, tuple[Array, Array, Array], SolverInfo]:
-                v (Array): Generalized velocity, shape (nv,)
-                qp_warm_start (tuple[Array, Array, Array]): QP solution (x, y, z),
-                    to warm-start the next QP
-                info (SolverInfo): Solver info, with the cost of q
+            v (Array): Generalized velocity, shape (nv,)
+            qp_warm_start (tuple[Array, Array, Array]): QP solution (x, y, z),
+                to warm-start the next QP
+            info (SolverInfo): Solver info, with the cost of q
         """
         P, c, G, h, A, b, cost = self._qp(q, ref)
         result = elastiqp.jax.solve(
@@ -208,7 +207,9 @@ class DiffIKSolver:
             dt (float): Timestep
 
         Returns:
-            tuple[SolverState, Array, SolverInfo]: New state, velocity, and info
+            state (SolverState): New state
+            v (Array): Generalized velocity, shape (nv,)
+            info (SolverInfo): Solver info
         """
         v, qp_warm_start, info = self.solve(state.q, ref, state.qp_warm_start)
         q = self.robot.integrate(state.q, v, dt)
@@ -231,7 +232,8 @@ class DiffIKSolver:
             tol (float): Convergence tolerance on max |v|
 
         Returns:
-            tuple[SolverState, Array]: Converged state, and the number of iterations
+            state (SolverState): Converged state
+            iters (Array): Number of iterations
         """
         state, ref = jax.lax.stop_gradient((state, ref))
         robot = self.robot

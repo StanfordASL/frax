@@ -41,10 +41,9 @@ class Task:
             ref (Any): Per-step reference data (any pytree)
 
         Returns:
-            tuple[Array, Array, Array]:
-                J (Array): Task Jacobian, shape (num_rows, nv)
-                v_des (Array): Desired task velocity, shape (num_rows,)
-                weight (Array): Per-row weight, shape (num_rows,)
+            J (Array): Task Jacobian, shape (num_rows, nv)
+            v_des (Array): Desired task velocity, shape (num_rows,)
+            weight (Array): Per-row weight, shape (num_rows,)
         """
         raise NotImplementedError
 

@@ -33,11 +33,10 @@ def virtual_joints_to_pose_and_twist(
         qd (Array): Virtual joint velocities, shape (6,)
 
     Returns:
-        Tuple[Array, Array, Array, Array]:
-            pos (Array): Position in world frame, shape (3,)
-            quat_wxyz (Array): WXYZ quaternion in world frame, shape (4,)
-            vel (Array): Linear velocity in world frame, shape (3,)
-            omega (Array): Angular velocity in world frame, shape (3,)
+        pos (Array): Position in world frame, shape (3,)
+        quat_wxyz (Array): WXYZ quaternion in world frame, shape (4,)
+        vel (Array): Linear velocity in world frame, shape (3,)
+        omega (Array): Angular velocity in world frame, shape (3,)
     """
     q = jnp.asarray(q)
     qd = jnp.asarray(qd)
@@ -75,9 +74,8 @@ def pose_and_twist_to_virtual_joints(
         omega (Array): Angular velocity in world frame, shape (3,)
 
     Returns:
-        Tuple[Array, Array]:
-            q (Array): Virtual joint positions, shape (6,)
-            qd (Array): Virtual joint velocities, shape (6,)
+        q (Array): Virtual joint positions, shape (6,)
+        qd (Array): Virtual joint velocities, shape (6,)
     """
     pos = jnp.asarray(pos)
     vel = jnp.asarray(vel)
@@ -122,11 +120,10 @@ def mujoco_qpos_qvel_to_pose_and_twist(
             joint, shape (6,) (linear and angular velocities. Linear = world, angular = body)
 
     Returns:
-        Tuple[Array, Array, Array, Array]:
-            pos (Array): Position in world frame, shape (3,)
-            quat_wxyz (Array): WXYZ quaternion in world frame, shape (4,)
-            vel (Array): Linear velocity in world frame, shape (3,)
-            omega (Array): Angular velocity in world frame, shape (3,)
+        pos (Array): Position in world frame, shape (3,)
+        quat_wxyz (Array): WXYZ quaternion in world frame, shape (4,)
+        vel (Array): Linear velocity in world frame, shape (3,)
+        omega (Array): Angular velocity in world frame, shape (3,)
     """
     qpos = jnp.asarray(qpos)
     qvel = jnp.asarray(qvel)
@@ -151,11 +148,10 @@ def pinocchio_qpos_qvel_to_pose_and_twist(
             joint, shape (6,) (linear and angular velocities in body frame)
 
     Returns:
-        Tuple[Array, Array, Array, Array]:
-            pos (Array): Position in world frame, shape (3,)
-            quat_wxyz (Array): WXYZ quaternion in world frame, shape (4,)
-            vel (Array): Linear velocity in world frame, shape (3,)
-            omega (Array): Angular velocity in world frame, shape (3,)
+        pos (Array): Position in world frame, shape (3,)
+        quat_wxyz (Array): WXYZ quaternion in world frame, shape (4,)
+        vel (Array): Linear velocity in world frame, shape (3,)
+        omega (Array): Angular velocity in world frame, shape (3,)
     """
     qpos = jnp.asarray(qpos)
     qvel = jnp.asarray(qvel)

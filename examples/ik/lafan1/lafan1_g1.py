@@ -43,8 +43,8 @@ def load_lafan1(filepath: str | Path) -> tuple[np.ndarray, list[str]]:
     the toe orientation
 
     Returns:
-        tuple[np.ndarray, list[str]]: Poses [position, WXYZ quaternion], shape
-            (T, B, 7), and the B bone names
+        poses (np.ndarray): Poses [position, WXYZ quaternion], shape (T, B, 7)
+        names (list[str]): The B bone names
     """
     poses, names = load_bvh(filepath, Y_UP_TO_Z_UP)
     idx = {name: i for i, name in enumerate(names)}

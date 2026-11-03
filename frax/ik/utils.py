@@ -68,8 +68,8 @@ def load_bvh(
         scale (float): BVH length unit (m). Defaults to cm
 
     Returns:
-        tuple[np.ndarray, list[str]]: Poses [position, WXYZ quaternion], shape
-            (T, B, 7), and the B bone names
+        poses (np.ndarray): Poses [position, WXYZ quaternion], shape (T, B, 7)
+        names (list[str]): The B bone names
 
     Raises:
         ValueError: If any frame has NaNs

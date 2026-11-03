@@ -54,9 +54,8 @@ def benchmark_function(
         n_warmup (int, optional): Number of 'warmup' calls before timing. Defaults to 10.
 
     Returns:
-        Tuple[float, float]:
-            avg_time (float): Average time per function call after JIT
-            jit_time (float): Time taken to JIT the function
+        avg_time (float): Average time per function call after JIT
+        jit_time (float): Time taken to JIT the function
     """
     import jax  # Imported here so that configure_env can run first
 

@@ -65,7 +65,8 @@ class Retargeter:
         """Converge onto the first frame
 
         Returns:
-            tuple[SolverState, Array]: State, and the number of iterations
+            state (SolverState): Converged state
+            iters (Array): Number of iterations
         """
         q, ref = self.initial_q(frame), self.preprocess(frame)
         if self.global_ik_init is not None:
@@ -96,10 +97,9 @@ class Retargeter:
             dt (float): Time between frames
 
         Returns:
-            tuple[Array, SolverInfo, Array]:
-                q (Array): Configurations, shape (T, nq)
-                infos (SolverInfo): Per-step info, leading dim T - 1
-                init_iters (Array): Iterations to converge onto the first frame
+            q (Array): Configurations, shape (T, nq)
+            infos (SolverInfo): Per-step info, leading dim T - 1
+            init_iters (Array): Iterations to converge onto the first frame
         """
         first = jax.tree.map(lambda x: x[0], frames)
         rest = jax.tree.map(lambda x: x[1:], frames)

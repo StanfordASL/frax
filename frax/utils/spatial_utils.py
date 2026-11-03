@@ -167,10 +167,9 @@ def offset_transforms_and_jacobians(
             shape (n, 4, 4)
 
     Returns:
-        Tuple[Array, Array, Array]:
-            tfs_offset (Array): Transforms of the offset frames, shape (n, 4, 4)
-            Jv_offset (Array): Linear Jacobians of the offset frames, shape (n, 3, nv)
-            Jw (Array): Angular Jacobians of the offset frames (unchanged), shape (n, 3, nv)
+        tfs_offset (Array): Transforms of the offset frames, shape (n, 4, 4)
+        Jv_offset (Array): Linear Jacobians of the offset frames, shape (n, 3, nv)
+        Jw (Array): Angular Jacobians of the offset frames (unchanged), shape (n, 3, nv)
     """
     # Transforms are shifted, linear jacobian gets a lever arm term, angular unchanged
     tfs_offset = parent_transforms @ offsets

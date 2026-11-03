@@ -249,10 +249,9 @@ class Robot:
                 where each entry contains a set of radii for that link
 
         Returns:
-            Tuple[np.ndarray, np.ndarray]:
-                padded_positions: Positions, shape (nv, max_spheres_per_link, 3)
-                slice_indices: Indices of the *flattened* padded positions to select,
-                    corresponding to the non-padded data
+            padded_positions (np.ndarray): Positions, shape (nv, max_spheres_per_link, 3)
+            slice_indices (np.ndarray): Indices of the *flattened* padded positions to select,
+                corresponding to the non-padded data
         """
         assert isinstance(positions, tuple)
         assert isinstance(radii, tuple)
@@ -654,9 +653,8 @@ class Robot:
             parent_chain (Array): Ancestor joint indices of the frame's link
 
         Returns:
-            Tuple[Array, Array]:
-                J (Array): Jacobian, shape (6, nv)
-                Jdot (Array): Time derivative of the Jacobian, shape (6, nv)
+            J (Array): Jacobian, shape (6, nv)
+            Jdot (Array): Time derivative of the Jacobian, shape (6, nv)
         """
         # TODO: Create a version of _joint_jacobians that allows us to just compute it for the parent chain?
         joint_Jvs, joint_Jws = self._joint_jacobians(joint_transforms)
@@ -726,10 +724,9 @@ class Robot:
             q (Array): Configuration vector, shape (nq,)
 
         Returns:
-            Tuple[Array, Array]:
-                positions (Array): Positions of the collision spheres in world frame,
-                    shape (num_collision_spheres, 3)
-                radii (Array): Radii of the collision spheres, shape (num_collision_spheres,)
+            positions (Array): Positions of the collision spheres in world frame,
+                shape (num_collision_spheres, 3)
+            radii (Array): Radii of the collision spheres, shape (num_collision_spheres,)
         """
         if not self.has_collision_data:
             return jnp.array([]), jnp.array([])
@@ -919,9 +916,8 @@ class Robot:
             joint_transforms (Array): Transformation matrices for every joint, shape (nv, 4, 4)
 
         Returns:
-            Tuple[Array, Array]:
-                Jv_joints (Array): Linear jacobians for every joint, shape (nv, 3, nv)
-                Jw_joints (Array): Angular jacobians for every joint, shape (nv, 3, nv)
+            Jv_joints (Array): Linear jacobians for every joint, shape (nv, 3, nv)
+            Jw_joints (Array): Angular jacobians for every joint, shape (nv, 3, nv)
         """
         # Positions of all joints in world frame. Shape (nv, 3)
         joint_pos = joint_transforms[:, :3, 3]
@@ -966,9 +962,8 @@ class Robot:
             joint_Jws (Array): Angular jacobians for every joint, shape (nv, 3, nv)
 
         Returns:
-            Tuple[Array, Array]:
-                link_Jvs (Array): Linear jacobians for every link, shape (num_links, 3, nv)
-                link_Jws (Array): Angular jacobians for every link, shape (num_links, 3, nv)
+            link_Jvs (Array): Linear jacobians for every link, shape (num_links, 3, nv)
+            link_Jws (Array): Angular jacobians for every link, shape (num_links, 3, nv)
         """
         # Determine the positions of the link COMs in world frame. Shape (nv, 3)
         link_com_pos = self._link_com_positions(joint_transforms)
@@ -1305,9 +1300,8 @@ class Robot:
             joint_transforms (Array): Transformation matrices for every joint, shape (nv, 4, 4)
 
         Returns:
-            Tuple[Array, Array]:
-                spatial_axes (Array): shape (nv, 6)
-                spatial_inertias (Array): shape (nv, 6, 6)
+            spatial_axes (Array): shape (nv, 6)
+            spatial_inertias (Array): shape (nv, 6, 6)
         """
         link_transforms = self._link_to_world_transforms(joint_transforms)
         if self.floating_base:
