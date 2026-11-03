@@ -51,7 +51,7 @@ class DiffIKSolver:
     """Differential IK (with an elastic QP)
 
         min  sum_tasks || weight * (J v - v_des) ||^2 + (reg + lam) * ||v||^2
-        s.t. G v <= h  (inequalities and elastic equalities, L1-relaxed)
+        s.t. G v <= h  (inequalities, including elastic equalities, L1-relaxed)
              A v == b  (hard equalities)
 
     The Levenberg-Marquardt damping lam = damping * sum_tasks || weight * v_des ||^2
@@ -102,21 +102,19 @@ class DiffIKSolver:
             assert term.robot is robot, (
                 f"{type(term).__name__} was built for a different robot than the solver's"
             )
-        equalities = [c for c in self.constraints if isinstance(c, EqualityConstraint)]
         self.inequalities = tuple(
             c for c in self.constraints if isinstance(c, InequalityConstraint)
         )
-        self.elastic_equalities = tuple(c for c in equalities if c.elastic)
-        self.hard_equalities = tuple(c for c in equalities if not c.elastic)
-        self.n_eq = sum(c.num_rows for c in self.hard_equalities)
+        self.equalities = tuple(
+            c for c in self.constraints if isinstance(c, EqualityConstraint)
+        )
+        self.n_eq = sum(c.num_rows for c in self.equalities)
 
         def penalties(c):
             return np.broadcast_to(np.asarray(c.penalty, dtype=float), (c.num_rows,))
 
         self.penalty = np.concatenate(
-            [penalties(c) for c in self.inequalities]
-            + [np.tile(penalties(c), 2) for c in self.elastic_equalities]
-            + [np.zeros(0)]
+            [penalties(c) for c in self.inequalities] + [np.zeros(0)]
         )
         self.n_ineq = len(self.penalty)
 
@@ -141,15 +139,11 @@ class DiffIKSolver:
             G, h = con.rows(q, ref)
             Gs.append(G)
             hs.append(h)
-        for con in self.elastic_equalities:
-            A, b = con.rows(q, ref)
-            Gs.extend([A, -A])
-            hs.extend([b, -b])
         G = jnp.concatenate(Gs)
         h = jnp.concatenate(hs)
         A = b = None
-        if self.hard_equalities:
-            As, bs = zip(*(con.rows(q, ref) for con in self.hard_equalities))
+        if self.equalities:
+            As, bs = zip(*(con.rows(q, ref) for con in self.equalities))
             A = jnp.concatenate(As)
             b = jnp.concatenate(bs)
 

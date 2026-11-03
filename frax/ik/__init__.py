@@ -10,6 +10,7 @@ except ImportError as e:
 from frax.ik.constraints import (
     DEFAULT_PENALTY,
     BarrierConstraint,
+    ElasticEquality,
     EqualityConstraint,
     FloorConstraint,
     InequalityConstraint,
@@ -37,6 +38,7 @@ __all__ = [
     "BarrierConstraint",
     "DiffIKSolver",
     "EETask",
+    "ElasticEquality",
     "EqualityConstraint",
     "FloorConstraint",
     "FrameTask",

@@ -53,17 +53,14 @@ class InequalityConstraint:
 
 
 class EqualityConstraint:
-    """Base equality constraint Av = b
+    """Base (hard) equality constraint Av = b
 
-    ElastiQP allows for hard equalities when applicable. Generally,
-    you should use an elastic equality for any soft task terms that
-    may not be feasible by construction
+    Generally, you should wrap any soft task terms that may not be feasible by
+    construction in an ElasticEquality
     """
 
     robot: Robot
     num_rows: int
-    elastic: bool
-    penalty: ArrayLike
 
     def rows(self, q: Array, ref: Any) -> tuple[Array, Array]:
         """Rows of A v = b for this constraint, evaluated at q
@@ -378,8 +375,6 @@ class BarrierConstraint(InequalityConstraint):
         return -dh, self.gain * h
 
 
-# TODO: It feels a bit confusing how the elastic term is handled. Right now it's
-# just stored in self and handled externally
 @jax.tree_util.register_static
 class ResidualEquality(EqualityConstraint):
     """Equality on a user-defined residual e(q, ref) = 0: de/dq E(q) v = -gain * e
@@ -389,9 +384,6 @@ class ResidualEquality(EqualityConstraint):
         residual_fn (Callable): (q, ref) -> e, shape (num_rows,)
         num_rows (int): Residual dimension
         gain (float): Gain (1/s)
-        elastic (bool): Whether to treat this equality as elastic,
-            with an l1 relaxation term
-        penalty (ArrayLike): Scalar or per-row relaxation penalty, if elastic
     """
 
     def __init__(
@@ -400,15 +392,11 @@ class ResidualEquality(EqualityConstraint):
         residual_fn: Callable[[Array, object], Array],
         num_rows: int,
         gain: float = 10.0,
-        elastic: bool = True,
-        penalty: ArrayLike = DEFAULT_PENALTY,
     ):
         self.robot = robot
         self.residual_fn = residual_fn
         self.num_rows = num_rows
         self.gain = gain
-        self.elastic = elastic
-        self.penalty = penalty
 
     def rows(self, q, ref):
         def e_fn(q):
@@ -420,3 +408,34 @@ class ResidualEquality(EqualityConstraint):
 
         e, de = _velocity_jacobian(self.robot, e_fn, q)
         return de, -self.gain * e
+
+
+@jax.tree_util.register_static
+class ElasticEquality(InequalityConstraint):
+    """An equality A v = b, relaxed with an L1 penalty, as the inequalities
+    A v <= b and -A v <= -b
+
+    Args:
+        equality (EqualityConstraint): The equality to relax
+        penalty (ArrayLike): Scalar or per-row relaxation penalty, shape
+            (equality.num_rows,)
+    """
+
+    def __init__(
+        self, equality: EqualityConstraint, penalty: ArrayLike = DEFAULT_PENALTY
+    ):
+        self.equality = equality
+        self.robot = equality.robot
+        self.num_rows = 2 * equality.num_rows
+        penalty = np.broadcast_to(
+            np.asarray(penalty, dtype=float), (equality.num_rows,)
+        )
+        self.penalty = np.tile(penalty, 2)
+
+    @property
+    def gain(self):
+        return self.equality.gain
+
+    def rows(self, q, ref):
+        A, b = self.equality.rows(q, ref)
+        return jnp.concatenate([A, -A]), jnp.concatenate([b, -b])

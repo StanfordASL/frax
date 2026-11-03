@@ -10,6 +10,7 @@ from frax.ik import (
     BarrierConstraint,
     DiffIKSolver,
     EETask,
+    ElasticEquality,
     FrameTask,
     JointLimits,
     JointTask,
@@ -58,21 +59,22 @@ def test_penalties_broadcast():
 
 
 def test_elastic_equality_penalties_and_shapes():
-    """Elastic equalities add an upper and a lower inequality row each, after
-    the inequalities. Hard equalities are QP equality rows"""
+    """Elastic equalities add an upper and a lower inequality row each, in
+    constraint order. Hard equalities are QP equality rows"""
     robot = ToyRobot(3)
     solver = DiffIKSolver(
         robot,
         [JointTask(robot, [0, 1, 2], "q")],
         [
-            ResidualEquality(
-                robot, lambda q, ref: q[:2], 2, penalty=np.array([3.0, 4.0])
+            ElasticEquality(
+                ResidualEquality(robot, lambda q, ref: q[:2], 2),
+                penalty=np.array([3.0, 4.0]),
             ),
             JointLimits(robot, v_max=np.ones(3), penalty=5.0),
-            ResidualEquality(robot, lambda q, ref: q[2:], 1, elastic=False),
+            ResidualEquality(robot, lambda q, ref: q[2:], 1),
         ],
     )
-    np.testing.assert_allclose(solver.penalty, [5] * 6 + [3, 4, 3, 4])
+    np.testing.assert_allclose(solver.penalty, [3, 4, 3, 4] + [5] * 6)
     _, y, z = solver.init(jnp.zeros(3)).qp_xyz
     assert y.shape == (1,) and z.shape == (10,)
 
@@ -80,7 +82,9 @@ def test_elastic_equality_penalties_and_shapes():
 def _diagonal_target(elastic):
     """Track (1, 0), with an equality q0 = q1 and no other constraints"""
     robot = ToyRobot(2)
-    eq = ResidualEquality(robot, lambda q, ref: q[:1] - q[1:], 1, elastic=elastic)
+    eq = ResidualEquality(robot, lambda q, ref: q[:1] - q[1:], 1)
+    if elastic:
+        eq = ElasticEquality(eq)
     return DiffIKSolver(robot, [JointTask(robot, [0, 1], "q", gain=10.0)], [eq])
 
 
@@ -101,9 +105,9 @@ def test_elastic_equality_yields_to_obstacle(elastic):
     point stops at the obstacle"""
     center, radius = jnp.array([1.0, 0.05]), 0.3
     robot = ToyRobot(2)
-    line = ResidualEquality(
-        robot, lambda q, ref: q[1:], 1, gain=10.0, elastic=elastic, penalty=1.0
-    )
+    line = ResidualEquality(robot, lambda q, ref: q[1:], 1, gain=10.0)
+    if elastic:
+        line = ElasticEquality(line, penalty=1.0)
     disc = BarrierConstraint(
         robot, lambda q, ref: jnp.array([jnp.linalg.norm(q - center) - radius]), 1
     )
