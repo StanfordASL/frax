@@ -32,29 +32,18 @@ def select_clips(
     n: int | None = None,
     seed: int = 0,
     match: str = "",
-    names: list[str] | None = None,
 ) -> list[dict]:
-    """Clips whose filename, package, or category contains `match` (and among
-    `names`, if given), then n of them at random (all if n is None)"""
+    """Clips whose filename, package, or category contains `match`, then n of
+    them at random (all if n is None)"""
     rows = [
         r
         for r in rows
         if match in r["filename"] or match in r["package"] or match in r["category"]
     ]
-    if names is not None:
-        names = set(names)
-        rows = [r for r in rows if r["filename"] in names]
     if n is not None and n < len(rows):
         idx = np.random.default_rng(seed).choice(len(rows), n, replace=False)
         rows = [rows[i] for i in sorted(idx)]
     return rows
-
-
-def read_clip_list(path: str | Path) -> list[str]:
-    """Clip filenames, the first word of each line (hard_cases.py's lists),
-    skipping blank lines and # comments"""
-    lines = Path(path).read_text().splitlines()
-    return [line.split()[0] for line in lines if line.strip() and line[0] != "#"]
 
 
 def bvh_path(row: dict, data_dir: str | Path) -> Path:

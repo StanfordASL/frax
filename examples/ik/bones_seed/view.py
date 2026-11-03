@@ -24,7 +24,6 @@ from dataset import (
     OUT_DIR,
     bvh_path,
     load_g1_csv,
-    read_clip_list,
     read_metadata,
 )
 from seed_g1 import SEED_FPS, load_seed
@@ -54,12 +53,6 @@ def main(args):
     paths = [
         p for p in sorted(Path(args.frax_dir).glob("*.npz")) if args.match in p.stem
     ]
-    if args.clip_list:
-        # In the list's order (hard_cases.py: worst first)
-        order = {name: i for i, name in enumerate(read_clip_list(args.clip_list))}
-        paths = sorted(
-            (p for p in paths if p.stem in order), key=lambda p: order[p.stem]
-        )
     assert paths, f"No .npz files matching {args.match} in {args.frax_dir}"
     clips = {path.stem: path for path in paths[: args.max_clips]}
     dt = 1.0 / SEED_FPS
@@ -137,9 +130,6 @@ if __name__ == "__main__":
     parser.add_argument("--data_dir", default=DATA_DIR, help="SEED dataset root")
     parser.add_argument("--frax_dir", default=OUT_DIR, help="Retargeted clips (.npz)")
     parser.add_argument("--match", default="", help="Only clips whose name has this")
-    parser.add_argument(
-        "--clip_list", help="Only the clips in this file (hard_cases.py)"
-    )
     parser.add_argument(
         "--max_clips", type=int, default=1000, help="Most clips in the dropdown"
     )

@@ -1,6 +1,6 @@
 """Retarget BONES-SEED clips to the Unitree G1 (`seed_g1.py`), with the clips
 spread across CPU cores, and save each clip's configurations (play them back
-with view.py, and score them with evaluate.py)
+with view.py)
 
 SEED is large, so clips load in chunks, in worker processes, while the previous
 chunk retargets. Saved clips are skipped, so an interrupted run resumes
@@ -39,7 +39,6 @@ from dataset import (
     OUT_DIR,
     bvh_path,
     load_clip,
-    read_clip_list,
     read_metadata,
     select_clips,
 )
@@ -60,7 +59,7 @@ CHUNK = 1024  # Clips loaded at once
 
 def first_frame_error(robot):
     """Returns a function of (clip, configurations) giving the worst tracked link's
-    orientation error (deg) in the first frame, as evaluate.py scores it"""
+    orientation error (deg) in the first frame"""
     links = np.array([robot.joint_name_to_index[name] for name in G1_JOINT_NAMES])
 
     @jax.jit
@@ -78,10 +77,7 @@ def main(args):
     verb = "refine" if args.refine else "retarget"
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    names = read_clip_list(args.clip_list) if args.clip_list else None
-    rows = select_clips(
-        read_metadata(data_dir), args.num_clips, args.seed, args.match, names
-    )
+    rows = select_clips(read_metadata(data_dir), args.num_clips, args.seed, args.match)
 
     def saved(r):
         return out_dir / f"{r['filename']}.npz"
@@ -161,9 +157,6 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=0, help="Clip sampling seed")
     parser.add_argument(
         "--match", default="", help="Only clips whose name/package/category has this"
-    )
-    parser.add_argument(
-        "--clip_list", help="Only the clips in this file (hard_cases.py)"
     )
     parser.add_argument(
         "--global_ik_init",

@@ -1,5 +1,5 @@
 """Download the LAFAN1 dataset (Ubisoft La Forge) into data/lafan1,
-for retarget.py and evaluate.py
+for retarget.py
 
 LAFAN1 is released under CC BY-NC-ND 4.0, for non-commercial use only (see
 LICENSE_URL). Skipped if the BVH files are already there

@@ -96,18 +96,14 @@ Parallelism across CPU cores, with each core exposed to JAX as a device (`device
 python examples/ik/parallel_global_ik.py  # Global IK: one problem's starts split across cores
 python examples/ik/lafan1/retarget.py     # Retarget the whole LAFAN1 dataset to the G1, clips across cores
 python examples/ik/lafan1/view.py         # Play back the results
-python examples/ik/lafan1/evaluate.py     # Find artifacts: joint snaps, off-target links, foot skating, floor penetration
 ```
 
 `examples/ik/lafan1/lafan1_g1.py` solves the task from [GMR](https://github.com/YanjieZe/GMR)'s `bvh_to_robot.py` with one diff IK QP per frame (GMR uses two IK stages, iterated). It needs the [LAFAN1](https://github.com/ubisoft/ubisoft-laforge-animation-dataset) BVH files (CC BY-NC-ND 4.0, non-commercial use only): `python examples/ik/lafan1/download.py` puts them in `data/lafan1`
 
-The same for [BONES-SEED](https://huggingface.co/datasets/bones-studio/seed) (142k clips, 120 fps), from its uniform SOMA skeleton (one for all actors), scored against SEED's own G1 retargets (see `examples/ik/bones_seed/dataset.py` for the data setup):
+The same for [BONES-SEED](https://huggingface.co/datasets/bones-studio/seed) (142k clips, 120 fps), from its uniform SOMA skeleton (one for all actors), shown next to SEED's own G1 retargets (see `examples/ik/bones_seed/dataset.py` for the data setup):
 
 ```
 python examples/ik/bones_seed/retarget.py [--num_clips N]  # Retarget SEED (or N random clips) to the G1
 python examples/ik/bones_seed/retarget.py --refine         # Redo clips whose first frame is off target, by global IK
 python examples/ik/bones_seed/view.py                      # Play back frax's, SEED's G1, and the human, side by side
-python examples/ik/bones_seed/evaluate.py --packages       # The LAFAN1 metrics plus self-collision, frax vs. SEED's
 ```
-
-To tune on hard clips: `evaluate.py --save metrics.csv` keeps the per clip metrics, `hard_cases.py metrics.csv` picks the worst clips per failure mode (`examples/ik/bones_seed/hard_cases.txt`, from the full dataset), and `retarget.py`, `evaluate.py`, and `view.py` take `--clip_list hard_cases.txt`

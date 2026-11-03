@@ -196,8 +196,7 @@ def preprocess(frame: dict, rot_offsets: np.ndarray = ROT_OFFSETS) -> dict:
     The hip center and feet scale about the origin by LEG_SCALE. The pelvis
     sits above the hip center by PELVIS_OFFSET, and the upper body scales about
     the hip center by UPPER_SCALE. All targets then drop by FLOOR_OFFSET. The
-    default, uncalibrated ROT_OFFSETS give the human's own bone orientations
-    (as evaluate.py scores against)"""
+    default, uncalibrated ROT_OFFSETS give the human's own bone orientations"""
     pos = frame["poses"][:, :3]
     rmats = jax.vmap(quat_wxyz_to_rmat)(frame["poses"][:, 3:]) @ rot_offsets
     hips = jnp.mean(pos[_HIPS], axis=0)
