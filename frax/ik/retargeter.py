@@ -148,15 +148,16 @@ class OfflineRetargeter:
         self.compiled = {}
         self.compile_time = 0.0
 
-    # TODO: Check if clips are indeed a list or if they are a generic pytree
-    def __call__(self, clips: list) -> list:
+    def __call__(self, clips: Sequence) -> list[np.ndarray]:
         """Retarget clips
 
         Args:
-            clips (list): Input frames per clip, each with leading time axis T
+            clips (Sequence): Clips of input frames, each a pytree with leading
+                time axis T. T may differ between clips
 
         Returns:
-            list: Configurations per clip, shape (T, nq)
+            list[np.ndarray]: Configurations, one array per clip, each shape
+                (T, nq) with that clip's T
         """
         n = len(self.devices)
         lengths = [len(jax.tree.leaves(clip)[0]) for clip in clips]
