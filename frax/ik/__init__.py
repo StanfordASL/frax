@@ -1,7 +1,7 @@
 """Differential IK, retargeting, and global IK"""
 
 try:
-    import elastiqp
+    import elastiqp.jax  # noqa: F401
 except ImportError as e:
     raise ImportError(
         "frax.ik requires elastiqp and jax>=0.9.1. Please pip install 'frax[ik]'"
