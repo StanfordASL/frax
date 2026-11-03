@@ -32,7 +32,7 @@ def test_escapes_local_minimum():
     q = jnp.array([1.5])
     local, iters = solver.converge(solver.init(q), {}, 500, 0.1, 1e-8)
     np.testing.assert_allclose(local.q, [1.0], atol=1e-3)  # Stuck at the local minimum
-    # ... where no step lowers the objective, so it stops early (the Gauss-Newton
+    # ... where no step lowers the cost, so it stops early (the Gauss-Newton
     # step flips sign across the minimum, and a fixed stepsize would chatter)
     assert iters < 100
 
@@ -47,7 +47,7 @@ def test_escapes_local_minimum():
     np.testing.assert_allclose(result.q, [-2.1038], atol=1e-3)
     # Converged to the default tolerance (on |v|) vs a cost of ~1 at the local minimum
     assert result.cost < 1e-5
-    assert solver.objective(local.q, {}) > 0.5
+    assert solver.cost(local.q, {}) > 0.5
     # The first start is q itself, which converges to the local minimum
     np.testing.assert_allclose(result.qs[0], local.q, atol=1e-3)
 

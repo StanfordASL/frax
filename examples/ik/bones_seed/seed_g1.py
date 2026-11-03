@@ -163,7 +163,7 @@ SHOULDER_POSTURE_WEIGHT = 16.0
 # Orientation smoothing kernel standard deviation (s), for offline retargeting
 SMOOTH_ROT = 0.05
 # Global IK for the first frame (global_ik_init): starts, iterations, and
-# objective tolerance (see GlobalIKSolver), for clips that start in poses the zero
+# cost tolerance (see GlobalIKSolver), for clips that start in poses the zero
 # configuration converges badly from (e.g. hands behind the back). The tolerance
 # keeps the default solution unless another is clearly better
 GLOBAL_IK_SAMPLES = 32

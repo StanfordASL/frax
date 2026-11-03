@@ -28,7 +28,7 @@ class SolverState(NamedTuple):
 class SolverInfo(NamedTuple):
     qp_iters: Array
     qp_converged: Array
-    objective: Array
+    cost: Array
 
 
 MIN_STEP_RATIO = 1e-3
@@ -124,11 +124,11 @@ class DiffIKSolver:
         return SolverState(q=jnp.asarray(q0), qp_warm_start=qp_warm_start)
 
     def _qp(self, q: Array, ref):
-        """The diff IK QP at q, and its objective at v = 0 (the cost of not moving)
+        """The diff IK QP at q, and the cost of q
 
         Returns:
             tuple: P, c, G, h, A, b (A and b are None if there are no hard
-                equalities), and the objective at v = 0
+                equalities), and the cost of q (the QP objective at v = 0)
         """
         robot = self.robot
         assert q.shape == (robot.nq,), f"q has shape {q.shape}, expected ({robot.nq},)"
@@ -147,7 +147,7 @@ class DiffIKSolver:
             hs.append(h)
         G = jnp.concatenate(Gs)
         h = jnp.concatenate(hs)
-        objective = task_error + jnp.maximum(-h, 0.0) @ self.penalty
+        cost = task_error + jnp.maximum(-h, 0.0) @ self.penalty
 
         A = b = None
         if self.equalities:
@@ -156,14 +156,14 @@ class DiffIKSolver:
             b = jnp.concatenate(bs)
             # Hard equalities have no penalty, so their residual |A 0 - b| is
             # weighted like a default elastic row's
-            objective += DEFAULT_PENALTY * jnp.sum(jnp.abs(b))
-        return P, c, G, h, A, b, objective
+            cost += DEFAULT_PENALTY * jnp.sum(jnp.abs(b))
+        return P, c, G, h, A, b, cost
 
-    def objective(self, q: Array, ref) -> Array:
-        """The QP objective at v = 0 (the cost of not moving), evaluated at q and
-        any provided reference data"""
-        *_, objective = self._qp(q, ref)
-        return objective
+    def cost(self, q: Array, ref) -> Array:
+        """The cost of q: the QP objective at v = 0 (if the robot doesn't move),
+        for the given reference data"""
+        *_, cost = self._qp(q, ref)
+        return cost
 
     def solve(
         self, q: Array, ref, qp_warm_start: tuple[Array, Array, Array]
@@ -180,9 +180,9 @@ class DiffIKSolver:
                 v (Array): Generalized velocity, shape (nv,)
                 qp_warm_start (tuple[Array, Array, Array]): QP solution (x, y, z),
                     to warm-start the next QP
-                info (SolverInfo): Solver info, with the objective at q
+                info (SolverInfo): Solver info, with the cost of q
         """
-        P, c, G, h, A, b, objective = self._qp(q, ref)
+        P, c, G, h, A, b, cost = self._qp(q, ref)
         result = elastiqp.jax.solve(
             P,
             c,
@@ -194,7 +194,7 @@ class DiffIKSolver:
             eps_abs=self.solver_tol,
             warm_start=qp_warm_start if self.warm_start else None,
         )
-        info = SolverInfo(result.iters, result.converged, objective)
+        info = SolverInfo(result.iters, result.converged, cost)
         return result.x, (result.x, result.y, result.z), info
 
     def step(
@@ -218,7 +218,7 @@ class DiffIKSolver:
         self, state: SolverState, ref, max_iters: int, dt_max: float, tol: float
     ) -> tuple[SolverState, Array]:
         """Iterate on a fixed reference, accepting only steps that lower the
-        objective. Accepted steps double dt (up to dt_max), rejected ones halve it
+        cost. Accepted steps double dt (up to dt_max), rejected ones halve it
 
         Stops once max |v| <= tol (a redundant robot needs a posture task for
         this), or dt < MIN_STEP_RATIO * dt_max
@@ -243,24 +243,24 @@ class DiffIKSolver:
             return ~done & (i < max_iters)
 
         def body(carry):
-            q, v, qp_warm_start, objective, dt, i, _ = carry
+            q, v, qp_warm_start, cost, dt, i, _ = carry
             q_new = robot.integrate(q, v, dt)
             v_new, qp_warm_start_new, info = self.solve(q_new, ref, qp_warm_start)
-            accept = info.objective < objective
-            q, v, qp_warm_start, objective = jax.tree.map(
+            accept = info.cost < cost
+            q, v, qp_warm_start, cost = jax.tree.map(
                 lambda new, old: jnp.where(accept, new, old),
-                (q_new, v_new, qp_warm_start_new, info.objective),
-                (q, v, qp_warm_start, objective),
+                (q_new, v_new, qp_warm_start_new, info.cost),
+                (q, v, qp_warm_start, cost),
             )
             dt = jnp.where(accept, jnp.minimum(2.0 * dt, dt_max), 0.5 * dt)
             done = (accept & (jnp.max(jnp.abs(v)) <= tol)) | (dt < dt_min)
-            return q, v, qp_warm_start, objective, dt, i + 1, done
+            return q, v, qp_warm_start, cost, dt, i + 1, done
 
         carry = (
             state.q,
             v,
             qp_warm_start,
-            info.objective,
+            info.cost,
             jnp.asarray(dt_max, dtype=state.q.dtype),
             0,
             jnp.max(jnp.abs(v)) <= tol,

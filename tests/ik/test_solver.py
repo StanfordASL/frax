@@ -370,9 +370,9 @@ def test_converges_from_large_rotation_error(panda):
 
 
 def test_converge_stops_out_of_reach(panda):
-    """A target 2 m away: no step lowers the objective once the arm is stretched
+    """A target 2 m away: no step lowers the cost once the arm is stretched
     toward it, so converge stops on its own (well before max_iters), at a lower
-    objective, and with the EE nearer the target"""
+    cost, and with the EE nearer the target"""
     target = np.array(panda.ee_transform(PANDA_HOME))
     target[:3, 3] += [2.0, 0.0, 0.0]
     ref = {"ee_pos": target[:3, 3], "ee_rmat": target[:3, :3], "q_home": PANDA_HOME}
@@ -381,9 +381,7 @@ def test_converge_stops_out_of_reach(panda):
         solver.init(PANDA_HOME), ref, 1000, 0.02, 1e-3
     )
     assert iters < 1000
-    assert solver.objective(state.q, ref) < solver.objective(
-        jnp.asarray(PANDA_HOME), ref
-    )
+    assert solver.cost(state.q, ref) < solver.cost(jnp.asarray(PANDA_HOME), ref)
     reach = np.linalg.norm(
         np.asarray(panda.ee_transform(state.q))[:3, 3] - target[:3, 3]
     )
@@ -414,15 +412,15 @@ def test_damping_settles_out_of_reach(panda):
     assert reversals(qs) > 100
     qs, info = _rollout(damped, PANDA_HOME, refs)
     assert reversals(qs) == 0
-    assert np.all(np.diff(np.asarray(info.objective)[-1000:]) <= 1e-9)
+    assert np.all(np.diff(np.asarray(info.cost)[-1000:]) <= 1e-9)
 
 
-def test_info_objective(panda):
-    """SolverInfo's objective is DiffIKSolver.objective at the step's q"""
+def test_info_cost(panda):
+    """SolverInfo's cost is DiffIKSolver.cost at the step's q"""
     target = np.asarray(panda.ee_transform(PANDA_HOME + 0.3))
     ref = {"ee_pos": target[:3, 3], "ee_rmat": target[:3, :3], "q_home": PANDA_HOME}
     solver = _panda_ee_solver(panda)
     q = jnp.asarray(PANDA_HOME)
     _, _, info = solver.step(solver.init(q), ref, 0.02)
-    np.testing.assert_allclose(info.objective, solver.objective(q, ref), rtol=1e-12)
-    assert info.objective > 0
+    np.testing.assert_allclose(info.cost, solver.cost(q, ref), rtol=1e-12)
+    assert info.cost > 0

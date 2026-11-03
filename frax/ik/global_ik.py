@@ -94,10 +94,10 @@ class GlobalIKSolver:
         dt_max (float | None): Largest convergence stepsize. Defaults to
             1 / solver.max_gain
         tol (float): Convergence tolerance on max |v|
-        cost_tol (float | None): Objective tolerance for acceptable solutions. If
+        cost_tol (float | None): Cost tolerance for acceptable solutions. If
             this term is set, then we return the closest sampled solution that is
-            within cost_tol in objective. Defaults to None (select the lowest objective
-            value regardless of how far the solution is in configuration space)
+            within cost_tol of the lowest cost. Defaults to None (select the lowest
+            cost regardless of how far the solution is in configuration space)
         devices ("all" | "default" | Sequence[jax.Device]): Devices to parallelize
             the samples across. Defaults to "default" (JAX's default device).
     """
@@ -163,7 +163,7 @@ class GlobalIKSolver:
             state, iters = solver.converge(
                 solver.init(q0), ref, self.max_iters, self.dt_max, self.tol
             )
-            return state.q, iters, solver.objective(state.q, ref)
+            return state.q, iters, solver.cost(state.q, ref)
 
         def select(qs, costs, iters, sampled):
             if self.cost_tol is None:
