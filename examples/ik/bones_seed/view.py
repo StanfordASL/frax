@@ -24,9 +24,10 @@ from dataset import (
     OUT_DIR,
     bvh_path,
     load_g1_csv,
+    load_seed,
     read_metadata,
 )
-from seed_g1 import SEED_FPS, load_seed
+from seed_g1 import SEED_FPS
 from viser.extras import ViserUrdf
 
 from frax.assets import G1_ASSETS_DIR

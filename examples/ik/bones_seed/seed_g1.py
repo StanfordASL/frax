@@ -1,5 +1,4 @@
-"""BONES-SEED motion capture -> Unitree G1 retargeting: BVH loading, and the
-retargeter
+"""BONES-SEED motion capture -> Unitree G1 retargeting
 
 The task and tuning follow `examples/ik/lafan1/lafan1_g1.py`, retargeting SEED's
 SOMA skeletons directly, rather than via NVIDIA's soma-retargeter
@@ -10,8 +9,6 @@ G1's zero configuration
 SEED's "uniform" clips share one SOMA skeleton for all actors, so the scales and
 floor offset are constants
 """
-
-from pathlib import Path
 
 import jax
 import jax.numpy as jnp
@@ -28,28 +25,10 @@ from frax.ik import (
     JointTask,
     Retargeter,
     SelfCollisionConstraint,
-    load_bvh,
 )
 from frax.utils.rotation_utils import quat_wxyz_to_rmat, rmat_to_quat_wxyz
 
 SEED_FPS = 120
-# BVH (Y-up, facing +z) -> world (Z-up, facing +x)
-BVH_TO_WORLD = Rotation.from_euler("z", 90, degrees=True).as_matrix() @ np.array(
-    [[1, 0, 0], [0, 0, -1], [0, 1, 0]]
-)
-
-
-def load_seed(filepath: str | Path) -> tuple[np.ndarray, list[str]]:
-    """Global bone poses from a SEED (SOMA) BVH file (load_bvh). Raises
-    ValueError if any frame has NaNs, as a few SEED clips do
-
-    Returns:
-        poses (np.ndarray): Poses [position, WXYZ quaternion], shape (T, B, 7)
-        names (list[str]): The B bone names
-    """
-    return load_bvh(filepath, BVH_TO_WORLD)
-
-
 # fmt: off
 # (G1 joint whose child link is tracked, SOMA bone, position weight, rotation
 # weight, rotation offset (WXYZ, applied in the bone frame)). The root comes

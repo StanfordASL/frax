@@ -15,13 +15,29 @@ from pathlib import Path
 
 import numpy as np
 from scipy.spatial.transform import Rotation
-from seed_g1 import SEED_BONES, SEED_FPS, load_seed
+from seed_g1 import SEED_BONES, SEED_FPS
 
-from frax.ik import smooth_poses
+from frax.ik import load_bvh, smooth_poses
 
 DATA_DIR = Path(__file__).parents[3] / "data/seed"
 OUT_DIR = Path(__file__).parents[3] / "data/seed_frax"
 METADATA = "metadata/seed_metadata_v004.csv"
+
+# BVH (Y-up, facing +z) -> world (Z-up, facing +x)
+BVH_TO_WORLD = Rotation.from_euler("z", 90, degrees=True).as_matrix() @ np.array(
+    [[1, 0, 0], [0, 0, -1], [0, 1, 0]]
+)
+
+
+def load_seed(filepath: str | Path) -> tuple[np.ndarray, list[str]]:
+    """Global bone poses from a SEED BVH file. Raises
+    ValueError if any frame has NaNs, as a few SEED clips do
+
+    Returns:
+        poses (np.ndarray): Poses [position, WXYZ quaternion], shape (T, B, 7)
+        names (list[str]): The B bone names
+    """
+    return load_bvh(filepath, BVH_TO_WORLD)
 
 
 def read_metadata(data_dir: str | Path = DATA_DIR) -> list[dict]:
