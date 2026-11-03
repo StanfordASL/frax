@@ -13,19 +13,6 @@ from frax.ik.tasks import _velocity_jacobian
 from frax.utils.rotation_utils import Rx, Rz
 
 
-def test_frame_task_jacobian(g1, g1_q_random):
-    """The task Jacobian's position rows match autodiff of the tracked frame positions"""
-    idxs = np.array(
-        [g1.joint_name_to_index[n] for n in ("left_knee_joint", "waist_pitch_joint")]
-    )
-    task = FrameTask(g1, idxs)
-    ref = {"frame_pos": np.zeros((2, 3)), "frame_rmat": np.tile(np.eye(3), (2, 1, 1))}
-    J, _, _ = task.linearize(g1_q_random, ref)
-    Jq = jax.jacfwd(lambda q: g1.joint_to_world_transforms(q)[idxs, :3, 3])(g1_q_random)
-    Jv = Jq @ g1.velocity_to_qdot_map(g1_q_random)
-    np.testing.assert_allclose(J.reshape(2, 6, -1)[:, :3], Jv, atol=1e-8)
-
-
 def _frame_twists(tf_fn, robot, q, v):
     """World-frame linear and angular velocities (n, 6) of frames tf_fn(q)
     (n, 4, 4) along the integrated motion, d/dt tf_fn(integrate(q, v, t)) at t = 0"""

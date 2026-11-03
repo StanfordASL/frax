@@ -14,6 +14,7 @@ from frax.utils.rotation_utils import (
     omega_body_from_wxyz_quaternions,
     omega_world_from_wxyz_quaternions,
     orientation_error_3D,
+    orientation_error_quat,
     quat_wxyz_conjugate,
     quat_wxyz_exp,
     quat_wxyz_log,
@@ -23,7 +24,6 @@ from frax.utils.rotation_utils import (
     quat_wxyz_to_rmat,
     rmat_to_quat_wxyz,
     rotate_vector_by_quat_wxyz,
-    orientation_error_quat,
     slerp,
     wxyz_to_xyzw,
     xyzw_to_wxyz,
@@ -274,7 +274,7 @@ def test_orientation_error():
 
 
 @pytest.mark.parametrize("angle", [1e-4, 0.5, 1.5, 2.5, 3.1])
-def test_rotation_error(angle):
+def test_orientation_error_quat(angle):
     axis = np.random.randn(3)
     axis /= np.linalg.norm(axis)
     R_des = quat_wxyz_to_rmat(random_quat())

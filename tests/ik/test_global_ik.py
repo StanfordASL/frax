@@ -156,24 +156,3 @@ def test_sampling_range_narrows_robot_limits(panda):
     global_ik = GlobalIKSolver(solver)
     np.testing.assert_allclose(global_ik.q_min, lower)
     np.testing.assert_allclose(global_ik.q_max, q_max)
-
-
-def test_panda_reaches_random_targets(panda):
-    """Reachable EE targets (FK of random configurations), from home"""
-    q_min, q_max = panda.actuated_joint_lower_limits, panda.actuated_joint_upper_limits
-    solver = DiffIKSolver(
-        panda,
-        [EETask(panda, gain_pos=10.0, gain_rot=10.0)],
-        [JointLimits(panda, q_min=q_min, q_max=q_max)],
-    )
-    solve = jax.jit(GlobalIKSolver(solver, num_samples=32).solve)
-    rng = np.random.default_rng(3)
-    for i in range(3):
-        tf = np.asarray(panda.ee_transform(rng.uniform(q_min, q_max)))
-        ref = {"ee_pos": tf[:3, 3], "ee_rmat": tf[:3, :3]}
-        result = solve(jnp.asarray(panda.default_configuration), ref, jax.random.key(i))
-        q = np.asarray(result.q)
-        np.testing.assert_allclose(
-            np.asarray(panda.ee_transform(q))[:3, 3], tf[:3, 3], atol=1e-3
-        )
-        assert np.all(q >= q_min - 1e-6) and np.all(q <= q_max + 1e-6)

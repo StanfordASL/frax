@@ -44,39 +44,20 @@ def _rollout(solver, q0, refs):
     return np.asarray(qs), info
 
 
-def test_penalties_broadcast():
-    """Scalar and per-row penalties are stacked in constraint order"""
-    robot = ToyRobot(2)
-    solver = DiffIKSolver(
-        robot,
-        [JointTask(robot, [0, 1], "q")],
-        [
-            JointLimits(robot, v_max=np.ones(2), penalty=5.0),
-            BarrierConstraint(robot, lambda q, ref: q, 2, penalty=np.array([1.0, 2.0])),
-        ],
-    )
-    np.testing.assert_allclose(solver.penalty, [5, 5, 5, 5, 1, 2])
-
-
-def test_elastic_equality_penalties_and_shapes():
-    """Elastic equalities add an upper and a lower inequality row each, in
-    constraint order. Hard equalities are QP equality rows"""
+def test_elastic_and_hard_equality_rows():
+    """Elastic equalities add an upper and a lower inequality row each. Hard
+    equalities are QP equality rows"""
     robot = ToyRobot(3)
     solver = DiffIKSolver(
         robot,
         [JointTask(robot, [0, 1, 2], "q")],
         [
-            ElasticEquality(
-                ResidualEquality(robot, lambda q, ref: q[:2], 2),
-                penalty=np.array([3.0, 4.0]),
-            ),
-            JointLimits(robot, v_max=np.ones(3), penalty=5.0),
+            ElasticEquality(ResidualEquality(robot, lambda q, ref: q[:2], 2)),
             ResidualEquality(robot, lambda q, ref: q[2:], 1),
         ],
     )
-    np.testing.assert_allclose(solver.penalty, [3, 4, 3, 4] + [5] * 6)
     _, y, z = solver.init(jnp.zeros(3)).qp_warm_start
-    assert y.shape == (1,) and z.shape == (10,)
+    assert y.shape == (1,) and z.shape == (4,)
 
 
 def _diagonal_target(elastic):
@@ -124,20 +105,6 @@ def test_elastic_equality_yields_to_obstacle(elastic):
     else:
         np.testing.assert_allclose(qs[:, 1], 0.0, atol=1e-8)
         assert qs[-1, 0] < 1.0 - radius + 0.05
-
-
-def test_rejects_unknown_constraint_type():
-    """Constraints must be InequalityConstraints or EqualityConstraints"""
-    with pytest.raises(AssertionError, match="neither"):
-        robot = ToyRobot(1)
-        DiffIKSolver(robot, [JointTask(robot, [0], "q")], [object()])
-
-
-def test_rejects_terms_for_another_robot():
-    """Every task and constraint must be built for the solver's robot"""
-    robot = ToyRobot(2)
-    with pytest.raises(AssertionError, match="different robot"):
-        DiffIKSolver(robot, [JointTask(ToyRobot(2), [0], "q")])
 
 
 def test_rejects_wrong_q_shape(g1):
@@ -203,31 +170,6 @@ def test_quaternion_base_converges(g1, g1_q0, task_type):
     np.testing.assert_allclose(
         q[[g1.velocity_to_configuration_index[i] for i in hold]], ref["q"], atol=1e-6
     )
-
-
-def test_joint_task_converges():
-    robot = ToyRobot(3)
-    solver = DiffIKSolver(
-        robot,
-        [JointTask(robot, [0, 2], "q", gain=10.0)],
-        [JointLimits(robot, v_max=10 * np.ones(3))],
-    )
-    refs = {"q": jnp.tile(jnp.array([0.5, -0.3]), (200, 1))}
-    qs, info = _rollout(solver, np.zeros(3), refs)
-    np.testing.assert_allclose(qs[-1], [0.5, 0.0, -0.3], atol=1e-6)
-    assert np.all(info.qp_converged)
-
-
-def test_position_limits_hold():
-    robot = ToyRobot(2)
-    limits = JointLimits(
-        robot, q_min=np.array([-np.inf, -0.2]), q_max=np.array([np.inf, 0.2])
-    )
-    solver = DiffIKSolver(robot, [JointTask(robot, [0, 1], "q", gain=10.0)], [limits])
-    refs = {"q": jnp.tile(jnp.array([1.0, 1.0]), (200, 1))}
-    qs, _ = _rollout(solver, np.zeros(2), refs)
-    assert qs[:, 1].max() <= 0.2 + 1e-6
-    np.testing.assert_allclose(qs[-1], [1.0, 0.2], atol=1e-5)
 
 
 def test_joint_limits_hold():

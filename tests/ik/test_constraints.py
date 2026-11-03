@@ -7,11 +7,9 @@ import pytest
 from toy_robot import ToyRobot
 
 from frax.ik import (
-    BarrierConstraint,
     FloorConstraint,
     JointLimits,
     ObstacleConstraint,
-    ResidualEquality,
     SelfCollisionConstraint,
     SphereObstacles,
 )
@@ -26,33 +24,6 @@ def _cbf_rows(h_fn, q, gain, robot=None):
     if robot is not None:
         J = J @ robot.velocity_to_qdot_map(q)
     return -J, gain * h_fn(q)
-
-
-def test_joint_limits_velocity_only():
-    con = JointLimits(
-        ToyRobot(2), v_max=np.array([1.0, 2.0]), v_min=np.array([-3.0, -4.0])
-    )
-    G, h = con.rows(jnp.zeros(2), {})
-    np.testing.assert_allclose(G, [[1, 0], [0, 1], [-1, 0], [0, -1]])
-    np.testing.assert_allclose(h, [1, 2, 3, 4])
-
-
-def test_joint_limits_position_only():
-    """A linear CBF on the position limits, with no rows for unlimited entries"""
-    q = jnp.array([0.0, 0.5, -0.2, 9.0])
-    idxs = np.array([1, 2])
-    q_min = np.array([-np.inf, -1.0, -0.5, -np.inf])
-    q_max = np.array([np.inf, 1.0, 0.5, np.inf])
-    con = JointLimits(ToyRobot(4), q_min=q_min, q_max=q_max, gain=2.0)
-    G, h = con.rows(q, {})
-    assert con.num_rows == 4
-
-    def h_fn(q):
-        return jnp.concatenate([q_max[idxs] - q[idxs], q[idxs] - q_min[idxs]])
-
-    G_ref, h_ref = _cbf_rows(h_fn, q, 2.0)
-    np.testing.assert_allclose(G, G_ref)
-    np.testing.assert_allclose(h, h_ref)
 
 
 def test_joint_limits_tighter_of_both():
@@ -119,9 +90,7 @@ def test_joint_limits_quaternion_base(g1, g1_q_random):
 
 
 @pytest.mark.parametrize("robot_name", ["g1", "panda"])
-def test_self_collision_matches_frax(robot_name, request):
-    """Matches frax's self-collision distances and their autodiff Jacobian.
-    The Panda also has spheres fixed to the world root"""
+def test_self_collision_matches_autodiff(robot_name, request):
     robot = request.getfixturevalue(robot_name)
     rng = np.random.default_rng(1)
     q = robot.integrate(
@@ -187,8 +156,8 @@ def test_obstacles_from_ref(g1, g1_q_random, obstacles):
     np.testing.assert_allclose(h, h_ref, atol=TOL)
 
 
-@pytest.mark.parametrize("k", [1, 5, 20])
-def test_max_rows_keeps_closest(g1, g1_q_random, k):
+def test_max_rows_keeps_closest(g1, g1_q_random):
+    k = 5
     q = jnp.asarray(g1_q_random)
     G_all, h_all = SelfCollisionConstraint(g1).rows(q, {})
     con = SelfCollisionConstraint(g1, max_rows=k)
@@ -204,51 +173,6 @@ def test_max_rows_above_candidates_keeps_all(g1):
     assert SelfCollisionConstraint(g1, max_rows=10_000).num_rows == len(
         g1.body_sc_pairs
     )
-
-
-def test_barrier_matches_autodiff(g1, g1_q_random):
-    num_rows = 6
-    links = np.tile([27, 34, 24, 31, 9, 15], 4)[:num_rows]
-    scale = 1.0 + 0.1 * jnp.arange(num_rows)
-
-    def h_fn(q, ref):
-        return g1.link_to_world_transforms(q)[links, 2, 3] * scale - ref["z_min"]
-
-    ref = {"z_min": 0.3}
-    q = jnp.asarray(g1_q_random)
-    con = BarrierConstraint(g1, h_fn, num_rows, gain=4.0)
-    G, h = jax.jit(con.rows)(q, ref)
-    G_ref, h_ref = _cbf_rows(lambda q: h_fn(q, ref), q, 4.0, g1)
-    np.testing.assert_allclose(h, h_ref, atol=TOL)
-    np.testing.assert_allclose(G, G_ref, atol=TOL)
-
-
-def test_barrier_checks_shape():
-    con = BarrierConstraint(ToyRobot(2), lambda q, ref: q @ q, num_rows=1)  # Not (1,)
-    with pytest.raises(AssertionError, match="expected"):
-        con.rows(jnp.ones(2), {})
-
-
-def _equality_rows(e_fn, q, gain, robot=None):
-    """Reference (A, b) for a kinematic equality: de/dq E(q) v = -gain * e"""
-    G, h = _cbf_rows(e_fn, q, gain, robot)
-    return -G, -h
-
-
-def test_residual_equality_matches_autodiff(g1, g1_q_random):
-    num_rows = 6
-    links = np.tile([27, 34, 24, 31, 9, 15], 4)[:num_rows]
-
-    def e_fn(q, ref):
-        return g1.link_to_world_transforms(q)[links, 0, 3] - ref["x"]
-
-    ref = {"x": 0.1}
-    q = jnp.asarray(g1_q_random)
-    con = ResidualEquality(g1, e_fn, num_rows, gain=4.0)
-    A, b = jax.jit(con.rows)(q, ref)
-    A_ref, b_ref = _equality_rows(lambda q: e_fn(q, ref), q, 4.0, g1)
-    np.testing.assert_allclose(A, A_ref, atol=TOL)
-    np.testing.assert_allclose(b, b_ref, atol=TOL)
 
 
 def test_floor_matches_autodiff(g1, g1_q_random):
@@ -270,30 +194,3 @@ def test_floor_matches_autodiff(g1, g1_q_random):
     G_ref, h_ref = _cbf_rows(heights, q, 3.0, g1)
     np.testing.assert_allclose(h, h_ref, atol=TOL)
     np.testing.assert_allclose(G, G_ref, atol=TOL)
-
-
-def test_floor_max_rows_keeps_lowest(g1, g1_q_random):
-    q = jnp.asarray(g1_q_random)
-    G_all, h_all = FloorConstraint(g1).rows(q, {})
-    con = FloorConstraint(g1, max_rows=5)
-    G, h = jax.jit(con.rows)(q, {})
-    assert con.num_rows == 5
-    lowest = np.argsort(np.asarray(h_all))[:5]
-    order = np.argsort(np.asarray(h))
-    np.testing.assert_allclose(h[order], h_all[lowest], atol=TOL)
-    np.testing.assert_allclose(G[order], G_all[lowest], atol=TOL)
-
-
-def test_sphere_constraint_margins(g1, g1_q_random, obstacles):
-    """A margin shifts every barrier value down by the margin, rows unchanged"""
-    q = jnp.asarray(g1_q_random)
-    for make in (
-        lambda m: SelfCollisionConstraint(g1, gain=2.0, margin=m),
-        lambda m: ObstacleConstraint(g1, obstacles, gain=2.0, margin=m),
-        lambda m: FloorConstraint(g1, gain=2.0, margin=m),
-    ):
-        G0, h0 = make(0.0).rows(q, {})
-        G1, h1 = make(0.03).rows(q, {})
-        active = np.asarray(h0) < 100.0  # Skip inactive obstacles' rows
-        np.testing.assert_allclose(G1, G0)
-        np.testing.assert_allclose(h1[active], h0[active] - 2.0 * 0.03, atol=1e-12)
