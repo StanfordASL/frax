@@ -18,10 +18,6 @@
     options:
       show_root_heading: false
 
-::: frax.ik.parallel
-    options:
-      show_root_heading: false
-
 ::: frax.ik.utils
     options:
       show_root_heading: false

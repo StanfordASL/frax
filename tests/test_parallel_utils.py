@@ -5,8 +5,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from frax.ik import device_vmap
-from frax.ik.parallel import _resolve_devices
+from frax.utils.parallel_utils import _resolve_devices, device_vmap
 
 
 def f(x, shared):

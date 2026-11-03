@@ -21,7 +21,6 @@ from frax.ik.constraints import (
     SphereObstacles,
 )
 from frax.ik.global_ik import GlobalIKResult, GlobalIKSolver, sample_configurations
-from frax.ik.parallel import device_vmap
 from frax.ik.retargeter import OfflineRetargeter, OnlineRetargeter, Retargeter
 from frax.ik.solver import DiffIKSolver, SolverInfo, SolverState
 from frax.ik.tasks import (
@@ -58,7 +57,6 @@ __all__ = [
     "SolverState",
     "SphereObstacles",
     "Task",
-    "device_vmap",
     "load_bvh",
     "resample_poses",
     "sample_configurations",

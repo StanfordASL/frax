@@ -90,7 +90,7 @@ python examples/ik/panda_obstacle.py     # Panda tracking around an obstacle you
 python examples/ik/a2_interactive.py     # Drag the A2 quadruped's base and feet
 ```
 
-Parallelism across CPU cores, with each core exposed to JAX as a device (`frax.ik.parallel`, `device_vmap`):
+Parallelism across CPU cores, with each core exposed to JAX as a device (`device_vmap`, in `frax.utils.parallel_utils`):
 
 ```
 python examples/ik/parallel_global_ik.py  # Global IK: one problem's starts split across cores

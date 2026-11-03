@@ -10,8 +10,8 @@ import numpy as np
 from jax import Array
 
 from frax.ik.global_ik import GlobalIKSolver
-from frax.ik.parallel import _resolve_devices, device_vmap
 from frax.ik.solver import DiffIKSolver, SolverInfo, SolverState
+from frax.utils.parallel_utils import _resolve_devices, device_vmap
 
 
 @jax.tree_util.register_static

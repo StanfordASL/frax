@@ -1,14 +1,12 @@
 """Parallelism across CPU devices with JAX
 
-To use multiple CPU cores, call jax.config.update("jax_num_cpu_devices", N)
-before JAX first runs, or set XLA_FLAGS=--xla_force_host_platform_device_count=N
+To use multiple CPU cores, set XLA_FLAGS=--xla_force_host_platform_device_count=N,
+or on newer JAX, call jax.config.update("jax_num_cpu_devices", N) before JAX
+first runs
 """
 
-# TODO: Decide if this is worth moving out of ik and into utils?
-# It's not ik specific and could apply to batched dynamics evals on CPU..
-# just need to check if this works on older jax versions
-
 from collections.abc import Callable, Sequence
+from functools import partial
 from typing import Literal
 
 import jax
@@ -16,6 +14,14 @@ import jax.numpy as jnp
 import numpy as np
 from jax.sharding import Mesh
 from jax.sharding import PartitionSpec as P
+
+# Patch for older jax, which has shard_map only under experimental
+if hasattr(jax, "shard_map"):
+    _shard_map = partial(jax.shard_map, check_vma=False)
+else:
+    from jax.experimental.shard_map import shard_map
+
+    _shard_map = partial(shard_map, check_rep=False)
 
 
 def _resolve_devices(
@@ -66,12 +72,11 @@ def device_vmap(
         args = [
             jax.tree.map(pad_leaf, a) if axis == 0 else a for a, axis in zip(args, axes)
         ]
-        out = jax.shard_map(
+        out = _shard_map(
             vf,
             mesh=Mesh(np.asarray(devs), ("batch",)),
             in_specs=tuple(P("batch") if axis == 0 else P() for axis in axes),
             out_specs=P("batch"),
-            check_vma=False,  # elastiqp's FFI call has no varying-axes rule
         )(*args)
         return jax.tree.map(lambda x: x[:n], out)
 

@@ -18,8 +18,8 @@ from numpy.typing import ArrayLike
 
 from frax.core.robot import Robot
 from frax.ik.constraints import JointLimits
-from frax.ik.parallel import _resolve_devices, device_vmap
 from frax.ik.solver import DiffIKSolver
+from frax.utils.parallel_utils import _resolve_devices, device_vmap
 
 
 class GlobalIKResult(NamedTuple):
