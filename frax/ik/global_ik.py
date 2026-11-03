@@ -22,14 +22,13 @@ from frax.ik.parallel import _resolve_devices, device_vmap
 from frax.ik.solver import DiffIKSolver
 
 
-# TODO check on the type annotation of sampled and if it is even necessary
 class GlobalIKResult(NamedTuple):
     q: Array  # Best configuration
     cost: Array  # Best cost
     qs: Array  # Every converged q from multiple samples
     costs: Array  # Every cost from multiple samples
     iters: Array  # Convergence iterations per sample
-    sampled: Array
+    sampled: Array  # Whether samples were necessary to meet the tolerance
 
 
 # TODO: It's a little weird that there is no sampling for the floating base?
