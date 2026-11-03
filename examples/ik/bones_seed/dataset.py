@@ -1,9 +1,13 @@
-"""BONES-SEED dataset files: metadata, clip selection, loading clips as
-retargeter input frames (seed_g1.py), and SEED's own G1 retargets (by NVIDIA's
-soma-retargeter), for comparison
+"""BONES-SEED dataset processing utils
 
-Data: https://huggingface.co/datasets/bones-studio/seed. Clone it (git lfs),
-extract soma_uniform.tar.gz and g1.tar.gz in its root, and link it to data/seed
+See: https://huggingface.co/datasets/bones-studio/seed
+
+To fetch the data, you'll need to clone it (with git lfs),
+extract soma_uniform.tar.gz, and (optionally) link it to
+data/seed in the frax folder
+
+If you want to compare against the SOMA retargeter's
+performance, extract g1.tar.gz as well
 """
 
 import csv
@@ -16,13 +20,11 @@ from seed_g1 import SEED_BONES, SEED_FPS, load_seed
 from frax.ik import smooth_poses
 
 DATA_DIR = Path(__file__).parents[3] / "data/seed"
-# Retargeted clips (retarget.py)
 OUT_DIR = Path(__file__).parents[3] / "data/seed_frax"
 METADATA = "metadata/seed_metadata_v004.csv"
 
 
 def read_metadata(data_dir: str | Path = DATA_DIR) -> list[dict]:
-    """One dict per clip (see SEED's README for the columns)"""
     with open(Path(data_dir) / METADATA, newline="") as f:
         return list(csv.DictReader(f))
 
@@ -33,8 +35,6 @@ def select_clips(
     seed: int = 0,
     match: str = "",
 ) -> list[dict]:
-    """Clips whose filename, package, or category contains `match`, then n of
-    them at random (all if n is None)"""
     rows = [
         r
         for r in rows
@@ -47,14 +47,10 @@ def select_clips(
 
 
 def bvh_path(row: dict, data_dir: str | Path) -> Path:
-    """A clip's BVH file, on SEED's uniform SOMA skeleton (one for all actors)"""
     return Path(data_dir) / row["move_soma_uniform_path"]
 
 
 def load_clip(path: str | Path, sigma_rot: float) -> dict | None:
-    """Retargeter input frames for a clip: {"poses": SEED_BONES poses (T, n, 7),
-    smoothed}, or None if the clip has NaN frames. Offline, so the bone
-    orientations can be smoothed without lag"""
     try:
         poses, names = load_seed(path)
     except ValueError:
@@ -66,11 +62,6 @@ def load_clip(path: str | Path, sigma_rot: float) -> dict | None:
 
 
 def load_g1_csv(path: str | Path) -> np.ndarray:
-    """SEED's G1 retarget of a clip, as q = [root position, root WXYZ
-    quaternion, joints] per frame (T, 36), in load_seed's world frame. The CSV
-    has the root position (cm), its extrinsic XYZ Euler angles (deg), and the
-    joints (deg), in G1's (and frax's) joint order, in a world frame turned
-    -90 deg about z from load_seed's"""
     data = np.loadtxt(path, delimiter=",", skiprows=1)[:, 1:]
     turn = Rotation.from_euler("z", 90, degrees=True)
     rot = turn * Rotation.from_euler("xyz", data[:, 3:6], degrees=True)
