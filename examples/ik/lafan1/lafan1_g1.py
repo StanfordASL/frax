@@ -159,7 +159,7 @@ def preprocess(human_poses: Array) -> dict:
     targets = targets.at[0].set(LEG_SCALE * hips + rmats[0] @ PELVIS_OFFSET)
     targets = targets.at[_FEET].set(LEG_SCALE * pos[_FEET])
     # FrameTask's default reference keys
-    return {"frame_pos": targets - FLOOR_OFFSET, "frame_rmats": rmats}
+    return {"frame_pos": targets - FLOOR_OFFSET, "frame_rmat": rmats}
 
 
 def make_retargeter(
@@ -189,7 +189,7 @@ def make_retargeter(
         """The robot's default joint positions, with the root at the first target
         pelvis pose"""
         ref = preprocess(human_poses)
-        root_quat = rmat_to_quat_wxyz(ref["frame_rmats"][0])
+        root_quat = rmat_to_quat_wxyz(ref["frame_rmat"][0])
         q = jnp.asarray(robot.default_configuration).at[:3].set(ref["frame_pos"][0])
         return q.at[3:7].set(root_quat)
 

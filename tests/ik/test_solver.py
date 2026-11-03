@@ -190,7 +190,7 @@ def test_quaternion_base_converges(g1, g1_q0, task_type):
     )
     ref = {
         "frame_pos": g1_q0[None, :3],
-        "frame_rmats": R_target[None],
+        "frame_rmat": R_target[None],
         "q": g1_q0[[g1.velocity_to_configuration_index[i] for i in hold]],
     }
     state, iters = jax.jit(solver.converge, static_argnums=(2, 3, 4))(
@@ -304,7 +304,7 @@ def test_self_collision_holds(g1, g1_q0):
         FrameTask(g1, [base], gain_pos=10.0, gain_rot=10.0),
     ]
     refs["frame_pos"] = jnp.tile(g1_q0[:3], (T, 1, 1))
-    refs["frame_rmats"] = jnp.tile(jnp.eye(3), (T, 1, 1, 1))
+    refs["frame_rmat"] = jnp.tile(jnp.eye(3), (T, 1, 1, 1))
     vel = JointLimits(g1, q_min=None, q_max=None)
     min_dist = jax.jit(jax.vmap(lambda q: g1.self_collision_distances(q).min()))
 

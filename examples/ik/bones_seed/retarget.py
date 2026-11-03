@@ -66,7 +66,7 @@ def first_frame_error(robot):
     @jax.jit
     def error(frame, q):
         rmats = robot.joint_to_world_transforms(q)[links, :3, :3]
-        rel = jnp.swapaxes(rmats, -1, -2) @ preprocess(frame)["frame_rmats"]
+        rel = jnp.swapaxes(rmats, -1, -2) @ preprocess(frame)["frame_rmat"]
         cos = (jnp.trace(rel, axis1=-2, axis2=-1) - 1) / 2
         return jnp.degrees(jnp.max(jnp.arccos(jnp.clip(cos, -1.0, 1.0))))
 

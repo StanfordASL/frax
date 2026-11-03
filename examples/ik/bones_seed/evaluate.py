@@ -139,7 +139,7 @@ class Evaluator:
 
     def clip(self, human: dict, q: np.ndarray) -> dict:
         q = np.asarray(q, dtype=float)
-        target = _bucketed(self.preprocess, human)["frame_rmats"]
+        target = _bucketed(self.preprocess, human)["frame_rmat"]
         tfs = _bucketed(self.fk, q)
         rot_err = np.degrees(_angle(tfs[..., :3, :3], target))
 

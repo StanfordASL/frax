@@ -19,7 +19,7 @@ def test_frame_task_jacobian(g1, g1_q_random):
         [g1.joint_name_to_index[n] for n in ("left_knee_joint", "waist_pitch_joint")]
     )
     task = FrameTask(g1, idxs)
-    ref = {"frame_pos": np.zeros((2, 3)), "frame_rmats": np.tile(np.eye(3), (2, 1, 1))}
+    ref = {"frame_pos": np.zeros((2, 3)), "frame_rmat": np.tile(np.eye(3), (2, 1, 1))}
     J, _, _ = task.linearize(g1_q_random, ref)
     Jq = jax.jacfwd(lambda q: g1.joint_to_world_transforms(q)[idxs, :3, 3])(g1_q_random)
     Jv = Jq @ g1.velocity_to_qdot_map(g1_q_random)
@@ -52,7 +52,7 @@ def test_frame_task_offsets(g1, g1_q_random):
         return g1.joint_to_world_transforms(q)[idxs] @ offsets
 
     tfs = np.asarray(tf_fn(g1_q_random))
-    ref = {"frame_pos": tfs[:, :3, 3], "frame_rmats": tfs[:, :3, :3]}
+    ref = {"frame_pos": tfs[:, :3, 3], "frame_rmat": tfs[:, :3, :3]}
     task = FrameTask(g1, idxs, gain_pos=2.0, gain_rot=3.0, offsets=offsets)
     J, v_des, _ = task.linearize(jnp.asarray(g1_q_random), ref)
     np.testing.assert_allclose(v_des, 0.0, atol=1e-12)  # Reference = current pose
@@ -70,13 +70,13 @@ def test_frame_task_one_component(g1, g1_q_random):
     rmats = Rotation.random(2, random_state=7).as_matrix()
     kwargs = {"gain_pos": 2.0, "gain_rot": 3.0, "weight_pos": 4.0, "weight_rot": 5.0}
     full = FrameTask(g1, idxs, **kwargs).linearize(
-        g1_q_random, {"frame_pos": pos, "frame_rmats": rmats}
+        g1_q_random, {"frame_pos": pos, "frame_rmat": rmats}
     )
     for task, ref, rows in (
         (FrameTask(g1, idxs, **kwargs, rot_key=None), {"frame_pos": pos}, slice(0, 3)),
         (
             FrameTask(g1, idxs, **kwargs, pos_key=None),
-            {"frame_rmats": rmats},
+            {"frame_rmat": rmats},
             slice(3, 6),
         ),
     ):

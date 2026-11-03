@@ -137,7 +137,7 @@ class Evaluator:
         frames = poses[:, [names.index(b) for b in LAFAN1_BONES]]
         if self.sigma_rot > 0:
             frames = smooth_poses(frames, 1.0 / LAFAN1_FPS, sigma_rot=self.sigma_rot)
-        target = _bucketed(self.preprocess, frames)["frame_rmats"]
+        target = _bucketed(self.preprocess, frames)["frame_rmat"]
         tfs = _bucketed(self.fk, q)
         rot_err = np.degrees(_angle(tfs[..., :3, :3], target))
 

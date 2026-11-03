@@ -169,7 +169,6 @@ class _PoseTask(Task):
         )
 
 
-# TODO is frame_pos and frame_rmats really the best name
 @jax.tree_util.register_static
 class FrameTask(_PoseTask):
     """Track world-frame positions and/or orientations of joint frames
@@ -196,7 +195,7 @@ class FrameTask(_PoseTask):
         weight_pos: ArrayLike = 1.0,
         weight_rot: ArrayLike = 1.0,
         pos_key: str | None = "frame_pos",
-        rot_key: str | None = "frame_rmats",
+        rot_key: str | None = "frame_rmat",
         offsets: ArrayLike | None = None,
     ):
         self.joints = np.asarray(joints)
