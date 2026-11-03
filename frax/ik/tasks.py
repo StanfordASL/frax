@@ -125,43 +125,53 @@ class JointTask(Task):
         return self.J, -self.gain * e, self.weight
 
 
-# TODO this is confusing
-def _init_pose(task, n, gain_pos, gain_rot, weight_pos, weight_rot, pos_key, rot_key):
-    assert pos_key is not None or rot_key is not None, (
-        "Track position, rotation, or both"
-    )
-    task.pos_key, task.rot_key = pos_key, rot_key
-    task.gain_pos = _per_row(gain_pos if pos_key is not None else 0.0, n)[:, None]
-    task.gain_rot = _per_row(gain_rot if rot_key is not None else 0.0, n)[:, None]
-    weights = [
-        np.repeat(_per_row(weight, n)[:, None], 3, 1)
-        for weight, key in ((weight_pos, pos_key), (weight_rot, rot_key))
-        if key is not None
-    ]
-    task.weight = np.concatenate(weights, axis=1).reshape(-1)
-    task.num_rows = len(task.weight)
+# TODO: Come back to this pose/frame/ee task structure again in the future.
+# I feel like this isn't the clearest way of writing these
 
 
-# TODO this is confusing
-def _pose_rows(task, tfs: Array, J: Array, ref) -> tuple[Array, Array, Array]:
-    pos, rot = task.pos_key is not None, task.rot_key is not None
-    v_des = []
-    if pos:
-        v_des.append(-task.gain_pos * (tfs[:, :3, 3] - ref[task.pos_key]))
-    if rot:
-        rot_error = jax.vmap(orientation_error_quat)(tfs[:, :3, :3], ref[task.rot_key])
-        v_des.append(-task.gain_rot * rot_error)
-    J = J[:, slice(0 if pos else 3, 6 if rot else 3)]
-    return (
-        J.reshape(task.num_rows, -1),
-        jnp.concatenate(v_des, axis=1).reshape(-1),
-        task.weight,
-    )
+class _PoseTask(Task):
+    """Helper base for tasks tracking frame positions and/or orientations"""
+
+    def __init__(
+        self, robot, n, gain_pos, gain_rot, weight_pos, weight_rot, pos_key, rot_key
+    ):
+        assert pos_key is not None or rot_key is not None, (
+            "Track position, rotation, or both"
+        )
+        self.robot = robot
+        self.pos_key, self.rot_key = pos_key, rot_key
+        self.gain_pos = _per_row(gain_pos if pos_key is not None else 0.0, n)[:, None]
+        self.gain_rot = _per_row(gain_rot if rot_key is not None else 0.0, n)[:, None]
+        weights = [
+            np.repeat(_per_row(weight, n)[:, None], 3, 1)
+            for weight, key in ((weight_pos, pos_key), (weight_rot, rot_key))
+            if key is not None
+        ]
+        self.weight = np.concatenate(weights, axis=1).reshape(-1)
+        self.num_rows = len(self.weight)
+
+    def _pose_rows(self, tfs: Array, J: Array, ref) -> tuple[Array, Array, Array]:
+        """Task rows for frame transforms tfs (n, 4, 4), with Jacobians J (n, 6, nv)"""
+        pos, rot = self.pos_key is not None, self.rot_key is not None
+        v_des = []
+        if pos:
+            v_des.append(-self.gain_pos * (tfs[:, :3, 3] - ref[self.pos_key]))
+        if rot:
+            rot_error = jax.vmap(orientation_error_quat)(
+                tfs[:, :3, :3], ref[self.rot_key]
+            )
+            v_des.append(-self.gain_rot * rot_error)
+        J = J[:, slice(0 if pos else 3, 6 if rot else 3)]
+        return (
+            J.reshape(self.num_rows, -1),
+            jnp.concatenate(v_des, axis=1).reshape(-1),
+            self.weight,
+        )
 
 
 # TODO is frame_pos and frame_rmats really the best name
 @jax.tree_util.register_static
-class FrameTask(Task):
+class FrameTask(_PoseTask):
     """Track world-frame positions and/or orientations of joint frames
 
     Args:
@@ -189,11 +199,10 @@ class FrameTask(Task):
         rot_key: str | None = "frame_rmats",
         offsets: ArrayLike | None = None,
     ):
-        self.robot = robot
         self.joints = np.asarray(joints)
         n = len(self.joints)
-        _init_pose(
-            self, n, gain_pos, gain_rot, weight_pos, weight_rot, pos_key, rot_key
+        super().__init__(
+            robot, n, gain_pos, gain_rot, weight_pos, weight_rot, pos_key, rot_key
         )
         if offsets is not None:
             offsets = np.broadcast_to(
@@ -207,12 +216,11 @@ class FrameTask(Task):
         tfs, Jv, Jw = tfs[self.joints], Jv[self.joints], Jw[self.joints]
         if self.offsets is not None:
             tfs, Jv, Jw = offset_transforms_and_jacobians(tfs, Jv, Jw, self.offsets)
-        return _pose_rows(self, tfs, jnp.concatenate([Jv, Jw], axis=1), ref)
+        return self._pose_rows(tfs, jnp.concatenate([Jv, Jw], axis=1), ref)
 
 
-# TODO: It feels like this task is redundant with FrameTask?
 @jax.tree_util.register_static
-class EETask(Task):
+class EETask(_PoseTask):
     """Track the world-frame position and/or orientation of a Manipulator's end
     effector (including its `ee_offset`)
 
@@ -236,9 +244,8 @@ class EETask(Task):
         pos_key: str | None = "ee_pos",
         rot_key: str | None = "ee_rmat",
     ):
-        self.robot = robot
-        _init_pose(
-            self, 1, gain_pos, gain_rot, weight_pos, weight_rot, pos_key, rot_key
+        super().__init__(
+            robot, 1, gain_pos, gain_rot, weight_pos, weight_rot, pos_key, rot_key
         )
 
     def linearize(self, q, ref):
@@ -247,4 +254,4 @@ class EETask(Task):
         J = self.robot._ee_jacobian(joint_tfs)
         keys = (key for key in (self.pos_key, self.rot_key) if key is not None)
         ref = {key: ref[key][None] for key in keys}
-        return _pose_rows(self, tf[None], J[None], ref)
+        return self._pose_rows(tf[None], J[None], ref)
