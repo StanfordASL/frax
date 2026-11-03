@@ -8,7 +8,7 @@ your current state.
 """
 
 from collections.abc import Sequence
-from typing import Literal, NamedTuple
+from typing import Any, Literal, NamedTuple
 
 import jax
 import jax.numpy as jnp
@@ -145,7 +145,7 @@ class GlobalIKSolver:
         self.cost_tol = cost_tol
         self.devices = tuple(_resolve_devices(devices))
 
-    def solve(self, q: Array, ref, key: Array) -> GlobalIKResult:
+    def solve(self, q: Array, ref: Any, key: Array) -> GlobalIKResult:
         """Solve global IK
 
         Args:

@@ -14,7 +14,7 @@ Notes:
 """
 
 from collections.abc import Callable
-from typing import Literal, NamedTuple, Any
+from typing import Any, Literal, NamedTuple
 
 import jax
 import jax.numpy as jnp
@@ -24,7 +24,6 @@ from numpy.typing import ArrayLike
 
 from frax.core.robot import Robot
 from frax.ik.tasks import _velocity_jacobian
-
 
 DEFAULT_PENALTY = 1e6  # Default elastic penalty value
 _INACTIVE_DISTANCE = 1e3  # Value assigned to inactive obstacles
@@ -352,7 +351,7 @@ class BarrierConstraint(InequalityConstraint):
     def __init__(
         self,
         robot: Robot,
-        h_fn: Callable[[Array, object], Array],
+        h_fn: Callable[[Array, Any], Array],
         num_rows: int,
         gain: float = 10.0,
         penalty: ArrayLike = DEFAULT_PENALTY,
@@ -389,7 +388,7 @@ class ResidualEquality(EqualityConstraint):
     def __init__(
         self,
         robot: Robot,
-        residual_fn: Callable[[Array, object], Array],
+        residual_fn: Callable[[Array, Any], Array],
         num_rows: int,
         gain: float = 10.0,
     ):

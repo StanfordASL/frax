@@ -2,7 +2,7 @@
 
 import time
 from collections.abc import Callable, Sequence
-from typing import Literal
+from typing import Any, Literal
 
 import jax
 import jax.numpy as jnp
@@ -41,8 +41,8 @@ class Retargeter:
     def __init__(
         self,
         solver: DiffIKSolver,
-        preprocess: Callable,
-        initial_q: Callable[[object], Array],
+        preprocess: Callable[[Any], Any],
+        initial_q: Callable[[Any], Array],
         converge_max_iters: int = 300,
         converge_dt: float | None = None,
         converge_tol: float = 1e-3,
@@ -61,7 +61,7 @@ class Retargeter:
         self.global_ik_init = global_ik_init
         self.global_ik_seed = global_ik_seed
 
-    def init(self, frame) -> tuple[SolverState, Array]:
+    def init(self, frame: Any) -> tuple[SolverState, Array]:
         """Converge onto the first frame
 
         Returns:
@@ -82,14 +82,14 @@ class Retargeter:
         return state, iters
 
     def step(
-        self, state: SolverState, frame, dt: float
+        self, state: SolverState, frame: Any, dt: float
     ) -> tuple[SolverState, SolverInfo]:
         """Take one solver step towards an input frame"""
         state, _, info = self.solver.step(state, self.preprocess(frame), dt)
         return state, info
 
     @jax.jit
-    def retarget_clip(self, frames, dt: float) -> tuple[Array, SolverInfo, Array]:
+    def retarget_clip(self, frames: Any, dt: float) -> tuple[Array, SolverInfo, Array]:
         """Retarget a full clip of input frames
 
         Args:
@@ -201,7 +201,7 @@ class OnlineRetargeter:
         self._init = jax.jit(retargeter.init)
         self._step = jax.jit(retargeter.step)
 
-    def compile(self, example_frame) -> None:
+    def compile(self, example_frame: Any) -> None:
         """Compile the init and step functions ahead of time
 
         Args:
@@ -214,7 +214,7 @@ class OnlineRetargeter:
     def reset(self) -> None:
         self.state = None
 
-    def step(self, frame, dt: float) -> Array:
+    def step(self, frame: Any, dt: float) -> Array:
         if self.state is None:
             self.state, _ = self._init(frame)
         else:

@@ -7,6 +7,7 @@ Notes:
 """
 
 from collections.abc import Callable
+from typing import Any
 
 import jax
 import jax.numpy as jnp
@@ -33,7 +34,7 @@ class Task:
     robot: Robot
     num_rows: int
 
-    def linearize(self, q: Array, ref) -> tuple[Array, Array, Array]:
+    def linearize(self, q: Array, ref: Any) -> tuple[Array, Array, Array]:
         """Linearize the task about q
 
         Args:
@@ -67,7 +68,7 @@ class ResidualTask(Task):
     def __init__(
         self,
         robot: Robot,
-        residual_fn: Callable[[Array, object], Array],
+        residual_fn: Callable[[Array, Any], Array],
         num_rows: int,
         gain: ArrayLike = 1.0,
         weight: ArrayLike = 1.0,
@@ -149,7 +150,7 @@ class _PoseTask(Task):
         self.weight = np.concatenate(weights, axis=1).reshape(-1)
         self.num_rows = len(self.weight)
 
-    def _pose_rows(self, tfs: Array, J: Array, ref) -> tuple[Array, Array, Array]:
+    def _pose_rows(self, tfs: Array, J: Array, ref: Any) -> tuple[Array, Array, Array]:
         """Task rows for frame transforms tfs (n, 4, 4), with Jacobians J (n, 6, nv)"""
         pos, rot = self.pos_key is not None, self.rot_key is not None
         v_des = []

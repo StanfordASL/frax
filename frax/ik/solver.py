@@ -1,7 +1,7 @@
 """Differential IK solver: stack tasks and constraints into a QP, solve, integrate"""
 
 from collections.abc import Sequence
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 import elastiqp.jax
 import jax
@@ -123,7 +123,7 @@ class DiffIKSolver:
         qp_warm_start = (jnp.zeros(nv), jnp.zeros(self.n_eq), jnp.zeros(self.n_ineq))
         return SolverState(q=jnp.asarray(q0), qp_warm_start=qp_warm_start)
 
-    def _qp(self, q: Array, ref):
+    def _qp(self, q: Array, ref: Any):
         """The diff IK QP at q, and the cost of q
 
         Returns:
@@ -159,14 +159,14 @@ class DiffIKSolver:
             cost += DEFAULT_PENALTY * jnp.sum(jnp.abs(b))
         return P, c, G, h, A, b, cost
 
-    def cost(self, q: Array, ref) -> Array:
+    def cost(self, q: Array, ref: Any) -> Array:
         """The cost of q: the QP objective at v = 0 (if the robot doesn't move),
         for the given reference data"""
         *_, cost = self._qp(q, ref)
         return cost
 
     def solve(
-        self, q: Array, ref, qp_warm_start: tuple[Array, Array, Array]
+        self, q: Array, ref: Any, qp_warm_start: tuple[Array, Array, Array]
     ) -> tuple[Array, tuple[Array, Array, Array], SolverInfo]:
         """Solve the differential IK QP
 
@@ -197,7 +197,7 @@ class DiffIKSolver:
         return result.x, (result.x, result.y, result.z), info
 
     def step(
-        self, state: SolverState, ref, dt: float
+        self, state: SolverState, ref: Any, dt: float
     ) -> tuple[SolverState, Array, SolverInfo]:
         """One diff IK step
 
@@ -216,7 +216,7 @@ class DiffIKSolver:
         return SolverState(q=q, qp_warm_start=qp_warm_start), v, info
 
     def converge(
-        self, state: SolverState, ref, max_iters: int, dt_max: float, tol: float
+        self, state: SolverState, ref: Any, max_iters: int, dt_max: float, tol: float
     ) -> tuple[SolverState, Array]:
         """Iterate on a fixed reference, accepting only steps that lower the
         cost. Accepted steps double dt (up to dt_max), rejected ones halve it
