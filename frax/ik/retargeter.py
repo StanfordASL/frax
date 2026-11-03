@@ -159,7 +159,10 @@ class OfflineRetargeter:
             list[np.ndarray]: Configurations, one array per clip, each shape
                 (T, nq) with that clip's T
         """
-        n = len(self.devices)
+        if not clips:
+            return []
+        # No more devices than clips, so no device solves a filler clip
+        n = min(len(self.devices), len(clips))
         lengths = [len(jax.tree.leaves(clip)[0]) for clip in clips]
         order = sorted(range(len(clips)), key=lambda i: -lengths[i])
         groups = [order[i : i + n] for i in range(0, len(order), n)]

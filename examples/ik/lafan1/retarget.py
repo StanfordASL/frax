@@ -76,7 +76,8 @@ def main(args):
     start = time.perf_counter()
     qs = retarget(clips)
     print(
-        f"Retargeted {len(clips)} clips on {len(retarget.devices)} devices in "
+        f"Retargeted {len(clips)} clips on "
+        + f"{min(len(clips), len(retarget.devices))} devices in "
         + f"{time.perf_counter() - start:.1f} s"
     )
     print(

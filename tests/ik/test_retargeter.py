@@ -105,6 +105,22 @@ def test_offline_matches_retarget_clip(num_devices):
     assert retarget.compiled == compiled
 
 
+def test_offline_fewer_clips_than_devices():
+    """With fewer clips than devices, the batch has one entry per clip, with no
+    filler clips"""
+    retargeter = _joint_retargeter(3, preprocess=lambda frame: {"q": frame["target"]})
+    lengths = [5, 23, 9]
+    clips = [{"target": _sinusoids(T, phase=k)} for k, T in enumerate(lengths)]
+    retarget = OfflineRetargeter(retargeter, DT, bucket=8, devices=jax.devices()[:4])
+    qs = retarget(clips)
+    for clip, q in zip(clips, qs, strict=True):
+        expected, _, _ = retargeter.retarget_clip(clip, DT)
+        np.testing.assert_allclose(q, expected, atol=1e-9)
+    ((_, shapes),) = retarget.compiled
+    assert all(shape[0] == len(clips) for shape in shapes)
+    assert retarget([]) == []
+
+
 def test_global_ik_init_escapes_local_minimum():
     """The first frame converges from initial_q to a local minimum, unless
     solved by global IK (the cubic of test_global_ik.py: e(q) = q^3 - 3q + 3,
