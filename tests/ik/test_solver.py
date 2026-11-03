@@ -75,7 +75,7 @@ def test_elastic_equality_penalties_and_shapes():
         ],
     )
     np.testing.assert_allclose(solver.penalty, [3, 4, 3, 4] + [5] * 6)
-    _, y, z = solver.init(jnp.zeros(3)).qp_xyz
+    _, y, z = solver.init(jnp.zeros(3)).qp_warm_start
     assert y.shape == (1,) and z.shape == (10,)
 
 

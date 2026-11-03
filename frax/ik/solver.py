@@ -19,10 +19,10 @@ from frax.ik.constraints import (
 from frax.ik.tasks import Task
 
 
-# TODO: Consider renaming the qp_xyz term
 class SolverState(NamedTuple):
     q: Array
-    qp_xyz: tuple[Array, Array, Array]  # Warm start data
+    # The last QP solution (x, y, z): primal, equality duals, inequality duals
+    qp_warm_start: tuple[Array, Array, Array]
 
 
 class SolverInfo(NamedTuple):
@@ -120,8 +120,8 @@ class DiffIKSolver:
 
     def init(self, q0: Array) -> SolverState:
         nv = self.robot.nv
-        qp_xyz = (jnp.zeros(nv), jnp.zeros(self.n_eq), jnp.zeros(self.n_ineq))
-        return SolverState(q=jnp.asarray(q0), qp_xyz=qp_xyz)
+        qp_warm_start = (jnp.zeros(nv), jnp.zeros(self.n_eq), jnp.zeros(self.n_ineq))
+        return SolverState(q=jnp.asarray(q0), qp_warm_start=qp_warm_start)
 
     # TODO improve the organization of the returns
     def _rows(self, q: Array, ref):
@@ -158,19 +158,20 @@ class DiffIKSolver:
         return self._rows(q, ref)[3]
 
     def solve(
-        self, q: Array, ref, warm_xyz: tuple[Array, Array, Array]
+        self, q: Array, ref, qp_warm_start: tuple[Array, Array, Array]
     ) -> tuple[Array, tuple[Array, Array, Array], SolverInfo]:
         """Solve the differential IK QP
 
         Args:
             q (Array): Configuration, shape (nq,)
             ref (Any): Per-step reference data (any pytree)
-            warm_xyz (tuple[Array, Array, Array]): QP warm start
+            qp_warm_start (tuple[Array, Array, Array]): QP warm start (x, y, z)
 
         Returns:
             tuple[Array, tuple[Array, Array, Array], SolverInfo]:
                 v (Array): Generalized velocity, shape (nv,)
-                qp_xyz (tuple[Array, Array, Array]): QP solution data
+                qp_warm_start (tuple[Array, Array, Array]): QP solution (x, y, z),
+                    to warm-start the next QP
                 info (SolverInfo): Solver info, with the objective at q
         """
         (J, v_des, w), (G, h), (A, b), objective = self._rows(q, ref)
@@ -187,7 +188,7 @@ class DiffIKSolver:
             A=A,
             b=b,
             eps_abs=self.solver_tol,
-            warm_start=warm_xyz if self.warm_start else None,
+            warm_start=qp_warm_start if self.warm_start else None,
         )
         info = SolverInfo(
             qp_iters=result.iters, qp_converged=result.converged, objective=objective
@@ -207,9 +208,9 @@ class DiffIKSolver:
         Returns:
             tuple[SolverState, Array, SolverInfo]: New state, velocity, and info
         """
-        v, qp_xyz, info = self.solve(state.q, ref, state.qp_xyz)
+        v, qp_warm_start, info = self.solve(state.q, ref, state.qp_warm_start)
         q = self.robot.integrate(state.q, v, dt)
-        return SolverState(q=q, qp_xyz=qp_xyz), v, info
+        return SolverState(q=q, qp_warm_start=qp_warm_start), v, info
 
     def converge(
         self, state: SolverState, ref, max_iters: int, dt_max: float, tol: float
@@ -232,7 +233,7 @@ class DiffIKSolver:
         """
         state, ref = jax.lax.stop_gradient((state, ref))
         robot = self.robot
-        v, qp_xyz, info = self.solve(state.q, ref, state.qp_xyz)
+        v, qp_warm_start, info = self.solve(state.q, ref, state.qp_warm_start)
         dt_min = MIN_STEP_RATIO * dt_max
 
         def cond(carry):
@@ -240,27 +241,27 @@ class DiffIKSolver:
             return ~done & (i < max_iters)
 
         def body(carry):
-            q, v, qp_xyz, objective, dt, i, _ = carry
+            q, v, qp_warm_start, objective, dt, i, _ = carry
             q_new = robot.integrate(q, v, dt)
-            v_new, qp_xyz_new, info = self.solve(q_new, ref, qp_xyz)
+            v_new, qp_warm_start_new, info = self.solve(q_new, ref, qp_warm_start)
             accept = info.objective < objective
-            q, v, qp_xyz, objective = jax.tree.map(
+            q, v, qp_warm_start, objective = jax.tree.map(
                 lambda new, old: jnp.where(accept, new, old),
-                (q_new, v_new, qp_xyz_new, info.objective),
-                (q, v, qp_xyz, objective),
+                (q_new, v_new, qp_warm_start_new, info.objective),
+                (q, v, qp_warm_start, objective),
             )
             dt = jnp.where(accept, jnp.minimum(2.0 * dt, dt_max), 0.5 * dt)
             done = (accept & (jnp.max(jnp.abs(v)) <= tol)) | (dt < dt_min)
-            return q, v, qp_xyz, objective, dt, i + 1, done
+            return q, v, qp_warm_start, objective, dt, i + 1, done
 
         carry = (
             state.q,
             v,
-            qp_xyz,
+            qp_warm_start,
             info.objective,
             jnp.asarray(dt_max, dtype=state.q.dtype),
             0,
             jnp.max(jnp.abs(v)) <= tol,
         )
-        q, _, qp_xyz, _, _, iters, _ = jax.lax.while_loop(cond, body, carry)
-        return SolverState(q=q, qp_xyz=qp_xyz), iters
+        q, _, qp_warm_start, _, _, iters, _ = jax.lax.while_loop(cond, body, carry)
+        return SolverState(q=q, qp_warm_start=qp_warm_start), iters
