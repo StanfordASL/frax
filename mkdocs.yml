@@ -1,8 +1,8 @@
 site_name: "frax"
 site_description: "Fast Robot Kinematics and Dynamics in JAX"
-site_url: "https://danielpmorton.github.io/frax"
-repo_url: "https://github.com/danielpmorton/frax"
-repo_name: "danielpmorton/frax"
+site_url: "https://StanfordASL.github.io/frax"
+repo_url: "https://github.com/StanfordASL/frax"
+repo_name: "StanfordASL/frax"
 site_dir: "site"
 
 plugins:

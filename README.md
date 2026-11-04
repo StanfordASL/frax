@@ -31,7 +31,7 @@ If you're getting started, `frax[ik]` will pull in all `frax` functionality, inc
 ### From source
 
 ```
-git clone https://github.com/danielpmorton/frax
+git clone https://github.com/StanfordASL/frax
 cd frax
 pip install -e ".[ik]"
 ```
