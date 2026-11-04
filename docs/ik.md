@@ -1,5 +1,8 @@
 # Inverse kinematics and retargeting with `frax.ik`
 
+![frax_ik_gif](https://github.com/user-attachments/assets/2e835e43-7c5f-48b7-bd1c-6ba8bffbd752)
+
+
 `frax.ik` is a differential IK library, akin to [mink](https://github.com/kevinzakka/mink) and [pink](https://github.com/pink-kinematics/pink), but **faster, compatible with automatic differentiation, and with more reliable constraint enforcement.**
 
 `frax.ik` is great for *both* online and offline IK problems. For example, applications include:
