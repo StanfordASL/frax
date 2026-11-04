@@ -1,4 +1,4 @@
-"""Example: Multi-sample SQP globak IK with the Franka Panda,
+"""Example: Multi-sample SQP global IK with the Franka Panda,
 with each sample parallelized across CPU cores (multiple JAX CPU devices)
 
 Note: frax.ik performs best on differential IK problems, but this example
