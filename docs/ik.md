@@ -14,6 +14,9 @@
 
 ## Examples
 
+> [!NOTE]
+> Remember to install from source with the `[examples]` dependencies: `pip install -e ".[examples]"`
+
 ### Humanoid Retargeting
 
 `frax.ik` can churn through retargeting problems at extreme speeds (>100,000 FPS). For comparison, [GMR](https://github.com/YanjieZe/GMR)'s stated number is 70 FPS (on a threadripper, too).
