@@ -98,16 +98,16 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data_dir", default=DATA_DIR, help="LAFAN1 BVH files")
+    parser.add_argument("--data-dir", default=DATA_DIR, help="LAFAN1 BVH files")
     parser.add_argument(
         "--serial", action="store_true", help="Also time one clip at a time"
     )
-    parser.add_argument("--out_dir", default=OUT_DIR, help="Retargeted clips (.npz)")
+    parser.add_argument("--out-dir", default=OUT_DIR, help="Retargeted clips (.npz)")
     parser.add_argument(
-        "--self_collision", action="store_true", help="Self-collision avoidance"
+        "--self-collision", action="store_true", help="Self-collision avoidance"
     )
     parser.add_argument(
-        "--sigma_rot",
+        "--sigma-rot",
         type=float,
         default=SMOOTH_ROT,
         help="Orientation smoothing (s). 0: none, as online",

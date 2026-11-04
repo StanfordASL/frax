@@ -2,8 +2,8 @@
 
 Usage:
     python time_kin_dyn_terms.py                                   # CPU, single state
-    python time_kin_dyn_terms.py --batch_size 1024 --n_calls 100   # CPU, batched
-    python time_kin_dyn_terms.py --device gpu --batch_size 4096    # GPU, batched (float32)
+    python time_kin_dyn_terms.py --batch-size 1024 --n-calls 100   # CPU, batched
+    python time_kin_dyn_terms.py --device gpu --batch-size 4096    # GPU, batched (float32)
     python time_kin_dyn_terms.py --device gpu --dtype float64      # GPU, float64
 """
 
@@ -15,8 +15,8 @@ from timing_utils import benchmark_function, configure_env, sample_state
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--device", choices=["cpu", "gpu"], default="cpu")
-parser.add_argument("--batch_size", type=int, default=None)
-parser.add_argument("--n_calls", type=int, default=10000)
+parser.add_argument("--batch-size", type=int, default=None)
+parser.add_argument("--n-calls", type=int, default=10000)
 parser.add_argument("--dtype", choices=["auto", "float32", "float64"], default="auto")
 args = parser.parse_args()
 dtype = configure_env(args.device, args.dtype)

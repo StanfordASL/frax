@@ -61,6 +61,6 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--data_dir", default=DATA_DIR, help="Where to put the BVH files"
+        "--data-dir", default=DATA_DIR, help="Where to put the BVH files"
     )
     main(parser.parse_args())

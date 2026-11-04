@@ -130,11 +130,11 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data_dir", default=DATA_DIR, help="SEED dataset root")
-    parser.add_argument("--frax_dir", default=OUT_DIR, help="Retargeted clips (.npz)")
+    parser.add_argument("--data-dir", default=DATA_DIR, help="SEED dataset root")
+    parser.add_argument("--frax-dir", default=OUT_DIR, help="Retargeted clips (.npz)")
     parser.add_argument("--match", default="", help="Only clips whose name has this")
     parser.add_argument(
-        "--max_clips", type=int, default=1000, help="Most clips in the dropdown"
+        "--max-clips", type=int, default=1000, help="Most clips in the dropdown"
     )
     parser.add_argument("--port", type=int, default=8080, help="Viser server port")
     main(parser.parse_args())

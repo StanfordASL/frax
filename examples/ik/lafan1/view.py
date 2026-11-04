@@ -72,6 +72,6 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--frax_dir", default=OUT_DIR, help="Retargeted clips (.npz)")
+    parser.add_argument("--frax-dir", default=OUT_DIR, help="Retargeted clips (.npz)")
     parser.add_argument("--port", type=int, default=8080, help="Viser server port")
     main(parser.parse_args())

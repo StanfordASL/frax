@@ -11,7 +11,7 @@ import argparse
 from timing_utils import benchmark_function, configure_env, sample_state
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--n_calls", type=int, default=10000)
+parser.add_argument("--n-calls", type=int, default=10000)
 parser.add_argument("--dtype", choices=["auto", "float32", "float64"], default="auto")
 args = parser.parse_args()
 dtype = configure_env("cpu", args.dtype)

@@ -10,9 +10,9 @@ import argparse
 from timing_utils import benchmark_function, configure_env, sample_state
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--n_calls", type=int, default=20000)
-parser.add_argument("--n_trials", type=int, default=5)
-parser.add_argument("--batch_size", type=int, default=1024)
+parser.add_argument("--n-calls", type=int, default=20000)
+parser.add_argument("--n-trials", type=int, default=5)
+parser.add_argument("--batch-size", type=int, default=1024)
 parser.add_argument("--dtype", choices=["auto", "float32", "float64"], default="auto")
 args = parser.parse_args()
 dtype = configure_env("cpu", args.dtype)

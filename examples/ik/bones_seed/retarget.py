@@ -149,17 +149,17 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data_dir", default=DATA_DIR, help="SEED dataset root")
-    parser.add_argument("--out_dir", default=OUT_DIR, help="Retargeted clips (.npz)")
+    parser.add_argument("--data-dir", default=DATA_DIR, help="SEED dataset root")
+    parser.add_argument("--out-dir", default=OUT_DIR, help="Retargeted clips (.npz)")
     parser.add_argument(
-        "--num_clips", type=int, default=None, help="Random clips (default: all)"
+        "--num-clips", type=int, default=None, help="Random clips (default: all)"
     )
     parser.add_argument("--seed", type=int, default=0, help="Clip sampling seed")
     parser.add_argument(
         "--match", default="", help="Only clips whose name/package/category has this"
     )
     parser.add_argument(
-        "--global_ik_init",
+        "--global-ik-init",
         action="store_true",
         help="Solve each clip's first frame by global IK",
     )
@@ -169,10 +169,10 @@ if __name__ == "__main__":
         help="Redo the saved clips whose first frame is off target, by global IK",
     )
     parser.add_argument(
-        "--no_self_collision", action="store_true", help="No self-collision avoidance"
+        "--no-self-collision", action="store_true", help="No self-collision avoidance"
     )
     parser.add_argument(
-        "--sigma_rot",
+        "--sigma-rot",
         type=float,
         default=SMOOTH_ROT,
         help="Orientation smoothing (s). 0: none, as online",
