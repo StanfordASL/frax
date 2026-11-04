@@ -97,7 +97,7 @@ class ManipulatorEnv:
         load_obstacle: bool = False,
         sync_viewer_every: int = 4,
     ):
-        repo_path = Path(__file__).parents[1]
+        repo_path = Path(__file__).parents[2]
         if robot == "panda":
             # TODO: unify location structure as iiwa
             # TODO: Define the des_rot elsewhere
