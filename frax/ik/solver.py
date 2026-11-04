@@ -134,7 +134,8 @@ class DiffIKSolver:
     def init(self, q0: Array) -> SolverState:
         nv = self.robot.nv
         qp_warm_start = (jnp.zeros(nv), jnp.zeros(self.n_eq), jnp.zeros(self.n_ineq))
-        return SolverState(q=jnp.asarray(q0), qp_warm_start=qp_warm_start)
+        q = jnp.asarray(q0, dtype=jnp.float64)  # float64 for elastiqp
+        return SolverState(q=q, qp_warm_start=qp_warm_start)
 
     def _qp(self, q: Array, ref: Any):
         """The diff IK QP at q, and the cost of q
