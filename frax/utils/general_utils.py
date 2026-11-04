@@ -1,8 +1,8 @@
 """Assorted utility functions"""
 
-from typing import Callable
 import functools
 import types
+from collections.abc import Callable
 
 import jax
 

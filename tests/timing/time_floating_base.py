@@ -3,7 +3,7 @@
 G1 kinematics and dynamics on CPU, single-state and batched
 """
 
-# ruff: noqa: E402 (jax must be imported after configure_env)
+
 
 import argparse
 
@@ -19,6 +19,7 @@ dtype = configure_env("cpu", args.dtype)
 
 import jax
 import numpy as np
+
 from frax import load_g1
 
 

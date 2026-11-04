@@ -9,18 +9,17 @@ os.environ["JAX_PLATFORMS"] = "cpu"
 
 import argparse
 
-import numpy as np
 import jax
 import jax.numpy as jnp
-from jax.typing import ArrayLike
-
-from frax.core.manipulator import Manipulator
-from frax import load_panda, load_iiwa
-from frax.utils.rotation_utils import orientation_error_3D
-from example_utils import ManipulatorEnv
+import numpy as np
 from cbf_utils import OSCBFTorqueConfig
 from cbfpy import CBF
+from example_utils import ManipulatorEnv
+from jax.typing import ArrayLike
 
+from frax import load_iiwa, load_panda
+from frax.core.manipulator import Manipulator
+from frax.utils.rotation_utils import orientation_error_3D
 
 STARTUP_MSG = """
 ====================================

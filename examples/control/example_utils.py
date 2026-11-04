@@ -2,7 +2,6 @@
 
 import time
 from pathlib import Path
-from typing import Optional
 
 import mujoco
 import mujoco.viewer
@@ -92,7 +91,7 @@ class ManipulatorEnv:
         self,
         robot: str,
         control_mode: str,
-        traj: Optional[SinusoidalTaskTrajectory] = None,
+        traj: SinusoidalTaskTrajectory | None = None,
         real_time: bool = False,
         load_obstacle: bool = False,
         sync_viewer_every: int = 4,

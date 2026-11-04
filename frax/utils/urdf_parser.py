@@ -8,15 +8,15 @@ using pybullet's urdf parser, or urdf_parser_py. This urdfpy-based method
 seemed to best handle the frame definitions and merging fixed links.
 """
 
-from typing import Optional, Tuple
 
 import numpy as np
+
 from frax.utils import urdfpy
 
 
 def parse_urdf(
     filename,
-    joint_ordering: Optional[list[str]] = None,
+    joint_ordering: list[str] | None = None,
     add_floating_base: bool = False,
 ):
     filename = str(filename)  # Make sure not Path object
@@ -250,7 +250,7 @@ def _order_links(l_infos, j_infos, links_g_info=None):
 
 def order_by_joint_names(
     l_infos: list[dict], j_infos: list[dict], target_joint_names: list[str]
-) -> Tuple[list[dict], list[dict]]:
+) -> tuple[list[dict], list[dict]]:
     """Reorders link and joint info based on an explicit list of joint names.
 
     Args:
@@ -463,7 +463,7 @@ def gs_parse_urdf(filename, merge_fixed=True, links_to_keep=[], fixed_base=True)
             j_info["dofs_motion_ang"] = np.zeros((0, 3))
             j_info["dofs_motion_vel"] = np.zeros((0, 3))
             j_info["dofs_limit"] = np.zeros((0, 2))
-            j_info["dofs_stiffness"] = np.zeros((0))
+            j_info["dofs_stiffness"] = np.zeros(0)
 
             j_info["type"] = "fixed"
             j_info["n_qs"] = 0
@@ -609,7 +609,7 @@ def gs_parse_urdf(filename, merge_fixed=True, links_to_keep=[], fixed_base=True)
         j_info["dofs_motion_ang"] = np.zeros((0, 3))
         j_info["dofs_motion_vel"] = np.zeros((0, 3))
         j_info["dofs_limit"] = np.zeros((0, 2))
-        j_info["dofs_stiffness"] = np.zeros((0))
+        j_info["dofs_stiffness"] = np.zeros(0)
 
         j_info["type"] = "fixed"
         j_info["n_qs"] = 0

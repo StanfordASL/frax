@@ -7,7 +7,7 @@ Usage:
     python time_kin_dyn_terms.py --device gpu --dtype float64      # GPU, float64
 """
 
-# ruff: noqa: E402 (jax must be imported after configure_env)
+
 
 import argparse
 
@@ -23,6 +23,7 @@ dtype = configure_env(args.device, args.dtype)
 
 import jax
 import numpy as np
+
 from frax import load_g1, load_panda
 
 

@@ -1,6 +1,5 @@
 """Test cases for the Humanoid class"""
 
-from typing import Tuple
 
 import jax
 import numpy as np
@@ -40,7 +39,7 @@ def g1_and_pin(request):
     return load_robot(), model, pin.Data(model)
 
 
-def sample_q(nq: int, nv: int) -> Tuple[np.ndarray, np.ndarray]:
+def sample_q(nq: int, nv: int) -> tuple[np.ndarray, np.ndarray]:
     # This function assumes we're working with a 29dof humanoid like the unitree g1
     num_actuated_joints = 29
     num_unactuated_joints = 6

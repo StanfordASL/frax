@@ -5,39 +5,38 @@
 #   this can likely be simplified with some helper functions
 # - Also, see if we can use some of the spatial axes computation for the jacobians
 
-from typing import Tuple, Optional
 import warnings
 
 import jax
-from jax import Array
-from jax.typing import ArrayLike
 import jax.numpy as jnp
 import jax.scipy as jsp
 import numpy as np
+from jax import Array
+from jax.typing import ArrayLike
 
-from frax.utils.urdf_parser import parse_urdf
-from frax.utils.linalg_utils import cholesky_spd_inverse
 from frax.utils.general_utils import highest_matmul_precision_cls
-from frax.utils.transform_utils import (
-    create_transform_numpy,
-    transform_points,
-    joint_transform,
+from frax.utils.linalg_utils import cholesky_spd_inverse
+from frax.utils.rotation_utils import (
+    quat_wxyz_conjugate,
+    quat_wxyz_exp,
+    quat_wxyz_log,
+    quat_wxyz_multiply,
+    quat_wxyz_to_rmat,
 )
 from frax.utils.spatial_utils import (
     get_spatial_inertias,
     get_spatial_joint_axes,
-    spatial_motion_cross,
-    spatial_force_cross,
-    shift_wrenches,
     point_jacobians,
+    shift_wrenches,
+    spatial_force_cross,
+    spatial_motion_cross,
 )
-from frax.utils.rotation_utils import (
-    quat_wxyz_to_rmat,
-    quat_wxyz_multiply,
-    quat_wxyz_conjugate,
-    quat_wxyz_exp,
-    quat_wxyz_log,
+from frax.utils.transform_utils import (
+    create_transform_numpy,
+    joint_transform,
+    transform_points,
 )
+from frax.utils.urdf_parser import parse_urdf
 
 FLOATING_BASE_TYPES = (None, "quaternion", "euler")
 
@@ -74,10 +73,10 @@ class Robot:
     def __init__(
         self,
         urdf_filename: str,
-        collision_data: Optional[dict] = None,
-        joint_ordering: Optional[list[str]] = None,
-        floating_base: Optional[str] = None,
-        default_configuration: Optional[ArrayLike] = None,
+        collision_data: dict | None = None,
+        joint_ordering: list[str] | None = None,
+        floating_base: str | None = None,
+        default_configuration: ArrayLike | None = None,
     ):
         if floating_base not in FLOATING_BASE_TYPES:
             raise ValueError(
@@ -236,7 +235,7 @@ class Robot:
 
     def _process_collision_data(
         self, positions: tuple, radii: tuple
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Helper function: Sets up a padded representation of the collision sphere positions
         for vmapping with uniform shape
 
@@ -639,7 +638,7 @@ class Robot:
         joint_transforms: Array,
         frame_transform: Array,  # TODO rename to offset_transform?
         parent_chain: Array,
-    ) -> Tuple[Array, Array]:
+    ) -> tuple[Array, Array]:
         """Computes both the jacobian of a frame attached to a link with a specified parent chain,
         and its time derivative
 
@@ -717,7 +716,7 @@ class Robot:
         sigmas = jax.lax.linalg.svd(J_reduced, compute_uv=False)
         return jnp.prod(sigmas)
 
-    def link_collision_data(self, q: Array) -> Tuple[Array, Array]:
+    def link_collision_data(self, q: Array) -> tuple[Array, Array]:
         """Compute collision data for all links given the joint configuration
 
         Args:
@@ -733,7 +732,7 @@ class Robot:
         joint_transforms = self.joint_to_world_transforms(q)
         return self._link_collision_data(joint_transforms)
 
-    def _link_collision_data(self, joint_transforms: Array) -> Tuple[Array, Array]:
+    def _link_collision_data(self, joint_transforms: Array) -> tuple[Array, Array]:
         """Helper function: Compute the collision data for all links given the joint transforms"""
         positions = self._link_collision_positions(joint_transforms)
         radii = self.flat_collision_radii
@@ -786,7 +785,7 @@ class Robot:
         joint_transforms: Array,
         joint_Jvs: Array,
         joint_Jws: Array,
-        sphere_idxs: Optional[Array] = None,
+        sphere_idxs: Array | None = None,
     ) -> Array:
         """Helper function: Compute the linear Jacobians of collision sphere centers,
         using the precomputed transforms and jacobians for the joints
@@ -863,7 +862,7 @@ class Robot:
         joint_Jvs: Array,
         joint_Jws: Array,
         positions: Array,
-        pair_idxs: Optional[Array] = None,
+        pair_idxs: Array | None = None,
     ) -> Array:
         """Helper function: Compute the Jacobian of the self-collision distances,
         using the precomputed joint data and collision sphere positions
@@ -908,7 +907,7 @@ class Robot:
         J_rel = _sphere_jacobians(idxs_b) - _sphere_jacobians(idxs_a)
         return jnp.einsum("pi,pij->pj", normals, J_rel)
 
-    def _joint_jacobians(self, joint_transforms: Array) -> Tuple[Array, Array]:
+    def _joint_jacobians(self, joint_transforms: Array) -> tuple[Array, Array]:
         """Helper function: Compute an array containing the linear (Jv) and angular (Jw)
         jacobians for every joint origin (w.r.t the world)
 
@@ -952,7 +951,7 @@ class Robot:
 
     def _link_jacobians_from_joint_jacobians(
         self, joint_transforms: Array, joint_Jvs: Array, joint_Jws: Array
-    ) -> Tuple[Array, Array]:
+    ) -> tuple[Array, Array]:
         """Helper function: Compute the linear and angular jacobians for every link,
         using the precomputed transforms and jacobians for the joints
 
@@ -1174,10 +1173,10 @@ class Robot:
     def rnea(
         self,
         q: Array,
-        v: Optional[Array],
-        a: Optional[Array],
-        gravity_accel: Optional[Array],
-        F_ext: Optional[Array],
+        v: Array | None,
+        a: Array | None,
+        gravity_accel: Array | None,
+        F_ext: Array | None,
     ) -> Array:
         """Recursive Newton-Euler Algorithm (vectorized form)
 
@@ -1210,10 +1209,10 @@ class Robot:
         self,
         spatial_axes: Array,
         spatial_inertias: Array,
-        v: Optional[Array],
-        a: Optional[Array],
-        gravity_accel: Optional[Array],
-        F_ext: Optional[Array],
+        v: Array | None,
+        a: Array | None,
+        gravity_accel: Array | None,
+        F_ext: Array | None,
     ) -> Array:
         """Helper function: Computes RNEA given precomputed spatial axes and inertias"""
 
@@ -1293,7 +1292,7 @@ class Robot:
 
     def _spatial_axes_and_inertias(
         self, joint_transforms: Array
-    ) -> Tuple[Array, Array]:
+    ) -> tuple[Array, Array]:
         """Helper function for CRBA and RNEA: Computes the spatial joint axes and link inertias from FK
 
         Args:
@@ -1334,7 +1333,7 @@ class Robot:
         return shift_wrenches(link_wrenches, offsets)
 
     def forward_dynamics(
-        self, q: Array, v: Array, tau: Array, fext: Optional[Array]
+        self, q: Array, v: Array, tau: Array, fext: Array | None
     ) -> Array:
         """Compute the joint acceleration resulting from an applied torque (and optionally,
         any external forces acting on the links), given the joint state
@@ -1360,7 +1359,7 @@ class Robot:
         joint_transforms: Array,
         v: Array,
         tau: Array,
-        fext: Optional[Array],
+        fext: Array | None,
     ) -> Array:
         """Helper function: Computes the forward dynamics from FK"""
         # Perform a single evaluation of the spatial axes/inertias

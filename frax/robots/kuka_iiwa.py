@@ -4,7 +4,6 @@ from frax.assets import KUKA_ASSETS_DIR
 from frax.core.manipulator import Manipulator
 from frax.utils.collision_utils import bubblify_to_mine
 
-
 collision_model_file = KUKA_ASSETS_DIR / "bubblify/iiwa14_spherized.yml"
 root_link_name = "iiwa_link_0"
 joint_to_child_mapping = {

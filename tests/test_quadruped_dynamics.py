@@ -4,17 +4,16 @@ See test_quaternion_floating_base.py for details on the conversion between the f
 and Pinocchio floating base conventions
 """
 
-from typing import Tuple
 
 import jax
 import jax.numpy as jnp
-import numpy as np
 import mujoco
+import numpy as np
 import pinocchio as pin
 import pytest
 
-from frax.robots.unitree_a2 import load_a2
 from frax.assets import A2_ASSETS_DIR
+from frax.robots.unitree_a2 import load_a2
 from frax.utils.rotation_utils import quat_wxyz_to_rmat, wxyz_to_xyzw
 
 urdf = A2_ASSETS_DIR / "a2.urdf"
@@ -28,7 +27,7 @@ PIN_FOOT_FRAMES = ("FL_foot", "FR_foot", "RL_foot", "RR_foot")
 g = jnp.array([0.0, 0.0, 9.81, 0.0, 0.0, 0.0])
 
 
-def sample_state(nv: int = NV) -> Tuple[np.ndarray, np.ndarray]:
+def sample_state(nv: int = NV) -> tuple[np.ndarray, np.ndarray]:
     """Random configuration (nq = nv + 1) and velocity (nv) for the quaternion A2"""
     pos = np.random.uniform(-1.0, 1.0, 3)
     quat = np.random.randn(4)

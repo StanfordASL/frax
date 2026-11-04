@@ -2,8 +2,9 @@
 
 import os
 
-from lxml import etree as ET
 import numpy as np
+from lxml import etree as ET
+
 # import trimesh
 
 

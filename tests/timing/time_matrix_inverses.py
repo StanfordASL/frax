@@ -4,7 +4,7 @@ Covers random SPD matrices of various sizes, as well as the G1 mass matrix
 (fixed root, and floating root where the Schur complement method applies)
 """
 
-# ruff: noqa: E402 (jax must be imported after configure_env)
+
 
 import argparse
 
@@ -19,6 +19,7 @@ dtype = configure_env("cpu", args.dtype)
 import jax.numpy as jnp
 import jax.scipy as jsp
 import numpy as np
+
 from frax.robots.unitree_g1 import load_fixed_root_g1, load_g1
 from frax.utils.linalg_utils import (
     fast_spd_inverse,

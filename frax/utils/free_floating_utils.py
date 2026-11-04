@@ -9,14 +9,13 @@ Note the different quaternion conventions used by different packages.
 - Pinocchio: XYZW
 """
 
-from typing import Tuple
 
 import jax.numpy as jnp
 from jax import Array
 
 from frax.utils.rotation_utils import (
-    quat_wxyz_to_intrinsic_euler_xyz,
     intrinsic_euler_xyz_to_quat_wxyz,
+    quat_wxyz_to_intrinsic_euler_xyz,
     rotate_vector_by_quat_wxyz,
     xyzw_to_wxyz,
 )
@@ -24,7 +23,7 @@ from frax.utils.rotation_utils import (
 
 def virtual_joints_to_pose_and_twist(
     q: Array, qd: Array
-) -> Tuple[Array, Array, Array, Array]:
+) -> tuple[Array, Array, Array, Array]:
     """Convert the state of 6 virtual joints (3 prismatic, 3 revolute)
     to the world-frame pose and twist of the free-floating root
 
@@ -63,7 +62,7 @@ def virtual_joints_to_pose_and_twist(
 
 def pose_and_twist_to_virtual_joints(
     pos: Array, quat_wxyz: Array, vel: Array, omega: Array
-) -> Tuple[Array, Array]:
+) -> tuple[Array, Array]:
     """Convert the world-frame state of the free-floating root (pose and twist)
     to the joint state of 6 virtual joints (3 prismatic, 3 revolute)
 
@@ -109,7 +108,7 @@ def pose_and_twist_to_virtual_joints(
 
 def mujoco_qpos_qvel_to_pose_and_twist(
     qpos: Array, qvel: Array
-) -> Tuple[Array, Array, Array, Array]:
+) -> tuple[Array, Array, Array, Array]:
     """Convert MuJoCo's representation of a free-floating joint's generalized
     coordinates and velocities to a world-frame pose and twist
 
@@ -137,7 +136,7 @@ def mujoco_qpos_qvel_to_pose_and_twist(
 
 def pinocchio_qpos_qvel_to_pose_and_twist(
     qpos: Array, qvel: Array
-) -> Tuple[Array, Array, Array, Array]:
+) -> tuple[Array, Array, Array, Array]:
     """Convert pinocchio's representation of a free-floating joint's generalized
     coordinates and velocities to a world-frame pose and twist
 

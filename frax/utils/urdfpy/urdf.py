@@ -11,7 +11,6 @@ from scipy.spatial.transform import Rotation
 # import time
 # import PIL
 # import trimesh
-
 from .utils import (
     configure_origin,
     # get_filename,
@@ -21,7 +20,7 @@ from .utils import (
 )
 
 
-class URDFType(object):
+class URDFType:
     """Abstract base class for all URDF types.
 
     This has useful class methods for automatic parsing/unparsing
@@ -97,8 +96,8 @@ class URDFType(object):
                     v = cls._parse_attrib(t, node.attrib[a])
                 except Exception:
                     raise ValueError(
-                        "Missing required attribute {} when parsing an object "
-                        "of type {}".format(a, cls.__name__)
+                        f"Missing required attribute {a} when parsing an object "
+                        f"of type {cls.__name__}"
                     )
             else:
                 v = None
@@ -137,8 +136,8 @@ class URDFType(object):
                 vs = node.findall(t._TAG)
                 if len(vs) == 0 and r:
                     raise ValueError(
-                        "Missing required subelement(s) of type {} when "
-                        "parsing an object of type {}".format(t.__name__, cls.__name__)
+                        f"Missing required subelement(s) of type {t.__name__} when "
+                        f"parsing an object of type {cls.__name__}"
                     )
                 v = [t._from_xml(n, path) for n in vs]
             kwargs[a] = v
@@ -1047,7 +1046,7 @@ class Collision(URDFType):
                 scale = np.repeat(scale, 3)
             origin[:3, 3] *= scale
         return Collision(
-            name="{}{}".format(prefix, self.name),
+            name=f"{prefix}{self.name}",
             origin=origin,
             geometry=self.geometry.copy(prefix=prefix, scale=scale),
         )
@@ -1576,7 +1575,7 @@ class JointMimic(URDFType):
             A deep copy of the joint mimic.
         """
         return JointMimic(
-            joint="{}{}".format(prefix, self.joint),
+            joint=f"{prefix}{self.joint}",
             multiplier=self.multiplier,
             offset=self.offset,
         )
@@ -1790,7 +1789,7 @@ class Actuator(URDFType):
             A deep copy of the visual.
         """
         return Actuator(
-            name="{}{}".format(prefix, self.name),
+            name=f"{prefix}{self.name}",
             mechanicalReduction=self.mechanicalReduction,
             hardwareInterfaces=self.hardwareInterfaces.copy(),
         )
@@ -1872,7 +1871,7 @@ class TransmissionJoint(URDFType):
             A deep copy.
         """
         return TransmissionJoint(
-            name="{}{}".format(prefix, self.name),
+            name=f"{prefix}{self.name}",
             hardwareInterfaces=self.hardwareInterfaces.copy(),
         )
 
@@ -1992,7 +1991,7 @@ class Transmission(URDFType):
             A deep copy.
         """
         return Transmission(
-            name="{}{}".format(prefix, self.name),
+            name=f"{prefix}{self.name}",
             trans_type=self.trans_type,
             joints=[j.copy(prefix) for j in self.joints],
             actuators=[a.copy(prefix) for a in self.actuators],
@@ -2101,7 +2100,7 @@ class Joint(URDFType):
     def joint_type(self, value):
         value = str(value)
         if value not in Joint.TYPES:
-            raise ValueError("Unsupported joint type {}".format(value))
+            raise ValueError(f"Unsupported joint type {value}")
         self._joint_type = value
 
     @property
@@ -2129,9 +2128,7 @@ class Joint(URDFType):
 
     @axis.setter
     def axis(self, value):
-        if value is None:
-            value = np.array([1.0, 0.0, 0.0], dtype=np.float64)
-        elif np.linalg.norm(value) < 1e-4:
+        if value is None or np.linalg.norm(value) < 1e-4:
             value = np.array([1.0, 0.0, 0.0], dtype=np.float64)
         else:
             value = np.asanyarray(value, dtype=np.float64)
@@ -2266,9 +2263,7 @@ class Joint(URDFType):
         pose : (4,4) float
             The pose of the child relative to the parent.
         """
-        if cfg is None:
-            return self.origin
-        elif self.joint_type == "fixed":
+        if cfg is None or self.joint_type == "fixed":
             return self.origin
         elif self.joint_type in ["revolute", "continuous"]:
             if cfg is None:
@@ -2334,9 +2329,7 @@ class Joint(URDFType):
         poses : (n,4,4) float
             The poses of the child relative to the parent.
         """
-        if cfg is None:
-            return np.tile(self.origin, (n_cfgs, 1, 1))
-        elif self.joint_type == "fixed":
+        if cfg is None or self.joint_type == "fixed":
             return np.tile(self.origin, (n_cfgs, 1, 1))
         elif self.joint_type in ["revolute", "continuous"]:
             if cfg is None:
@@ -2348,9 +2341,7 @@ class Joint(URDFType):
             translation = np.tile(np.eye(4), (n_cfgs, 1, 1))
             translation[:, :3, 3] = self.axis * cfg[:, np.newaxis]
             return np.matmul(self.origin, translation)
-        elif self.joint_type == "planar":
-            raise NotImplementedError()
-        elif self.joint_type == "floating":
+        elif self.joint_type == "planar" or self.joint_type == "floating":
             raise NotImplementedError()
         else:
             raise ValueError("Invalid configuration")
@@ -2444,10 +2435,10 @@ class Joint(URDFType):
                 scale = np.repeat(scale, 3)
             origin[:3, 3] *= scale
         cpy = Joint(
-            name="{}{}".format(prefix, self.name),
+            name=f"{prefix}{self.name}",
             joint_type=self.joint_type,
-            parent="{}{}".format(prefix, self.parent),
-            child="{}{}".format(prefix, self.child),
+            parent=f"{prefix}{self.parent}",
+            child=f"{prefix}{self.child}",
             axis=self.axis.copy(),
             origin=origin,
             limit=(self.limit.copy(prefix, scale) if self.limit else None),
@@ -2619,7 +2610,7 @@ class Link(URDFType):
         #     visuals = [v.copy(prefix=prefix, scale=scale) for v in self.visuals]
 
         cpy = Link(
-            name="{}{}".format(prefix, self.name),
+            name=f"{prefix}{self.name}",
             inertial=inertial,
             # visuals=visuals,
             collisions=[v.copy(prefix=prefix, scale=scale) for v in self.collisions],
@@ -2695,17 +2686,17 @@ class URDF(URDFType):
 
         for x in self._links:
             if x.name in self._link_map:
-                raise ValueError("Two links with name {} found".format(x.name))
+                raise ValueError(f"Two links with name {x.name} found")
             self._link_map[x.name] = x
 
         for x in self._joints:
             if x.name in self._joint_map:
-                raise ValueError("Two joints with name {} found".format(x.name))
+                raise ValueError(f"Two joints with name {x.name} found")
             self._joint_map[x.name] = x
 
         for x in self._transmissions:
             if x.name in self._transmission_map:
-                raise ValueError("Two transmissions with name {} found".format(x.name))
+                raise ValueError(f"Two transmissions with name {x.name} found")
             self._transmission_map[x.name] = x
 
         # for x in self._materials:
@@ -2891,7 +2882,7 @@ class URDF(URDFType):
                     vec[i] = cfg[jn]
             return vec
         else:
-            raise ValueError("Invalid configuration: {}".format(cfg))
+            raise ValueError(f"Invalid configuration: {cfg}")
 
     @property
     def base_link(self):
@@ -2989,7 +2980,7 @@ class URDF(URDFType):
                     link_set.add(lnk)
                 else:
                     raise TypeError(
-                        "Got object of type {} in links list".format(type(lnk))
+                        f"Got object of type {type(lnk)} in links list"
                     )
         else:
             link_set = self.links
@@ -3075,7 +3066,7 @@ class URDF(URDFType):
                     link_set.add(lnk)
                 else:
                     raise TypeError(
-                        "Got object of type {} in links list".format(type(lnk))
+                        f"Got object of type {type(lnk)} in links list"
                     )
         else:
             link_set = self.links
@@ -3663,7 +3654,7 @@ class URDF(URDFType):
         # Create joint that links the two rigidly
         joints.append(
             Joint(
-                name="{}_join_{}{}_joint".format(self.name, prefix, other.name),
+                name=f"{self.name}_join_{prefix}{other.name}_joint",
                 joint_type="fixed",
                 parent=link if isinstance(link, str) else link.name,
                 child=other.base_link.name,
@@ -3718,7 +3709,7 @@ class URDF(URDFType):
                 tree = ET.parse(io.BytesIO(file_str), parser=parser)
                 path, _ = os.path.split(file_obj)
             else:
-                raise ValueError("{} is not a file".format(file_obj))
+                raise ValueError(f"{file_obj} is not a file")
         else:
             parser = ET.XMLParser(remove_comments=True, remove_blank_text=True)
             tree = ET.parse(file_obj, parser=parser)
@@ -3745,30 +3736,24 @@ class URDF(URDFType):
         for joint in self.joints:
             if joint.parent not in self._link_map:
                 raise ValueError(
-                    "Joint {} has invalid parent link name {}".format(
-                        joint.name, joint.parent
-                    )
+                    f"Joint {joint.name} has invalid parent link name {joint.parent}"
                 )
             if joint.child not in self._link_map:
                 raise ValueError(
-                    "Joint {} has invalid child link name {}".format(
-                        joint.name, joint.child
-                    )
+                    f"Joint {joint.name} has invalid child link name {joint.child}"
                 )
             if joint.child == joint.parent:
                 raise ValueError(
-                    "Joint {} has matching parent and child".format(joint.name)
+                    f"Joint {joint.name} has matching parent and child"
                 )
             if joint.mimic is not None:
                 if joint.mimic.joint not in self._joint_map:
                     raise ValueError(
-                        "Joint {} has an invalid mimic joint name {}".format(
-                            joint.name, joint.mimic.joint
-                        )
+                        f"Joint {joint.name} has an invalid mimic joint name {joint.mimic.joint}"
                     )
                 if joint.mimic.joint == joint.name:
                     raise ValueError(
-                        "Joint {} set up to mimic itself".format(joint.mimic.joint)
+                        f"Joint {joint.mimic.joint} set up to mimic itself"
                     )
             elif joint.joint_type != "fixed":
                 actuated_joints.append(joint)
@@ -3807,9 +3792,7 @@ class URDF(URDFType):
             for joint in t.joints:
                 if joint.name not in self._joint_map:
                     raise ValueError(
-                        "Transmission {} has invalid joint name {}".format(
-                            t.name, joint.name
-                        )
+                        f"Transmission {t.name} has invalid joint name {joint.name}"
                     )
 
     def _validate_graph(self):
@@ -3841,7 +3824,7 @@ class URDF(URDFType):
             for lc in link_clusters:
                 message += "\n\t"
                 for n in lc:
-                    message += " {}".format(n)
+                    message += f" {n}"
             raise ValueError(message)
 
         # Check that link graph is acyclic
@@ -3857,9 +3840,7 @@ class URDF(URDFType):
                     base_link = n
                 else:
                     raise ValueError(
-                        "Links {} and {} are both base links!".format(
-                            n.name, base_link.name
-                        )
+                        f"Links {n.name} and {base_link.name} are both base links!"
                     )
             if len(nx.ancestors(self._G, n)) == 0:
                 end_links.append(n)

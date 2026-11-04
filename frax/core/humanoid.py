@@ -1,12 +1,10 @@
 """Humanoid kinematics and dynamics"""
 
-from typing import Tuple, Optional
 
 import jax
-from jax import Array
-import jax.numpy as jnp
-from jax.typing import ArrayLike
 import numpy as np
+from jax import Array
+from jax.typing import ArrayLike
 
 from frax.core.robot import Robot
 
@@ -47,14 +45,14 @@ class Humanoid(Robot):
         right_hand_parent_joint_name: str,
         left_foot_parent_joint_name: str,
         right_foot_parent_joint_name: str,
-        left_hand_ee_offset: Optional[ArrayLike] = None,
-        right_hand_ee_offset: Optional[ArrayLike] = None,
-        left_foot_ee_offset: Optional[ArrayLike] = None,
-        right_foot_ee_offset: Optional[ArrayLike] = None,
-        collision_data: Optional[dict] = None,
-        joint_ordering: Optional[list[str]] = None,
-        floating_base: Optional[str] = "quaternion",
-        default_configuration: Optional[ArrayLike] = None,
+        left_hand_ee_offset: ArrayLike | None = None,
+        right_hand_ee_offset: ArrayLike | None = None,
+        left_foot_ee_offset: ArrayLike | None = None,
+        right_foot_ee_offset: ArrayLike | None = None,
+        collision_data: dict | None = None,
+        joint_ordering: list[str] | None = None,
+        floating_base: str | None = "quaternion",
+        default_configuration: ArrayLike | None = None,
     ):
         super().__init__(
             urdf_filename,
@@ -165,14 +163,14 @@ class Humanoid(Robot):
 
     def left_hand_jacobian_and_derivative(
         self, q: Array, v: Array
-    ) -> Tuple[Array, Array]:
+    ) -> tuple[Array, Array]:
         """Left hand Jacobian and its time derivative (w.r.t world), both of shape (6, nv)"""
         transforms = self.joint_to_world_transforms(q)
         return self._left_hand_jacobian_and_derivative(v, transforms)
 
     def _left_hand_jacobian_and_derivative(
         self, v: Array, joint_transforms: Array
-    ) -> Tuple[Array, Array]:
+    ) -> tuple[Array, Array]:
         return self._frame_jacobian_and_derivative(
             v, joint_transforms, self.left_hand_ee_offset, self.left_hand_parent_chain
         )
@@ -189,14 +187,14 @@ class Humanoid(Robot):
 
     def right_hand_jacobian_and_derivative(
         self, q: Array, v: Array
-    ) -> Tuple[Array, Array]:
+    ) -> tuple[Array, Array]:
         """Right hand Jacobian and its time derivative (w.r.t world), both of shape (6, nv)"""
         transforms = self.joint_to_world_transforms(q)
         return self._right_hand_jacobian_and_derivative(v, transforms)
 
     def _right_hand_jacobian_and_derivative(
         self, v: Array, joint_transforms: Array
-    ) -> Tuple[Array, Array]:
+    ) -> tuple[Array, Array]:
         return self._frame_jacobian_and_derivative(
             v,
             joint_transforms,
@@ -216,14 +214,14 @@ class Humanoid(Robot):
 
     def left_foot_jacobian_and_derivative(
         self, q: Array, v: Array
-    ) -> Tuple[Array, Array]:
+    ) -> tuple[Array, Array]:
         """Left foot Jacobian and its time derivative (w.r.t world), both of shape (6, nv)"""
         transforms = self.joint_to_world_transforms(q)
         return self._left_foot_jacobian_and_derivative(v, transforms)
 
     def _left_foot_jacobian_and_derivative(
         self, v: Array, joint_transforms: Array
-    ) -> Tuple[Array, Array]:
+    ) -> tuple[Array, Array]:
         return self._frame_jacobian_and_derivative(
             v, joint_transforms, self.left_foot_ee_offset, self.left_foot_parent_chain
         )
@@ -240,14 +238,14 @@ class Humanoid(Robot):
 
     def right_foot_jacobian_and_derivative(
         self, q: Array, v: Array
-    ) -> Tuple[Array, Array]:
+    ) -> tuple[Array, Array]:
         """Right foot Jacobian and its time derivative (w.r.t world), both of shape (6, nv)"""
         transforms = self.joint_to_world_transforms(q)
         return self._right_foot_jacobian_and_derivative(v, transforms)
 
     def _right_foot_jacobian_and_derivative(
         self, v: Array, joint_transforms: Array
-    ) -> Tuple[Array, Array]:
+    ) -> tuple[Array, Array]:
         return self._frame_jacobian_and_derivative(
             v,
             joint_transforms,

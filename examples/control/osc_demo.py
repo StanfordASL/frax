@@ -9,14 +9,13 @@ os.environ["JAX_PLATFORMS"] = "cpu"
 
 import argparse
 
-import numpy as np
 import jax
 import jax.numpy as jnp
-
-from frax import load_panda, load_iiwa
-from frax.utils.rotation_utils import orientation_error_3D
+import numpy as np
 from example_utils import ManipulatorEnv, SinusoidalTaskTrajectory
 
+from frax import load_iiwa, load_panda
+from frax.utils.rotation_utils import orientation_error_3D
 
 MANUAL_MODE_MSG = """
 ====================================

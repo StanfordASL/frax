@@ -1,11 +1,10 @@
 """Quadruped kinematics and dynamics"""
 
-from typing import Tuple, Optional
 
 import jax
+import numpy as np
 from jax import Array
 from jax.typing import ArrayLike
-import numpy as np
 
 from frax.core.robot import Robot
 
@@ -46,14 +45,14 @@ class Quadruped(Robot):
         front_right_foot_parent_joint_name: str,
         hind_left_foot_parent_joint_name: str,
         hind_right_foot_parent_joint_name: str,
-        front_left_foot_offset: Optional[ArrayLike] = None,
-        front_right_foot_offset: Optional[ArrayLike] = None,
-        hind_left_foot_offset: Optional[ArrayLike] = None,
-        hind_right_foot_offset: Optional[ArrayLike] = None,
-        collision_data: Optional[dict] = None,
-        joint_ordering: Optional[list[str]] = None,
-        floating_base: Optional[str] = "quaternion",
-        default_configuration: Optional[ArrayLike] = None,
+        front_left_foot_offset: ArrayLike | None = None,
+        front_right_foot_offset: ArrayLike | None = None,
+        hind_left_foot_offset: ArrayLike | None = None,
+        hind_right_foot_offset: ArrayLike | None = None,
+        collision_data: dict | None = None,
+        joint_ordering: list[str] | None = None,
+        floating_base: str | None = "quaternion",
+        default_configuration: ArrayLike | None = None,
     ):
         super().__init__(
             urdf_filename,
@@ -178,14 +177,14 @@ class Quadruped(Robot):
 
     def front_left_foot_jacobian_and_derivative(
         self, q: Array, v: Array
-    ) -> Tuple[Array, Array]:
+    ) -> tuple[Array, Array]:
         """Front left foot Jacobian and its time derivative (w.r.t world), both of shape (6, nv)"""
         transforms = self.joint_to_world_transforms(q)
         return self._front_left_foot_jacobian_and_derivative(v, transforms)
 
     def _front_left_foot_jacobian_and_derivative(
         self, v: Array, joint_transforms: Array
-    ) -> Tuple[Array, Array]:
+    ) -> tuple[Array, Array]:
         return self._frame_jacobian_and_derivative(
             v,
             joint_transforms,
@@ -207,14 +206,14 @@ class Quadruped(Robot):
 
     def front_right_foot_jacobian_and_derivative(
         self, q: Array, v: Array
-    ) -> Tuple[Array, Array]:
+    ) -> tuple[Array, Array]:
         """Front right foot Jacobian and its time derivative (w.r.t world), both of shape (6, nv)"""
         transforms = self.joint_to_world_transforms(q)
         return self._front_right_foot_jacobian_and_derivative(v, transforms)
 
     def _front_right_foot_jacobian_and_derivative(
         self, v: Array, joint_transforms: Array
-    ) -> Tuple[Array, Array]:
+    ) -> tuple[Array, Array]:
         return self._frame_jacobian_and_derivative(
             v,
             joint_transforms,
@@ -236,14 +235,14 @@ class Quadruped(Robot):
 
     def hind_left_foot_jacobian_and_derivative(
         self, q: Array, v: Array
-    ) -> Tuple[Array, Array]:
+    ) -> tuple[Array, Array]:
         """Hind left foot Jacobian and its time derivative (w.r.t world), both of shape (6, nv)"""
         transforms = self.joint_to_world_transforms(q)
         return self._hind_left_foot_jacobian_and_derivative(v, transforms)
 
     def _hind_left_foot_jacobian_and_derivative(
         self, v: Array, joint_transforms: Array
-    ) -> Tuple[Array, Array]:
+    ) -> tuple[Array, Array]:
         return self._frame_jacobian_and_derivative(
             v,
             joint_transforms,
@@ -265,14 +264,14 @@ class Quadruped(Robot):
 
     def hind_right_foot_jacobian_and_derivative(
         self, q: Array, v: Array
-    ) -> Tuple[Array, Array]:
+    ) -> tuple[Array, Array]:
         """Hind right foot Jacobian and its time derivative (w.r.t world), both of shape (6, nv)"""
         transforms = self.joint_to_world_transforms(q)
         return self._hind_right_foot_jacobian_and_derivative(v, transforms)
 
     def _hind_right_foot_jacobian_and_derivative(
         self, v: Array, joint_transforms: Array
-    ) -> Tuple[Array, Array]:
+    ) -> tuple[Array, Array]:
         return self._frame_jacobian_and_derivative(
             v,
             joint_transforms,

@@ -11,18 +11,17 @@ which implies M_frax = T^T M_pin T, and tau_frax = T^T tau_pin.
 Note that T depends on the state, so T_dot @ v must be accounted for in the accelerations.
 """
 
-from typing import Tuple
 
 import jax
 import jax.numpy as jnp
-import numpy as np
 import mujoco
+import numpy as np
 import pinocchio as pin
 import pytest
 
+from frax.assets import FRANKA_ASSETS_DIR, G1_ASSETS_DIR
 from frax.core.manipulator import Manipulator
 from frax.robots.unitree_g1 import load_g1
-from frax.assets import G1_ASSETS_DIR, FRANKA_ASSETS_DIR
 from frax.utils.free_floating_utils import pose_and_twist_to_virtual_joints
 from frax.utils.rotation_utils import (
     quat_wxyz_to_rmat,
@@ -38,7 +37,7 @@ NUM_ACTUATED = 29
 g = jnp.array([0.0, 0.0, 9.81, 0.0, 0.0, 0.0])
 
 
-def sample_state(nv: int = 35) -> Tuple[np.ndarray, np.ndarray]:
+def sample_state(nv: int = 35) -> tuple[np.ndarray, np.ndarray]:
     """Random configuration (nq = nv + 1) and velocity (nv) for the quaternion G1"""
     pos = np.random.uniform(-1.0, 1.0, 3)
     quat = np.random.randn(4)

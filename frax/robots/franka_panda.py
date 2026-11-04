@@ -2,9 +2,8 @@ import numpy as np
 
 from frax.assets import FRANKA_ASSETS_DIR
 from frax.core.manipulator import Manipulator
-from frax.utils.rotation_utils import Rz
 from frax.utils.collision_utils import bubblify_to_mine
-
+from frax.utils.rotation_utils import Rz
 
 collision_model_file = FRANKA_ASSETS_DIR / "bubblify/panda_spherized.yml"
 root_link_name = "panda_link0"

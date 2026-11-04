@@ -1,12 +1,10 @@
 """Manipulator kinematics and dynamics"""
 
-from typing import Tuple, Optional
 
 import jax
+import numpy as np
 from jax import Array
 from jax.typing import ArrayLike
-import jax.numpy as jnp
-import numpy as np
 
 from frax.core.robot import Robot
 
@@ -33,11 +31,11 @@ class Manipulator(Robot):
     def __init__(
         self,
         urdf_filename: str,
-        collision_data: Optional[dict] = None,
-        joint_ordering: Optional[list[str]] = None,
-        floating_base: Optional[str] = None,
-        ee_offset: Optional[ArrayLike] = None,
-        default_configuration: Optional[ArrayLike] = None,
+        collision_data: dict | None = None,
+        joint_ordering: list[str] | None = None,
+        floating_base: str | None = None,
+        ee_offset: ArrayLike | None = None,
+        default_configuration: ArrayLike | None = None,
     ):
         super().__init__(
             urdf_filename,
@@ -99,7 +97,7 @@ class Manipulator(Robot):
             joint_transforms, self.ee_offset, self.ee_parent_chain
         )
 
-    def ee_jacobian_and_derivative(self, q: Array, v: Array) -> Tuple[Array, Array]:
+    def ee_jacobian_and_derivative(self, q: Array, v: Array) -> tuple[Array, Array]:
         """End-effector Jacobian and its time derivative (w.r.t world)
 
         Args:
@@ -115,7 +113,7 @@ class Manipulator(Robot):
 
     def _ee_jacobian_and_derivative(
         self, v: Array, joint_transforms: Array
-    ) -> Tuple[Array, Array]:
+    ) -> tuple[Array, Array]:
         """Helper function: Compute EE Jacobian and time derivative given joint transforms"""
         return self._frame_jacobian_and_derivative(
             v, joint_transforms, self.ee_offset, self.ee_parent_chain
@@ -140,7 +138,7 @@ class Manipulator(Robot):
 
     def torque_control_matrices(
         self, q: Array, v: Array
-    ) -> Tuple[Array, Array, Array, Array, Array, Array]:
+    ) -> tuple[Array, Array, Array, Array, Array, Array]:
         """Compute the matrices required for operational space torque control
         with just a single evaluation of the kinematics
 
@@ -165,7 +163,7 @@ class Manipulator(Robot):
         T = self._ee_transform(joint_transforms)
         return M, M_inv, G, C, J, T
 
-    def velocity_control_matrices(self, q: Array) -> Tuple[Array, Array]:
+    def velocity_control_matrices(self, q: Array) -> tuple[Array, Array]:
         """Compute the matrices required for operational space velocity control
         with just a single evaluation of the kinematics
 
@@ -183,7 +181,7 @@ class Manipulator(Robot):
 
     def dynamically_consistent_velocity_control_matrices(
         self, q: Array
-    ) -> Tuple[Array, Array, Array]:
+    ) -> tuple[Array, Array, Array]:
         """Compute the matrices required for operational space velocity control
         with just a single evaluation of the kinematics.
 

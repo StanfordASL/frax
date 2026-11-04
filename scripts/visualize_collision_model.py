@@ -15,10 +15,9 @@ import numpy as np
 import viser
 from viser.extras import ViserUrdf
 
-from frax import Robot, load_g1, load_panda, load_iiwa, load_a2
-from frax.assets import G1_ASSETS_DIR, FRANKA_ASSETS_DIR, KUKA_ASSETS_DIR, A2_ASSETS_DIR
+from frax import Robot, load_a2, load_g1, load_iiwa, load_panda
+from frax.assets import A2_ASSETS_DIR, FRANKA_ASSETS_DIR, G1_ASSETS_DIR, KUKA_ASSETS_DIR
 from frax.utils.rotation_utils import intrinsic_euler_xyz_to_quat_wxyz
-
 
 # Colors
 SPHERE_SC_COLOR = (220, 60, 60)  # Red — involved in self-collision pairs

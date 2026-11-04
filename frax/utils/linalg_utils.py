@@ -2,8 +2,8 @@
 
 import jax.numpy as jnp
 import jax.scipy as jsp
-from jax import Array
 import numpy as np
+from jax import Array
 
 
 def fast_spd_inverse(A: Array) -> Array:

@@ -22,7 +22,6 @@ from frax.robots.kuka_iiwa import load_iiwa
 from frax.robots.unitree_a2 import load_a2
 from frax.robots.unitree_g1 import load_fixed_root_g1, load_g1
 
-
 NUM_SAMPLES = 5
 
 ROBOT_LOADERS = {

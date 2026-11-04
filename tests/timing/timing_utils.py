@@ -6,8 +6,8 @@ of these settings are only read when jax is first loaded
 
 import os
 import time
+from collections.abc import Callable
 from importlib.metadata import version as package_version
-from typing import Callable, Tuple
 
 from packaging import version
 
@@ -43,8 +43,8 @@ def configure_env(device: str = "cpu", dtype: str = "auto") -> str:
 
 
 def benchmark_function(
-    func: Callable, args: Tuple, n_calls: int = 100000, n_warmup: int = 10
-) -> Tuple[float, float]:
+    func: Callable, args: tuple, n_calls: int = 100000, n_warmup: int = 10
+) -> tuple[float, float]:
     """Benchmark the timing performance of a JAX function
 
     Args:
@@ -83,7 +83,7 @@ def benchmark_function(
     return avg_time, jit_time
 
 
-def sample_state(robot, batch_size: int | None = None) -> Tuple:
+def sample_state(robot, batch_size: int | None = None) -> tuple:
     """Sample a random (q, v), with a leading batch dimension if batch_size is provided"""
     import numpy as np  # Imported here so that configure_env can run first
 

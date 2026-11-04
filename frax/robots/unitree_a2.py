@@ -4,7 +4,6 @@ from frax.assets import A2_ASSETS_DIR
 from frax.core.quadruped import Quadruped
 from frax.utils.collision_utils import bubblify_to_mine
 
-
 urdf = A2_ASSETS_DIR / "a2.urdf"
 # TODO: Add a spherized collision model
 collision_model_file = A2_ASSETS_DIR / "bubblify/a2_spherized.yml"

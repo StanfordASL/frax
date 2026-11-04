@@ -1,15 +1,16 @@
 """Collision utils"""
 
-from typing import Iterable, Optional, Tuple, Union
+from collections.abc import Iterable
 from pathlib import Path
+
 import yaml
 
 
 def link_pairs_to_sc_data(
-    filepath: Union[str, Path],
-    link_pairs: Iterable[Tuple[str, str]],
+    filepath: str | Path,
+    link_pairs: Iterable[tuple[str, str]],
     tol: float = 0.0,
-) -> Tuple[Tuple[str, int, str, int, float], ...]:
+) -> tuple[tuple[str, int, str, int, float], ...]:
     """Expands self-collision pairs of links into all pairs of their spheres
 
     Args:
@@ -37,11 +38,11 @@ def link_pairs_to_sc_data(
 
 
 def bubblify_to_mine(
-    filepath: Union[str, Path],
+    filepath: str | Path,
     child_map: dict[str, str],
     root_link_name: str,
     add_floating_base: bool,
-    sc_data: Optional[Tuple[Tuple[str, int, str, int, float]]],
+    sc_data: tuple[tuple[str, int, str, int, float]] | None,
     verbose: bool = True,
 ) -> dict[str, tuple]:
     """Converts a bubblify-generated spherized collision model to my expected format

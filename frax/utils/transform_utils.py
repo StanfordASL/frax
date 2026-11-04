@@ -1,8 +1,8 @@
 import jax
-from jax import Array
-from jax.typing import ArrayLike
 import jax.numpy as jnp
 import numpy as np
+from jax import Array
+from jax.typing import ArrayLike
 
 from frax.utils.linalg_utils import skew, skew_numpy
 
