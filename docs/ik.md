@@ -41,16 +41,22 @@ python examples/ik/lafan1/view.py
 
 #### BONES-SEED
 
-To fetch the data for BONES-SEED, you'll need to first agree to some terms and conditions: see the [HuggingFace page](https://huggingface.co/datasets/bones-studio/seed) for more details
+To fetch the data for BONES-SEED, you'll need to first agree to some terms and conditions: see the [HuggingFace page](https://huggingface.co/datasets/bones-studio/seed) for more details and instructions.
 
-
-This dataset is significantly larger than LAFAN1, and it is a much higher framerate. Processing the full set takes roughly 1 hour on my desktop
+This dataset is significantly larger than LAFAN1 (>100 GB!), and it is a much higher framerate. Processing the full set takes roughly 1 hour on my desktop. If you've got the storage space on your computer, and don't mind a short wait, download the dataset and then run the following:
 
 ```
 python examples/ik/bones_seed/retarget.py
 ```
 
+As with the LAFAN1 demo, we have a script to show the results in a viser viewer:
+
+```
+python examples/ik/bones_seed/view.py
+```
+
 Currently, all humanoid examples are configured to use the Unitree G1, which is built-in to `frax`. If you would like to use a new robot, you'll need a URDF and a collision model: see our other docs for more details. 
+
 
 ### General IK problems
 
