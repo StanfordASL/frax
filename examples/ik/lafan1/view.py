@@ -25,8 +25,8 @@ G1_URDF = G1_ASSETS_DIR / "g1_29dof_rev_1_0.urdf"
 
 
 def main(args):
-    paths = sorted(Path(args.frax_dir).glob("*.npz"))
-    assert paths, f"No .npz files in {args.frax_dir}"
+    paths = sorted(Path(args.results_dir).glob("*.npz"))
+    assert paths, f"No .npz files in {args.results_dir}"
     clips = {path.stem: path for path in paths}
     dt = 1.0 / LAFAN1_FPS
 
@@ -72,6 +72,8 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--frax-dir", default=OUT_DIR, help="Retargeted clips (.npz)")
+    parser.add_argument(
+        "--results-dir", default=OUT_DIR, help="Retargeted clips from frax.ik"
+    )
     parser.add_argument("--port", type=int, default=8080, help="Viser server port")
     main(parser.parse_args())

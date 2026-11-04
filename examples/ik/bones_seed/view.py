@@ -27,6 +27,7 @@ from dataset import (
     bvh_path,
     load_g1_csv,
     load_seed,
+    name_matches,
     read_metadata,
 )
 from seed_g1 import SEED_FPS
@@ -54,9 +55,11 @@ def main(args):
     data_dir = Path(args.data_dir)
     meta = {r["filename"]: r for r in read_metadata(data_dir)}
     paths = [
-        p for p in sorted(Path(args.frax_dir).glob("*.npz")) if args.match in p.stem
+        p
+        for p in sorted(Path(args.results_dir).glob("*.npz"))
+        if name_matches(p.stem, args.match)
     ]
-    assert paths, f"No .npz files matching {args.match} in {args.frax_dir}"
+    assert paths, f"No .npz files matching {args.match!r} in {args.results_dir}"
     clips = {path.stem: path for path in paths[: args.max_clips]}
     dt = 1.0 / SEED_FPS
 
@@ -131,10 +134,14 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--data-dir", default=DATA_DIR, help="SEED dataset root")
-    parser.add_argument("--frax-dir", default=OUT_DIR, help="Retargeted clips (.npz)")
-    parser.add_argument("--match", default="", help="Only clips whose name has this")
     parser.add_argument(
-        "--max-clips", type=int, default=1000, help="Most clips in the dropdown"
+        "--results-dir", default=OUT_DIR, help="Retargeted clips from frax.ik"
+    )
+    parser.add_argument(
+        "--match", default="", help="Only clips whose name matches this regex"
+    )
+    parser.add_argument(
+        "--max-clips", type=int, default=1000, help="Max clips listed in the dropdown"
     )
     parser.add_argument("--port", type=int, default=8080, help="Viser server port")
     main(parser.parse_args())

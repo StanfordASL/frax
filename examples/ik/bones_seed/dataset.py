@@ -11,11 +11,12 @@ performance, extract g1.tar.gz as well
 """
 
 import csv
+import re
 from pathlib import Path
 
 import numpy as np
 from scipy.spatial.transform import Rotation
-from seed_g1 import SEED_BONES, SEED_FPS
+from seed_g1 import SEED_BONES, SEED_FPS, SMOOTH_ROT
 
 from frax.ik import load_bvh, smooth_poses
 
@@ -45,19 +46,21 @@ def read_metadata(data_dir: str | Path = DATA_DIR) -> list[dict]:
         return list(csv.DictReader(f))
 
 
+def name_matches(name: str, match: str) -> bool:
+    """Whether a clip name matches the regex match (case-insensitive)"""
+    return re.search(match, name, re.IGNORECASE) is not None
+
+
 def select_clips(
     rows: list[dict],
     n: int | None = None,
-    seed: int = 0,
+    rng_seed: int = 0,
     match: str = "",
 ) -> list[dict]:
-    rows = [
-        r
-        for r in rows
-        if match in r["filename"] or match in r["package"] or match in r["category"]
-    ]
+    """Rows whose clip name matches the regex match, then n of them at random"""
+    rows = [r for r in rows if name_matches(r["filename"], match)]
     if n is not None and n < len(rows):
-        idx = np.random.default_rng(seed).choice(len(rows), n, replace=False)
+        idx = np.random.default_rng(rng_seed).choice(len(rows), n, replace=False)
         rows = [rows[i] for i in sorted(idx)]
     return rows
 
@@ -66,7 +69,7 @@ def bvh_path(row: dict, data_dir: str | Path) -> Path:
     return Path(data_dir) / row["move_soma_uniform_path"]
 
 
-def load_clip(path: str | Path, sigma_rot: float) -> dict | None:
+def load_clip(path: str | Path, sigma_rot: float = SMOOTH_ROT) -> dict | None:
     try:
         poses, names = load_seed(path)
     except ValueError:

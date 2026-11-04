@@ -30,7 +30,7 @@ LAFAN1 is a great place to get started with humanoid retargeting. The dataset (C
 python examples/ik/lafan1/retarget.py
 ```
 
-(Timing numbers are from a i9-14900KF CPU. If you add the `--self-collision` flag, it takes around 7 seconds. On my i7 laptop, it takes around 10 seconds)
+(Timing numbers are from a i9-14900KF CPU. If you add the `--self-collision-avoidance` flag, it takes around 7 seconds. On my i7 laptop, it takes around 10 seconds)
 
 Once that's done, run the following to take a look at the retargeted results in a viser viewer!
 

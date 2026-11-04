@@ -153,15 +153,16 @@ ARM_ABDUCTION = 0.2
 SHOULDER_POSTURE_WEIGHT = 16.0
 # Orientation smoothing kernel standard deviation (s), for offline retargeting
 SMOOTH_ROT = 0.05
-# Global IK for the first frame (global_ik_init): starts, iterations, and
-# cost tolerance (see GlobalIKSolver), for clips that start in poses the zero
-# configuration converges badly from (e.g. hands behind the back). The tolerance
-# keeps the default solution unless another is clearly better
+# Global IK for the first frame (global_ik_init, used by retarget.py --refine):
+# starts, iterations, and cost tolerance (see GlobalIKSolver), for clips that
+# start in poses the zero configuration converges badly from (e.g. hands behind
+# the back). The tolerance keeps the default solution unless another is clearly
+# better
 GLOBAL_IK_SAMPLES = 32
 GLOBAL_IK_ITERS = 100
 GLOBAL_IK_COST_TOL = 5e4
-# retarget.py --refine redoes by global IK the clips whose first frame has a
-# link this far off target (deg)
+# retarget.py --refine redoes by global IK the saved clips whose first frame has
+# a link this far off target (deg)
 GLOBAL_IK_FIRST_FRAME_ERROR = 45.0
 
 

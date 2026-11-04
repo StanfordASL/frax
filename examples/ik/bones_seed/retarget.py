@@ -3,6 +3,10 @@
 Note: BONES-SEED is much larger than LAFAN1, so clips load in
 chunks while the previous chunk is processing.
 
+Clips already in --results-dir are skipped, so an interrupted run
+picks up where it left off. Pass --overwrite to redo them (e.g.
+after changing the retargeting settings).
+
 This script also adds a `--refine` option where any clips where
 the first frame is off-target are re-solved on initialization by
 the frax.ik global IK solver. This is much slower than solving one
@@ -46,7 +50,6 @@ from seed_g1 import (
     G1_JOINT_NAMES,
     GLOBAL_IK_FIRST_FRAME_ERROR,
     SEED_FPS,
-    SMOOTH_ROT,
     make_retargeter,
     preprocess,
 )
@@ -75,15 +78,27 @@ def first_frame_error(robot):
 def main(args):
     data_dir = Path(args.data_dir)
     verb = "refine" if args.refine else "retarget"
-    out_dir = Path(args.out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    rows = select_clips(read_metadata(data_dir), args.num_clips, args.seed, args.match)
+    results_dir = Path(args.results_dir)
+    results_dir.mkdir(parents=True, exist_ok=True)
+    rows = select_clips(
+        read_metadata(data_dir), args.num_clips, args.rng_seed, args.match
+    )
 
     def saved(r):
-        return out_dir / f"{r['filename']}.npz"
+        return results_dir / f"{r['filename']}.npz"
 
-    # Refining checks the saved clips; otherwise, they're skipped
-    todo = [r for r in rows if saved(r).exists() == args.refine]
+    if args.refine:
+        # Refining checks the saved clips
+        todo = [r for r in rows if saved(r).exists()]
+    elif args.overwrite:
+        todo = rows
+    else:
+        todo = [r for r in rows if not saved(r).exists()]
+        if len(todo) < len(rows):
+            print(
+                f"Skipping {len(rows) - len(todo)} clips already in {results_dir} "
+                + "(--overwrite to redo them)"
+            )
     # Longest first, so each chunk's groups have similar lengths
     todo.sort(key=lambda r: -int(r["move_duration_frames"]))
     print(f"{len(rows)} clips selected, {len(todo)} to {verb}")
@@ -92,15 +107,13 @@ def main(args):
     pool = ProcessPoolExecutor(mp_context=multiprocessing.get_context("spawn"))
 
     def submit(chunk):
-        return [
-            pool.submit(load_clip, bvh_path(r, data_dir), args.sigma_rot) for r in chunk
-        ]
+        return [pool.submit(load_clip, bvh_path(r, data_dir)) for r in chunk]
 
     robot = load_g1()
     retargeter = make_retargeter(
         robot,
-        self_collision=not args.no_self_collision,
-        global_ik_init=args.global_ik_init or args.refine,
+        self_collision=args.self_collision_avoidance,
+        global_ik_init=args.refine,
     )
     error = first_frame_error(robot)
     retarget = OfflineRetargeter(retargeter, 1.0 / SEED_FPS)
@@ -142,39 +155,41 @@ def main(args):
         f"Compilation time (in parallel with the solve): {retarget.compile_time:.0f} s"
     )
     if skipped:
-        (out_dir / "skipped.txt").write_text("\n".join(skipped) + "\n")
+        (results_dir / "skipped.txt").write_text("\n".join(skipped) + "\n")
         print(f"Skipped {len(skipped)} clips with NaN frames (skipped.txt)")
-    print(f"Saved to {out_dir}")
+    print(f"Saved to {results_dir}")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--data-dir", default=DATA_DIR, help="SEED dataset root")
-    parser.add_argument("--out-dir", default=OUT_DIR, help="Retargeted clips (.npz)")
     parser.add_argument(
-        "--num-clips", type=int, default=None, help="Random clips (default: all)"
-    )
-    parser.add_argument("--seed", type=int, default=0, help="Clip sampling seed")
-    parser.add_argument(
-        "--match", default="", help="Only clips whose name/package/category has this"
+        "--results-dir", default=OUT_DIR, help="Where to save retargeted clips (.npz)"
     )
     parser.add_argument(
-        "--global-ik-init",
+        "--match", default="", help="Only clips whose name matches this regex"
+    )
+    parser.add_argument(
+        "--num-clips", type=int, default=None, help="Random subset size (default: all)"
+    )
+    parser.add_argument(
+        "--rng-seed", type=int, default=0, help="Random seed for --num-clips"
+    )
+    parser.add_argument(
+        "--self-collision-avoidance",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Avoid self-collisions",
+    )
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
+        "--overwrite",
         action="store_true",
-        help="Solve each clip's first frame by global IK",
+        help="Redo clips already in --results-dir (default: skip them)",
     )
-    parser.add_argument(
+    mode.add_argument(
         "--refine",
         action="store_true",
         help="Redo the saved clips whose first frame is off target, by global IK",
-    )
-    parser.add_argument(
-        "--no-self-collision", action="store_true", help="No self-collision avoidance"
-    )
-    parser.add_argument(
-        "--sigma-rot",
-        type=float,
-        default=SMOOTH_ROT,
-        help="Orientation smoothing (s). 0: none, as online",
     )
     main(parser.parse_args())
