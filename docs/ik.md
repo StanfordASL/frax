@@ -75,3 +75,15 @@ Another interactive example is available in `examples/ik/a2_interactive.py` (qua
 ```
 python examples/ik/a2_interactive.py
 ```
+
+We also have a collision avoidance demo where a Panda tracks a pre-set trajectory and we enforce collision avoidance to an (interactive) external obstacle:
+
+```
+python examples/ik/panda_obstacle.py
+```
+
+For a more advanced example, we have a demo of how to set up a global IK problem with multiple samples parallelized across CPU devices:
+
+```
+python examples/ik/parallel_global_ik.py
+```
