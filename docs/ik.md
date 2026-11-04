@@ -4,8 +4,8 @@
 
 `frax.ik` is great for *both* online and offline IK problems. For example, applications include:
 
-- **Online**: Real-time (>1000 Hz) velocity control of robot manipulators, online teleoperation and retargeting of humanoid robots
-- **Offline**: Batch processing and retargeting of trajectories and human motion data
+- **Online**: Real-time (>1,000 Hz) velocity control of robot manipulators, online teleoperation and retargeting of humanoid robots
+- **Offline**: Batch processing and retargeting of trajectories and human motion data (>100,000 Hz)
 
 `frax.ik` uses [ElastiQP](https://github.com/StanfordASL/elastiqp) as the underlying QP solver for each differential IK step. This solver is *always feasible*, in the sense that it adds an (implicit) l1 relaxation on every inequality constraint. Check out the [paper](https://arxiv.org/abs/2609.19080) for more details!
 
@@ -18,7 +18,7 @@
 
 #### LAFAN1: **Retarget the entire dataset in 4 seconds on CPU:**
 
-To fetch the dataset (CC BY-NC-ND 4.0), first run `python examples/ik/lafan1/download.py`
+To fetch the dataset (CC BY-NC-ND 4.0), first run `python examples/ik/lafan1/download.py`, then
 
 ```
 python examples/ik/lafan1/retarget.py

@@ -12,7 +12,7 @@ With `frax`, you can design high-performance inverse-kinematics and inverse-dyna
 
 On CPU, you can expect compute times for typical controllers in the *low microseconds range (~25-100 kHz)*, and on GPU or TPU, `frax` can compute dynamics terms at upwards of *100 million computations per second*, depending on your batch size. 
 
-### New: Inverse kinematics and retargeting with `frax.ik`
+### New: Inverse kinematics and retargeting with `frax.ik` (at >100,000 FPS)
 
 `frax` `0.2.0` now includes new utilities for fast, flexible IK pipelines! For full details, check out the [the `frax.ik` guide](docs/ik.md) and the examples in `examples/ik` (humanoid retargeting, as well as interactive manipulator and quadruped IK demos).
 
