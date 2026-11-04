@@ -48,11 +48,11 @@ For more fine-grained control over the JAX install for GPU/TPU, you can also use
 `frax`'s "hello world": Compute your robot's mass matrix (AKA joint-space inertia matrix)
 ```python
 import frax
-import numpy as np
+import jax
 
 jax.config.update("jax_enable_x64", True)  # Recommmended for high accuracy
 
-robot = frax.Robot("path/to/your/robot.urdf")
+robot = frax.Robot("path/to/your/robot.urdf")  # Or use a built-in model, e.g. frax.load_panda()
 q = robot.default_configuration
 M = robot.mass_matrix(q)
 print(M)
