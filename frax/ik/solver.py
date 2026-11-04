@@ -1,4 +1,25 @@
-"""Differential IK solver: stack tasks and constraints into a QP, solve, integrate"""
+"""Differential IK
+
+min  sum_tasks || weight * (J v - v_des) ||^2 + (reg + lam) * ||v||^2
+s.t. A v == b; G v <= h
+
+i.e.
+- Minimimize the weighted task velocity error, plus regularization
+and damping terms for stability
+- Subject to a set of equality and inequality constraints
+
+Note that since we use ElastiQP as our solver, inequality constraints
+are automatically (and efficiently) relaxed with an L1 penalty term.
+These constraints are held exactly when the problem is feasible, and
+only relaxed when the problem is infeasible*
+
+*See the ElastiQP paper for more details, and more precise conditions
+on relaxation and when this occurs
+
+Equality constraints are still held as hard constraints with ElastiQP,
+unless explicitly posed as an elastic equality. In this case, the
+equality is converted to a pair of opposing elastic inequalities.
+"""
 
 from collections.abc import Sequence
 from typing import Any, NamedTuple
@@ -21,8 +42,7 @@ from frax.ik.tasks import Task
 
 class SolverState(NamedTuple):
     q: Array
-    # The last QP solution (x, y, z): primal, equality duals, inequality duals
-    qp_warm_start: tuple[Array, Array, Array]
+    qp_warm_start: tuple[Array, Array, Array]  # Last QP sol primal + duals, (x, y, z)
 
 
 class SolverInfo(NamedTuple):
@@ -48,14 +68,7 @@ def _max_gain(terms) -> float | None:
 
 @jax.tree_util.register_static
 class DiffIKSolver:
-    """Differential IK (with an elastic QP)
-
-        min  sum_tasks || weight * (J v - v_des) ||^2 + (reg + lam) * ||v||^2
-        s.t. G v <= h  (inequalities, including elastic equalities, L1-relaxed)
-             A v == b  (hard equalities)
-
-    The Levenberg-Marquardt damping lam = damping * sum_tasks || weight * v_des ||^2
-    keeps unreachable targets from cycling, and vanishes as the tasks are met
+    """Differential IK with ElastiQP
 
     Args:
         robot (Robot): Robot model
@@ -168,7 +181,7 @@ class DiffIKSolver:
     def solve(
         self, q: Array, ref: Any, qp_warm_start: tuple[Array, Array, Array]
     ) -> tuple[Array, tuple[Array, Array, Array], SolverInfo]:
-        """Solve the differential IK QP
+        """Solve the diff IK QP
 
         Args:
             q (Array): Configuration, shape (nq,)
@@ -218,11 +231,12 @@ class DiffIKSolver:
     def converge(
         self, state: SolverState, ref: Any, max_iters: int, dt_max: float, tol: float
     ) -> tuple[SolverState, Array]:
-        """Iterate on a fixed reference, accepting only steps that lower the
-        cost. Accepted steps double dt (up to dt_max), rejected ones halve it
+        """Run differential IK until convergence
 
-        Stops once max |v| <= tol (a redundant robot needs a posture task for
-        this), or dt < MIN_STEP_RATIO * dt_max
+        Note: This method should generally only be called as a component of a
+        global IK pipeline, or at initialization of a solver. During online
+        operation, or sequential calls in an offline pipeline, generally
+        only a single diff IK step() should be taken.
 
         Args:
             state (SolverState): Initial state
@@ -248,13 +262,16 @@ class DiffIKSolver:
             q, v, qp_warm_start, cost, dt, i, _ = carry
             q_new = robot.integrate(q, v, dt)
             v_new, qp_warm_start_new, info = self.solve(q_new, ref, qp_warm_start)
+            # Accept if the step lowers the cost
             accept = info.cost < cost
             q, v, qp_warm_start, cost = jax.tree.map(
                 lambda new, old: jnp.where(accept, new, old),
                 (q_new, v_new, qp_warm_start_new, info.cost),
                 (q, v, qp_warm_start, cost),
             )
+            # If accepted, double dt, otherwise halve it
             dt = jnp.where(accept, jnp.minimum(2.0 * dt, dt_max), 0.5 * dt)
+            # Stopping condition on the max |v| or on a minimum dt
             done = (accept & (jnp.max(jnp.abs(v)) <= tol)) | (dt < dt_min)
             return q, v, qp_warm_start, cost, dt, i + 1, done
 
