@@ -1,27 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://danielpmorton.github.io/frax/</loc>
-         <lastmod>2026-10-07</lastmod>
+         <loc>https://StanfordASL.github.io/frax/</loc>
+         <lastmod>2026-11-04</lastmod>
     </url>
     <url>
-         <loc>https://danielpmorton.github.io/frax/modeling_collision/</loc>
-         <lastmod>2026-10-07</lastmod>
+         <loc>https://StanfordASL.github.io/frax/ik/</loc>
+         <lastmod>2026-11-04</lastmod>
     </url>
     <url>
-         <loc>https://danielpmorton.github.io/frax/api/humanoid/</loc>
-         <lastmod>2026-10-07</lastmod>
+         <loc>https://StanfordASL.github.io/frax/modeling_collision/</loc>
+         <lastmod>2026-11-04</lastmod>
     </url>
     <url>
-         <loc>https://danielpmorton.github.io/frax/api/manipulator/</loc>
-         <lastmod>2026-10-07</lastmod>
+         <loc>https://StanfordASL.github.io/frax/api/humanoid/</loc>
+         <lastmod>2026-11-04</lastmod>
     </url>
     <url>
-         <loc>https://danielpmorton.github.io/frax/api/quadruped/</loc>
-         <lastmod>2026-10-07</lastmod>
+         <loc>https://StanfordASL.github.io/frax/api/ik/</loc>
+         <lastmod>2026-11-04</lastmod>
     </url>
     <url>
-         <loc>https://danielpmorton.github.io/frax/api/robot/</loc>
-         <lastmod>2026-10-07</lastmod>
+         <loc>https://StanfordASL.github.io/frax/api/manipulator/</loc>
+         <lastmod>2026-11-04</lastmod>
+    </url>
+    <url>
+         <loc>https://StanfordASL.github.io/frax/api/quadruped/</loc>
+         <lastmod>2026-11-04</lastmod>
+    </url>
+    <url>
+         <loc>https://StanfordASL.github.io/frax/api/robot/</loc>
+         <lastmod>2026-11-04</lastmod>
     </url>
 </urlset>
