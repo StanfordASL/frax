@@ -16,6 +16,8 @@ On CPU, you can expect compute times for typical controllers in the *low microse
 
 `frax` `0.2.0` now includes new utilities for fast, flexible IK pipelines! For full details, check out the [the `frax.ik` guide](docs/ik.md) and the examples in `examples/ik` (humanoid retargeting, as well as interactive manipulator and quadruped IK demos).
 
+![frax_ik_gif](https://github.com/user-attachments/assets/2e835e43-7c5f-48b7-bd1c-6ba8bffbd752)
+
 ## Installation
 
 ### From PyPI
