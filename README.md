@@ -97,7 +97,7 @@ Here, we're enforcing
 
 ## Usage tips
 
-- If you would like to use `frax`'s collision methods, you must first define a spherized collision model of your robot (or, use our pre-built collision models for the Franka Panda/FR3 and the Unitree G1). Check out [this page](docs/modeling_collision.md) for more info!
+- If you would like to use `frax`'s collision methods, you must first define a spherized collision model of your robot (or, use our pre-built collision models for the Franka Panda/FR3, Unitree G1, and more). Check out [this page](docs/modeling_collision.md) for more info!
 - For now, if you have joints in your URDF that are not part of the primary kinematic chain/tree being controlled (for instance, gripper joints), please set these as `fixed` so that they can be ignored, and so their child links' inertias can be fused into the parent. In the future, we will allow for fixing joints programmatically.
 - Free-floating bases with a `quaternion` rotation representation follow MuJoCo's convention: `q = [position, WXYZ quaternion, joints]` and `v = [world-frame linear velocity, body-frame angular velocity, joint velocities]`. The original implementation of `frax` used 6 "virtual joints" (3 prismatic, 3 revolute) to represent a floating base, in which case `nq = nv` and `q_dot = v`. However, the intrinsic Euler XYZ rotation representation can suffer from singularities / gimbal lock. 
 - If working with quaternions, use `robot.integrate(q, v, dt)` rather than `q + v * dt`, and if you differentiate a function `f(q)` with autodiff, map the result back to velocity space with `jax.jacobian(f)(q) @ robot.velocity_to_qdot_map(q)`.
