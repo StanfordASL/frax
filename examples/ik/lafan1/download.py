@@ -1,8 +1,6 @@
-"""Download the LAFAN1 dataset (Ubisoft La Forge) into data/lafan1,
-for retarget.py
+"""Download the LAFAN1 dataset into data/lafan1
 
-LAFAN1 is released under CC BY-NC-ND 4.0, for non-commercial use only (see
-LICENSE_URL). Skipped if the BVH files are already there
+LAFAN1 License: CC BY-NC-ND 4.0, Ubisoft La Forge
 """
 
 import argparse

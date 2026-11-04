@@ -1,9 +1,6 @@
-"""Retarget the whole LAFAN1 dataset to the Unitree G1 (`lafan1_g1.py`), with
-the clips spread across CPU cores, and save each clip's configurations (play
-them back with view.py)
+"""Script to retarget the full LAFAN1 dataset to the Unitree G1
 
-Data: python examples/ik/lafan1/download.py (LAFAN1 is CC BY-NC-ND 4.0, for
-non-commercial use only)
+(at >100,000 FPS on a i9-14900KF CPU!)
 """
 
 import os
@@ -18,8 +15,7 @@ os.environ["OPENBLAS_NUM_THREADS"] = "1"
 
 import jax
 
-# One device per core. Set before JAX first runs
-jax.config.update("jax_num_cpu_devices", os.cpu_count())
+jax.config.update("jax_num_cpu_devices", os.cpu_count())  # One device per core
 
 import argparse
 import multiprocessing

@@ -1,13 +1,7 @@
-"""LAFAN1 motion capture -> Unitree G1 retargeting: BVH loading, and the
-retargeter
+"""Retargeting configuration for LAFAN1 -> Unitree G1
 
-The task is GMR's `scripts/bvh_to_robot.py` (https://github.com/YanjieZe/GMR),
-with GMR's weights and rotation offsets, solved with one diff IK QP per frame
-(GMR iterates two IK stages). All tracked links follow their bone's
-orientation; positions are only tracked for the pelvis, feet and wrists, since
-G1's proportions differ from a human's
-
-LAFAN1: https://github.com/ubisoft/ubisoft-laforge-animation-dataset
+Many elements and tuning parameters inspired by GMR:
+https://github.com/YanjieZe/GMR
 """
 
 from pathlib import Path

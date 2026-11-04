@@ -1,5 +1,4 @@
-"""Play back the retargeted LAFAN1 dataset (from retarget.py) on the Unitree G1,
-in a viser viewer"""
+"""Play the retargeted LAFAN1 dataset in a viser viewer"""
 
 import os
 
