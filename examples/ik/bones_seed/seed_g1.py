@@ -1,13 +1,25 @@
-"""BONES-SEED motion capture -> Unitree G1 retargeting
+"""Retargeting configuration for BONES-SEED -> Unitree G1
 
-The task and tuning follow `examples/ik/lafan1/lafan1_g1.py`, retargeting SEED's
-SOMA skeletons directly, rather than via NVIDIA's soma-retargeter
-(https://github.com/NVIDIA/soma-retargeter), which made SEED's own G1 retargets.
-The rotation offsets come from soma-retargeter's zero pose, where SOMA matches
-G1's zero configuration
+Tuning parameters for this script are inspired by both GMR
+(https://github.com/YanjieZe/GMR) and the SOMA retargeter
+(https://github.com/NVIDIA/soma-retargeter), which is our
+primary point of comparison for this dataset
 
-SEED's "uniform" clips share one SOMA skeleton for all actors, so the scales and
-floor offset are constants
+We use the "Uniform" clips in the BONES-SEED set, which
+has a shared SOMA skeleton for all actors
+
+NOTE ON AGENTIC TUNING:
+Coding agents like Claude and Codex are quite good at
+tuning parameters and tasks, given a well-posed set of
+metrics to hill-climb on, and a well-designed library.
+The code below was primarily agent-written, but I will
+try to clean this up to make it more understandable in
+the future. In general, after a long back-and-forth
+tuning process, this set of tuning parameters was found
+to give good results on the metrics I cared about
+(avoiding artifacts at the floor like penetration/skid/
+floating, reducing jerkiness between timesteps, avoiding
+local minima, avoiding self-collision, etc.)
 """
 
 import jax

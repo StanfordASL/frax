@@ -1,14 +1,14 @@
-"""Retarget BONES-SEED clips to the Unitree G1 (`seed_g1.py`), with the clips
-spread across CPU cores, and save each clip's configurations (play them back
-with view.py)
+"""Script to retarget the full BONES-SEED dataset to the Unitree G1
 
-SEED is large, so clips load in chunks, in worker processes, while the previous
-chunk retargets. Saved clips are skipped, so an interrupted run resumes
+Note: BONES-SEED is much larger than LAFAN1, so clips load in
+chunks while the previous chunk is processing.
 
---refine then redoes the saved clips whose first frame is off target, solving
-it by global IK (slower, so only where needed: retarget, then refine)
-
-Data: see dataset.py
+This script also adds a `--refine` option where any clips where
+the first frame is off-target are re-solved on initialization by
+the frax.ik global IK solver. This is much slower than solving one
+differential IK problem, so this is done only when needed, after
+a first pass from just differential IK. This is useful for a few
+BONES-SEED clips to avoid local minima
 """
 
 import os

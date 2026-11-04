@@ -1,6 +1,8 @@
-"""Play back retargeted BONES-SEED clips (from retarget.py) on the Unitree G1, in
-a viser viewer: frax's retarget, SEED's own (NVIDIA's soma-retargeter, to
-the left), and the human (to the right, at its own scale)"""
+"""Play the retargeted BONES-SEED dataset in a viser viewer
+
+This script also visualizes the result of the SOMA retargeter,
+as well as the original human skeleton, for comparison
+"""
 
 import os
 

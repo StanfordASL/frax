@@ -2,6 +2,19 @@
 
 Many elements and tuning parameters inspired by GMR:
 https://github.com/YanjieZe/GMR
+
+NOTE ON AGENTIC TUNING:
+Coding agents like Claude and Codex are quite good at
+tuning parameters and tasks, given a well-posed set of
+metrics to hill-climb on, and a well-designed library.
+The code below was primarily agent-written, but I will
+try to clean this up to make it more understandable in
+the future. In general, after a long back-and-forth
+tuning process, this set of tuning parameters was found
+to give good results on the metrics I cared about
+(avoiding artifacts at the floor like penetration/skid/
+floating, reducing jerkiness between timesteps, avoiding
+local minima, avoiding self-collision, etc.)
 """
 
 from pathlib import Path
