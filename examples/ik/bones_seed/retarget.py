@@ -121,6 +121,8 @@ def main(args):
     loading = submit(chunks[0]) if chunks else []
     load_time = solve_time = frames = refined = 0
     skipped = []
+    batch = len(retarget.devices)
+    waiting = []
     for k, chunk in enumerate(chunks):
         t0 = time.perf_counter()
         clips = [f.result() for f in loading]
@@ -133,8 +135,12 @@ def main(args):
                 error(c, np.load(saved(r))["q"]) > GLOBAL_IK_FIRST_FRAME_ERROR
                 for r, c in zip(chunk, clips)
             ]
-            chunk = [r for r, o in zip(chunk, off) if o]
-            clips = [c for c, o in zip(clips, off) if o]
+            waiting += [(r, c) for r, c, o in zip(chunk, clips, off) if o]
+            last = k + 1 == len(chunks)
+            n = len(waiting) if last else len(waiting) // batch * batch
+            chunk = [r for r, _ in waiting[:n]]
+            clips = [c for _, c in waiting[:n]]
+            waiting = waiting[n:]
             refined += len(clips)
         t1 = time.perf_counter()
         qs = retarget(clips)
