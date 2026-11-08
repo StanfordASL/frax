@@ -100,7 +100,7 @@ def main(args):
                 + "(--overwrite to redo them)"
             )
     # Longest first, so each chunk's groups have similar lengths
-    todo.sort(key=lambda r: -int(r["move_duration_frames"]))
+    todo.sort(key=lambda r: -float(r["move_duration_frames"]))
     print(f"{len(rows)} clips selected, {len(todo)} to {verb}")
 
     # Spawn, not fork: forking after JAX has started its threads is unsafe

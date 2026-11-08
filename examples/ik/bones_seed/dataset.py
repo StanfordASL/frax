@@ -43,7 +43,7 @@ def load_seed(filepath: str | Path) -> tuple[np.ndarray, list[str]]:
 
 def read_metadata(data_dir: str | Path = DATA_DIR) -> list[dict]:
     with open(Path(data_dir) / METADATA, newline="") as f:
-        return list(csv.DictReader(f))
+        return [r for r in csv.DictReader(f) if r["move_soma_uniform_path"]]
 
 
 def name_matches(name: str, match: str) -> bool:
