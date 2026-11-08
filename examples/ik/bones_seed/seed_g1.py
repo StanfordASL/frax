@@ -124,8 +124,17 @@ G1_ANKLE_HEIGHT = 0.035
 SOMA_ANKLE_HEIGHT = 0.0671
 # All targets drop by this much (m), so planted feet meet the floor
 FLOOR_OFFSET = LEG_SCALE * SOMA_ANKLE_HEIGHT - G1_ANKLE_HEIGHT
+# Distance of G1's ankles from its centerline in its zero configuration, where
+# its legs hang straight (m)
+G1_ANKLE_SPREAD = 0.1185
+# Distance of SOMA's hip joints from their center (m)
+SOMA_HIP_SPREAD = 0.1005
+# G1's hips are wider than the scaled SOMA skeleton's, so the feet move out by
+# this much (m), to keep G1's legs as straight as the human's
+FOOT_SPREAD = G1_ANKLE_SPREAD - LEG_SCALE * SOMA_HIP_SPREAD
 _HIPS = np.array([SEED_BONES.index(b) for b in ("LeftLeg", "RightLeg")])
 _FEET = np.array([SEED_BONES.index(b) for b in ("LeftFoot", "RightFoot")])
+_SIDES = np.array([1.0, -1.0])  # Left, right
 SHOULDER_JOINTS = tuple(
     f"{side}_shoulder_{axis}_joint"
     for side in ("left", "right")
@@ -187,14 +196,20 @@ def preprocess(frame: dict, rot_offsets: np.ndarray = ROT_OFFSETS) -> dict:
 
     The hip center and feet scale about the origin by LEG_SCALE. The pelvis
     sits above the hip center by PELVIS_OFFSET, and the upper body scales about
-    the hip center by UPPER_SCALE. All targets then drop by FLOOR_OFFSET. The
-    default, uncalibrated ROT_OFFSETS give the human's own bone orientations"""
+    the hip center by UPPER_SCALE. The feet move out by FOOT_SPREAD, along
+    their own level lateral axes, so planted feet stay put. All targets then
+    drop by FLOOR_OFFSET. The default, uncalibrated ROT_OFFSETS give the
+    human's own bone orientations"""
     pos = frame["poses"][:, :3]
     rmats = jax.vmap(quat_wxyz_to_rmat)(frame["poses"][:, 3:]) @ rot_offsets
     hips = jnp.mean(pos[_HIPS], axis=0)
     targets = LEG_SCALE * hips + UPPER_SCALE * (pos - hips)
     targets = targets.at[0].set(LEG_SCALE * hips + rmats[0] @ PELVIS_OFFSET)
-    targets = targets.at[_FEET].set(LEG_SCALE * pos[_FEET])
+    lateral = rmats[_FEET][:, :, 1].at[:, 2].set(0.0)
+    lateral = lateral / jnp.linalg.norm(lateral, axis=-1, keepdims=True)
+    targets = targets.at[_FEET].set(
+        LEG_SCALE * pos[_FEET] + (_SIDES * FOOT_SPREAD)[:, None] * lateral
+    )
     return {"frame_pos": targets.at[:, 2].add(-FLOOR_OFFSET), "frame_rmat": rmats}
 
 
