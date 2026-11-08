@@ -52,6 +52,13 @@ This dataset is significantly larger than LAFAN1 (>100 GB!), and it is a much hi
 python examples/ik/bones_seed/retarget.py
 ```
 
+For large datasets such as these, we also recommend running our `--refine` pass afterwards. A very small fraction of clips will start the first frame from a tricky local minimum that differential IK alone was not able to escape. These clips are generally easy to identify, so the `--refine` pass runs a more expensive global IK process on the first frame of these clips to try to escape these minima. This strategy also keeps processing large datasets quite cheap, as running global IK on every clip's initialization is not always required.
+
+```
+python examples/ik/bones_seed/retarget.py --refine
+```
+
+
 As with the LAFAN1 demo, we have a script to show the results in a viser viewer:
 
 ```
