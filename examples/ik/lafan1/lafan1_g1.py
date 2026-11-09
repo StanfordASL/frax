@@ -30,6 +30,7 @@ from frax.ik import (
     FloorConstraint,
     FrameTask,
     JointLimits,
+    JointTask,
     Retargeter,
     SelfCollisionConstraint,
     load_bvh,
@@ -66,7 +67,8 @@ def load_lafan1(filepath: str | Path) -> tuple[np.ndarray, list[str]]:
 # fmt: off
 # (G1 joint whose child link is tracked, LAFAN1 bone, position weight, rotation
 # weight, rotation offset (WXYZ, applied in the bone frame)). The root comes
-# first. Weights and rotation offsets are GMR's
+# first. Weights and rotation offsets are GMR's, but the torso's rotation is
+# heavier (75 vs. 50), so arm error doesn't leak into the waist
 RETARGETING_TABLE = (
     ("yaw_joint",                "Hips",         50,  50, (0.5, 0.5, 0.5, 0.5)),    # pelvis
     ("left_hip_yaw_joint",       "LeftUpLeg",    0,   10, (-0.5, 0.5, 0.5, -0.5)),
@@ -75,7 +77,7 @@ RETARGETING_TABLE = (
     ("right_hip_yaw_joint",      "RightUpLeg",   0,   10, (-0.5, 0.5, 0.5, -0.5)),
     ("right_knee_joint",         "RightLeg",     0,   10, (-0.5, 0.5, 0.5, -0.5)),
     ("right_ankle_roll_joint",   "RightFootMod", 100, 10, (-0.70710678, 0.70710678, 0.0, 0.0)),
-    ("waist_pitch_joint",        "Spine2",       0,   50, (0.5, 0.5, 0.5, 0.5)),    # torso_link
+    ("waist_pitch_joint",        "Spine2",       0,   75, (0.5, 0.5, 0.5, 0.5)),    # torso_link
     ("left_shoulder_yaw_joint",  "LeftArm",      0,   50, (0.5, 0.5, -0.5, -0.5)),
     ("left_elbow_joint",         "LeftForeArm",  0,   10, (0.70710678, 0.70710678, 0.0, 0.0)),
     ("left_wrist_yaw_joint",     "LeftHand",     10,  10, (0.70710678, 0.70710678, 0.0, 0.0)),
@@ -132,6 +134,11 @@ WRIST_JOINTS = tuple(
     for side in ("left", "right")
     for axis in ("roll", "pitch", "yaw")
 )
+LEG_JOINTS = tuple(
+    f"{side}_{joint}_joint"
+    for side in ("left", "right")
+    for joint in ("hip_pitch", "hip_roll", "hip_yaw", "knee")
+)
 # Tracking gain (1/s): closes the error with a 1/30 s time constant. At 30 fps
 # that is a full Gauss-Newton step per frame, the most gain * dt <= 1 allows
 GAIN = 30.0
@@ -143,6 +150,21 @@ DAMPING = 10.0
 SHOULDER_DAMPING = 1000.0
 # Otherwise the wrists do most of the self-collision avoiding, then snap back
 WRIST_DAMPING = 100.0
+# Otherwise the hips and knees are the cheapest joints to move, so the legs yield
+# to the arms in self-collisions (e.g. a hand sweeping past a knee), then snap
+# back in a step too large for the linearized floor constraint
+LEG_DAMPING = 100.0
+# Shoulder roll (rad) the arms are calibrated at (as in seed_g1.py): the arms
+# map to G1's rolled out by this much more than the human's, clear of its hips
+ARM_ABDUCTION = 0.2
+# Weight of a posture task pulling the shoulders toward SHOULDER_POSTURE, so
+# raised arms don't drift into G1's flipped shoulder solution (as in
+# seed_g1.py). 0 to not use one
+SHOULDER_POSTURE_WEIGHT = 16.0
+# Shoulder (pitch, roll, yaw) posture of the left arm (rad), mirrored for the
+# right: about the median over LAFAN1 without the arm calibration, arms hanging
+# by the sides, rolled out by ARM_ABDUCTION
+SHOULDER_POSTURE = (-0.2, 0.4 + ARM_ABDUCTION, -0.55)
 # Self-collision rows kept per step (the closest pairs), above the most pairs
 # near contact at once over LAFAN1
 SELF_COLLISION_ROWS = 64
@@ -152,7 +174,23 @@ SELF_COLLISION_GAIN = GAIN
 SMOOTH_ROT = 0.05
 
 
-def preprocess(human_poses: Array) -> dict:
+def rot_offsets(robot, arm_abduction: float) -> np.ndarray:
+    """ROT_OFFSETS, with the arms calibrated against G1 with its shoulders
+    rolled out by arm_abduction (rad), instead of its zero configuration (as in
+    seed_g1.py)"""
+    q0 = np.zeros(robot.nq)
+    q0[3] = 1.0  # Identity root quaternion
+    q = q0.copy()
+    for side, sign in (("left", 1.0), ("right", -1.0)):
+        joint = robot.joint_name_to_index[f"{side}_shoulder_roll_joint"]
+        q[robot.velocity_to_configuration_index[joint]] = sign * arm_abduction
+    frames = np.array([robot.joint_name_to_index[name] for name in G1_JOINT_NAMES])
+    R0 = np.asarray(robot.joint_to_world_transforms(jnp.asarray(q0)))[frames, :3, :3]
+    R = np.asarray(robot.joint_to_world_transforms(jnp.asarray(q)))[frames, :3, :3]
+    return ROT_OFFSETS @ np.swapaxes(R0, -1, -2) @ R
+
+
+def preprocess(human_poses: Array, rot_offsets: np.ndarray = ROT_OFFSETS) -> dict:
     """Human bone poses (n, 7), in RETARGETING_TABLE order -> scaled target
     positions (n, 3) and rotation matrices (n, 3, 3) for the tracked G1 links
 
@@ -160,7 +198,7 @@ def preprocess(human_poses: Array) -> dict:
     sits above the hip center by PELVIS_OFFSET, and the upper body scales about
     the hip center by UPPER_SCALE. All targets then drop by FLOOR_OFFSET"""
     pos = human_poses[:, :3]
-    rmats = jax.vmap(quat_wxyz_to_rmat)(human_poses[:, 3:]) @ ROT_OFFSETS
+    rmats = jax.vmap(quat_wxyz_to_rmat)(human_poses[:, 3:]) @ rot_offsets
     hips = jnp.mean(pos[_HIPS], axis=0)
     targets = LEG_SCALE * hips + UPPER_SCALE * (pos - hips)
     targets = targets.at[0].set(LEG_SCALE * hips + rmats[0] @ PELVIS_OFFSET)
@@ -178,6 +216,10 @@ def make_retargeter(
     damping: float = DAMPING,
     shoulder_damping: float = SHOULDER_DAMPING,
     wrist_damping: float = WRIST_DAMPING,
+    leg_damping: float = LEG_DAMPING,
+    shoulder_posture_weight: float = SHOULDER_POSTURE_WEIGHT,
+    shoulder_posture: tuple[float, float, float] = SHOULDER_POSTURE,
+    arm_abduction: float = ARM_ABDUCTION,
 ) -> Retargeter:
     """Human bone poses (n, 7) -> G1 configuration
 
@@ -190,7 +232,20 @@ def make_retargeter(
         damping (float): Damping on the velocity
         shoulder_damping (float): Damping on the shoulder joints' velocities
         wrist_damping (float): Damping on the wrist joints' velocities
+        leg_damping (float): Damping on the hip and knee joints' velocities
+        shoulder_posture_weight (float): Weight pulling the shoulder joints
+            toward shoulder_posture (see SHOULDER_POSTURE_WEIGHT)
+        shoulder_posture (tuple[float, float, float]): Left shoulder (pitch,
+            roll, yaw) posture (rad), mirrored for the right
+        arm_abduction (float): Shoulder roll (rad) that the arms are calibrated
+            at (see ARM_ABDUCTION). 0 for the uncalibrated ROT_OFFSETS
     """
+    offsets = rot_offsets(robot, arm_abduction) if arm_abduction else ROT_OFFSETS
+    pitch, roll, yaw = shoulder_posture
+    posture = jnp.array([pitch, roll, yaw, pitch, -roll, -yaw])
+
+    def preprocess_frame(human_poses: Array) -> dict:
+        return preprocess(human_poses, offsets) | {"shoulder_posture": posture}
 
     def initial_q(human_poses: Array) -> Array:
         """The robot's default joint positions, with the root at the first target
@@ -227,7 +282,19 @@ def make_retargeter(
     for joints, value in (
         (SHOULDER_JOINTS, shoulder_damping),
         (WRIST_JOINTS, wrist_damping),
+        (LEG_JOINTS, leg_damping),
     ):
         regularization[[robot.joint_name_to_index[name] for name in joints]] = value
-    solver = DiffIKSolver(robot, [task], constraints, regularization=regularization)
-    return Retargeter(solver, preprocess, initial_q)
+    tasks = [task]
+    if shoulder_posture_weight > 0:
+        tasks.append(
+            JointTask(
+                robot,
+                [robot.joint_name_to_index[name] for name in SHOULDER_JOINTS],
+                "shoulder_posture",
+                GAIN,
+                shoulder_posture_weight,
+            )
+        )
+    solver = DiffIKSolver(robot, tasks, constraints, regularization=regularization)
+    return Retargeter(solver, preprocess_frame, initial_q)
