@@ -157,6 +157,9 @@ LEG_DAMPING = 100.0
 # Shoulder roll (rad) the arms are calibrated at (as in seed_g1.py): the arms
 # map to G1's rolled out by this much more than the human's, clear of its hips
 ARM_ABDUCTION = 0.2
+# Backward lean (rad) added to the torso's target, about its own lateral axis:
+# LAFAN1's chest is tilted slightly forward of upright
+TORSO_LEAN = np.radians(2.0)
 # Weight of a posture task pulling the shoulders toward SHOULDER_POSTURE, so
 # raised arms don't drift into G1's flipped shoulder solution (as in
 # seed_g1.py). 0 to not use one
@@ -174,10 +177,10 @@ SELF_COLLISION_GAIN = GAIN
 SMOOTH_ROT = 0.05
 
 
-def rot_offsets(robot, arm_abduction: float) -> np.ndarray:
+def rot_offsets(robot, arm_abduction: float, torso_lean: float = 0.0) -> np.ndarray:
     """ROT_OFFSETS, with the arms calibrated against G1 with its shoulders
     rolled out by arm_abduction (rad), instead of its zero configuration (as in
-    seed_g1.py)"""
+    seed_g1.py), and the torso leaned back by torso_lean (rad)"""
     q0 = np.zeros(robot.nq)
     q0[3] = 1.0  # Identity root quaternion
     q = q0.copy()
@@ -187,7 +190,13 @@ def rot_offsets(robot, arm_abduction: float) -> np.ndarray:
     frames = np.array([robot.joint_name_to_index[name] for name in G1_JOINT_NAMES])
     R0 = np.asarray(robot.joint_to_world_transforms(jnp.asarray(q0)))[frames, :3, :3]
     R = np.asarray(robot.joint_to_world_transforms(jnp.asarray(q)))[frames, :3, :3]
-    return ROT_OFFSETS @ np.swapaxes(R0, -1, -2) @ R
+    offsets = ROT_OFFSETS @ np.swapaxes(R0, -1, -2) @ R
+    torso = G1_JOINT_NAMES.index("waist_pitch_joint")
+    # Applied in the torso link's frame, whose y axis points left
+    offsets[torso] = (
+        offsets[torso] @ Rotation.from_rotvec([0.0, -torso_lean, 0.0]).as_matrix()
+    )
+    return offsets
 
 
 def preprocess(human_poses: Array, rot_offsets: np.ndarray = ROT_OFFSETS) -> dict:
@@ -220,6 +229,7 @@ def make_retargeter(
     shoulder_posture_weight: float = SHOULDER_POSTURE_WEIGHT,
     shoulder_posture: tuple[float, float, float] = SHOULDER_POSTURE,
     arm_abduction: float = ARM_ABDUCTION,
+    torso_lean: float = TORSO_LEAN,
 ) -> Retargeter:
     """Human bone poses (n, 7) -> G1 configuration
 
@@ -238,9 +248,15 @@ def make_retargeter(
         shoulder_posture (tuple[float, float, float]): Left shoulder (pitch,
             roll, yaw) posture (rad), mirrored for the right
         arm_abduction (float): Shoulder roll (rad) that the arms are calibrated
-            at (see ARM_ABDUCTION). 0 for the uncalibrated ROT_OFFSETS
+            at (see ARM_ABDUCTION)
+        torso_lean (float): Backward lean (rad) added to the torso's target (see
+            TORSO_LEAN). With both 0, the uncalibrated ROT_OFFSETS
     """
-    offsets = rot_offsets(robot, arm_abduction) if arm_abduction else ROT_OFFSETS
+    offsets = (
+        rot_offsets(robot, arm_abduction, torso_lean)
+        if arm_abduction or torso_lean
+        else ROT_OFFSETS
+    )
     pitch, roll, yaw = shoulder_posture
     posture = jnp.array([pitch, roll, yaw, pitch, -roll, -yaw])
 
