@@ -46,7 +46,7 @@ python examples/ik/lafan1/view.py
 
 To fetch the data for BONES-SEED, you'll need to first agree to some terms and conditions: see the [HuggingFace page](https://huggingface.co/datasets/bones-studio/seed) for more details and instructions.
 
-This dataset is significantly larger than LAFAN1 (>100 GB!), and it is a much higher framerate. Processing the full set takes roughly 1 hour on my desktop. If you've got the storage space on your computer, and don't mind a short wait, download the dataset and then run the following:
+This dataset is significantly larger than LAFAN1 (>100 GB!), and it is a much higher framerate. Processing the full set takes roughly 1 hour on my desktop, or 17 minutes on a `c7a.32xlarge` AWS EC2 instance. If you've got the storage space on your computer, and don't mind a short wait, download the dataset and then run the following:
 
 ```
 python examples/ik/bones_seed/retarget.py
@@ -63,6 +63,24 @@ As with the LAFAN1 demo, we have a script to show the results in a viser viewer:
 
 ```
 python examples/ik/bones_seed/view.py
+```
+
+#### HiPHI
+
+HiPHI, like BONES-SEED, requires agreeing to some terms and conditions before use: see the [HuggingFace page](https://huggingface.co/datasets/noitomrobotics/HiPHI) for more details. This dataset is quite large, and when all files are extracted, it fills up around 800 GB of space (so make sure you have plenty of room, or retarget it part-by-part).
+
+This dataset takes about 3x as long as BONES-SEED to retarget. Expect around 3 hours on an i9 desktop CPU, or 54 minutes on a `c7a.32xlarge` AWS EC2 instance.
+```
+python examples/ik/hiphi/retarget.py
+```
+
+As with BONES-SEED, consider running our `--refine` pass to fix up any artifacts on the first frame:
+```
+python examples/ik/hiphi/retarget.py --refine
+```
+and inspect the results with 
+```
+python examples/ik/hiphi/view.py
 ```
 
 Currently, all humanoid examples are configured to use the Unitree G1, which is built-in to `frax`. If you would like to use a new robot, you'll need a URDF and a collision model: see our other docs for more details. 

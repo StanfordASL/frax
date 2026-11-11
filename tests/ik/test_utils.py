@@ -136,6 +136,18 @@ def test_load_bvh(tmp_path):
     assert (rot.inv() * expected).magnitude() < 1e-9
 
 
+def test_load_bvh_file_object(tmp_path):
+    """Open files (text or binary, e.g. archive members) load like their path"""
+    path = tmp_path / "clip.bvh"
+    path.write_text(BVH)
+    expected, names = load_bvh(path)
+    for mode in ("r", "rb"):
+        with open(path, mode) as f:
+            poses, names_f = load_bvh(f)
+        assert names_f == names
+        np.testing.assert_array_equal(poses, expected)
+
+
 def test_load_bvh_nan(tmp_path):
     path = tmp_path / "clip.bvh"
     path.write_text(BVH.replace("0 0 100 90", "nan nan nan nan"))

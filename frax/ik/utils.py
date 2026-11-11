@@ -1,6 +1,7 @@
 """IK and motion utilities"""
 
 from pathlib import Path
+from typing import IO
 
 import numpy as np
 from numpy.typing import ArrayLike
@@ -10,11 +11,16 @@ from scipy.spatial.transform import Rotation
 from frax.core.robot import Robot
 
 
-def _parse_bvh(filepath: str | Path):
+def _parse_bvh(filepath: str | Path | IO):
     """Bone names, parents, local positions (T, B, 3), and local rotations
     (T, B, 3, 3)"""
     names, parents, offsets, channels, stack = [], [], [], [], []
-    lines = iter(Path(filepath).read_text().splitlines())
+    if hasattr(filepath, "read"):
+        text = filepath.read()
+        text = text.decode() if isinstance(text, bytes) else text
+    else:
+        text = Path(filepath).read_text()
+    lines = iter(text.splitlines())
     for line in lines:
         tokens = line.split()
         if not tokens:
@@ -57,12 +63,12 @@ def _parse_bvh(filepath: str | Path):
 
 
 def load_bvh(
-    filepath: str | Path, to_world: ArrayLike | None = None, scale: float = 0.01
+    filepath: str | Path | IO, to_world: ArrayLike | None = None, scale: float = 0.01
 ) -> tuple[np.ndarray, list[str]]:
     """Global bone poses from a BVH file
 
     Args:
-        filepath (str | Path): BVH file
+        filepath (str | Path | IO): BVH file, or an open (text or binary) file
         to_world (ArrayLike | None): Rotation from the BVH frame to the world,
             shape (3, 3). Defaults to identity
         scale (float): BVH length unit (m). Defaults to cm
