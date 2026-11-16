@@ -3,9 +3,10 @@
 See: https://huggingface.co/datasets/noitomrobotics/HiPHI
 
 To fetch the data, download it (with git lfs, or `hf download`), extract
-its .tar.zst archives in place (about 860 GB, into the dataset's
+its .tar.zst archives in place (about 850 GB, into the dataset's
 data/{frame}/{lu}/{motion_id} tree), and (optionally) link it to
-data/hiphi in the frax folder
+data/hiphi in the frax folder. You can also extract a subset of the
+dataset; clips that aren't extracted are skipped
 """
 
 import argparse
@@ -210,9 +211,13 @@ def add_selection_args(parser):
 
 
 def selected_clips(args) -> list[dict]:
-    """The rows add_selection_args' arguments choose"""
+    """The rows add_selection_args' arguments choose, of the extracted clips"""
+    rows = read_metadata(args.data_dir)
+    extracted = [r for r in rows if bvh_path(r, args.data_dir).exists()]
+    if len(extracted) < len(rows):
+        print(f"Skipping {len(rows) - len(extracted)} clips that aren't extracted")
     return select_clips(
-        read_metadata(args.data_dir),
+        extracted,
         args.num_clips,
         args.rng_seed,
         args.match,
