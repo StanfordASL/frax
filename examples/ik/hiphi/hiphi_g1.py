@@ -30,6 +30,10 @@ Differences from BONES-SEED, summarized by Claude:
 - HiPHI's forearm bones twist with the forearm (and in some clips,
   with mocap artifacts), which G1 has at its wrists, so the forearm
   targets keep only their direction (untwisted)
+- HiPHI's hands sit bent off their forearms by an offset that holds
+  steady within a clip but varies between clips by tens of degrees (hand
+  markers or calibration), so G1's wrists track only the hands' twist,
+  staying straight otherwise (HAND_BEND)
 - A few actors' bones are turned about their own length, which the
   skeleton's symmetric offsets hide in the joint positions, but not
   in the orientations (unflip, applied as the clips load)
@@ -163,6 +167,7 @@ _HIPS = np.array([HIPHI_BONES.index(b) for b in ("LeftUpLeg", "RightUpLeg")])
 _FEET = np.array([HIPHI_BONES.index(b) for b in ("LeftFoot", "RightFoot")])
 _ARMS = np.array([HIPHI_BONES.index(b) for b in ("LeftArm", "RightArm")])
 _FOREARMS = np.array([HIPHI_BONES.index(b) for b in ("LeftForeArm", "RightForeArm")])
+_HANDS = np.array([HIPHI_BONES.index(b) for b in ("LeftHand", "RightHand")])
 _SIDES = np.array([1.0, -1.0])  # Left, right
 SHOULDER_JOINTS = tuple(
     f"{side}_shoulder_{axis}_joint"
@@ -199,6 +204,11 @@ SHOULDER_POSTURE_WEIGHT = 16.0
 WRIST_POSTURE_WEIGHT = 1.0
 # Orientation smoothing kernel standard deviation (s), for offline retargeting
 SMOOTH_ROT = 0.05
+# Fraction of the hands' bend off their forearms (wrist pitch and yaw) the hand
+# targets keep, keeping all of their twist (wrist roll). HiPHI's resting hands
+# are bent by a steady per-clip offset (median ~30 deg, varying ~40 deg between
+# clips), which G1's wrists would hold for the whole clip
+HAND_BEND = 0.0
 # Global IK for the first frame (global_ik_init, used by retarget.py --refine):
 # starts, iterations, and cost tolerance (see GlobalIKSolver)
 GLOBAL_IK_SAMPLES = 32
@@ -450,6 +460,17 @@ def rot_offsets(robot, arm_abduction: float = ARM_ABDUCTION) -> np.ndarray:
     return offsets
 
 
+def swing(x: Array, fraction: Array = 1.0) -> Array:
+    """Rotation (3, 3) about an axis perpendicular to x and e_x, turning e_x
+    fraction of the way onto the unit vector x (by the shortest path)"""
+    axis = jnp.array([0.0, -x[2], x[1]])  # e_x cross x
+    s = jnp.linalg.norm(axis)
+    angle = fraction * jnp.arctan2(s, x[0])
+    k = axis / jnp.maximum(s, 1e-12)
+    K = jnp.array([[0.0, -k[2], k[1]], [k[2], 0.0, -k[0]], [-k[1], k[0], 0.0]])
+    return jnp.eye(3) + jnp.sin(angle) * K + (1 - jnp.cos(angle)) * K @ K
+
+
 def untwisted(parent: Array, child: Array) -> Array:
     """child (3, 3) without its twist about its x axis relative to parent: the
     rotation from parent with the same x axis, by the shortest path
@@ -459,15 +480,16 @@ def untwisted(parent: Array, child: Array) -> Array:
     since G1 has that twist at its wrist roll joints. So the forearm targets
     keep only the forearm's direction, and the wrists take the twist from the
     hand targets (whose orientation already includes it)"""
+    return parent @ swing((parent.T @ child)[:, 0])
+
+
+def unbent(parent: Array, child: Array, bend: float) -> Array:
+    """child (3, 3) with its bend relative to parent (the swing of its x axis
+    off parent's) scaled by bend, keeping its twist about its x axis: at
+    bend = 0, parent turned about its x axis"""
     rel = parent.T @ child
-    x = rel[:, 0]  # The child's x axis, in the parent's frame
-    # Rotation taking the parent's x axis onto x: axis e_x cross x, angle acos(x_0)
-    axis = jnp.array([0.0, -x[2], x[1]])
-    s, c = jnp.linalg.norm(axis), x[0]
-    k = axis / jnp.maximum(s, 1e-12)
-    K = jnp.array([[0.0, -k[2], k[1]], [k[2], 0.0, -k[0]], [-k[1], k[0], 0.0]])
-    swing = jnp.eye(3) + s * K + (1 - c) * K @ K
-    return parent @ swing
+    twist = swing(rel[:, 0]).T @ rel  # rel = swing @ twist
+    return parent @ swing(rel[:, 0], bend) @ twist
 
 
 def leveled(rmat: Array, weight: Array) -> Array:
@@ -488,7 +510,9 @@ def floor_offset(frame: dict) -> Array:
     return frame["leg_scale"] * frame["ankle_height"] - G1_ANKLE_HEIGHT
 
 
-def preprocess(frame: dict, rot_offsets: np.ndarray) -> dict:
+def preprocess(
+    frame: dict, rot_offsets: np.ndarray, hand_bend: float = HAND_BEND
+) -> dict:
     """Human bone poses (n, 7), in RETARGETING_TABLE order, and the clip's
     measurements (see dataset.load_clip) -> scaled target positions (n, 3) and
     rotation matrices (n, 3, 3) for the tracked G1 links
@@ -498,11 +522,14 @@ def preprocess(frame: dict, rot_offsets: np.ndarray) -> dict:
     the hip center by the upper body scale. The feet move out to G1's hip width
     (along their own lateral axes, so planted feet stay put), and level out
     while planted (frame["contact"]). All targets then drop, so planted feet
-    meet the floor"""
+    meet the floor. The forearm targets keep only their direction (untwisted),
+    and the hand targets hand_bend of their bend off the forearms (unbent)"""
     leg, upper = frame["leg_scale"], frame["upper_scale"]
     pos = frame["poses"][:, :3]
     rmats = jax.vmap(quat_wxyz_to_rmat)(frame["poses"][:, 3:]) @ rot_offsets
     rmats = rmats.at[_FOREARMS].set(jax.vmap(untwisted)(rmats[_ARMS], rmats[_FOREARMS]))
+    hands = jax.vmap(unbent, (0, 0, None))(rmats[_FOREARMS], rmats[_HANDS], hand_bend)
+    rmats = rmats.at[_HANDS].set(hands)
     feet = jax.vmap(leveled)(rmats[_FEET], frame["contact"])
     rmats = rmats.at[_FEET].set(feet)
     hips = jnp.mean(pos[_HIPS], axis=0)
@@ -533,6 +560,7 @@ def make_retargeter(
     global_ik_init: bool = False,
     shoulder_posture_weight: float = SHOULDER_POSTURE_WEIGHT,
     wrist_posture_weight: float = WRIST_POSTURE_WEIGHT,
+    hand_bend: float = HAND_BEND,
 ) -> Retargeter:
     """Input frames ({"poses": human bone poses (n, 7), "leg_scale",
     "upper_scale"}, see dataset.load_clip) -> G1 configuration
@@ -554,6 +582,8 @@ def make_retargeter(
             toward the calibration pose (see SHOULDER_POSTURE_WEIGHT)
         wrist_posture_weight (float): Weight pulling the wrist joints toward
             zero (see WRIST_POSTURE_WEIGHT)
+        hand_bend (float): Fraction of the hands' bend off their forearms the
+            hand targets keep (see HAND_BEND)
     """
     offsets = rot_offsets(robot, arm_abduction)
     # Shoulders, then wrists (zero)
@@ -567,7 +597,7 @@ def make_retargeter(
     )
 
     def preprocess_frame(frame: dict) -> dict:
-        return preprocess(frame, offsets) | {"posture": posture}
+        return preprocess(frame, offsets, hand_bend) | {"posture": posture}
 
     def initial_q(frame: dict) -> Array:
         """The robot's default joint positions, with the root at the first target
