@@ -67,7 +67,7 @@ python examples/ik/bones_seed/view.py
 
 #### HiPHI
 
-HiPHI, like BONES-SEED, requires agreeing to some terms and conditions before use: see the [HuggingFace page](https://huggingface.co/datasets/noitomrobotics/HiPHI) for more details. This dataset is quite large, and when all files are extracted, it fills up around 800 GB of space (so make sure you have plenty of room, or retarget it part-by-part).
+HiPHI, like BONES-SEED, requires agreeing to some terms and conditions before use: see the [HuggingFace page](https://huggingface.co/datasets/noitomrobotics/HiPHI) for more details. This dataset is quite large, and when all files are extracted, it fills up around 850 GB of space (so make sure you have plenty of room, or retarget it part-by-part).
 
 This dataset takes about 3x as long as BONES-SEED to retarget. Expect around 3 hours on an i9 desktop CPU, or 54 minutes on a `c7a.32xlarge` AWS EC2 instance.
 ```
