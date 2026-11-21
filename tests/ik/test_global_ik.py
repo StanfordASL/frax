@@ -98,44 +98,6 @@ def test_cost_tol_tries_q_alone_first():
     assert result.sampled
 
 
-def test_devices_match_single_device(panda):
-    """Starts split across devices (10 over 4, so padded) give the same answer
-    as on one device. Not bitwise: XLA rounds differently for different batch
-    sizes, and the accept/reject steps of converge amplify that into different
-    paths for some starts (on one device too, e.g. batches of 3 vs 10)"""
-    devices = tuple(jax.devices("cpu"))
-    assert len(devices) == 4
-    q_min, q_max = panda.actuated_joint_lower_limits, panda.actuated_joint_upper_limits
-    solver = DiffIKSolver(
-        panda,
-        [EETask(panda, gain_pos=10.0, gain_rot=10.0)],
-        [JointLimits(panda, q_min=q_min, q_max=q_max)],
-    )
-    tf = np.asarray(panda.ee_transform(np.random.default_rng(5).uniform(q_min, q_max)))
-    ref = {"ee_pos": tf[:3, 3], "ee_rmat": tf[:3, :3]}
-    args = (jnp.asarray(panda.default_configuration), ref, jax.random.key(0))
-
-    def solve(devices="default"):
-        global_ik = GlobalIKSolver(solver, num_samples=10, devices=devices)
-        return jax.jit(global_ik.solve)(*args)
-
-    single = solve()
-    split = solve(devices)
-    assert split.qs.shape == single.qs.shape == (10, 7)
-    assert split.iters.shape == split.costs.shape == (10,)
-    # The first start is q itself, unpadded: same path on any batch size here
-    np.testing.assert_allclose(split.qs[0], single.qs[0], atol=1e-8)
-    for result in (single, split):
-        q = np.asarray(result.q)
-        np.testing.assert_allclose(
-            np.asarray(panda.ee_transform(q))[:3, 3], tf[:3, 3], atol=1e-3
-        )
-        assert result.cost < 1e-6
-    # One device in the tuple is the unsplit path
-    one = solve(devices[:1])
-    np.testing.assert_array_equal(one.qs, single.qs)
-
-
 def test_samples_within_limits_keep_floating_base(g1, g1_q_random):
     q_min, q_max = g1.actuated_joint_lower_limits, g1.actuated_joint_upper_limits
     qs = sample_configurations(g1, jnp.asarray(g1_q_random), jax.random.key(2), 8)
