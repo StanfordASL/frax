@@ -36,11 +36,21 @@ panda_sc_data = (
 default_q = np.array([0.0, -np.pi / 6, 0.0, -3 * np.pi / 4, 0.0, 5 * np.pi / 9, 0.0])
 
 
-def load_panda() -> Manipulator:
-    """Create a Manipulator object for the Franka Panda"""
+def load_panda(fer_or_fr3: str = "fr3") -> Manipulator:
+    """Create a Manipulator object for the Franka Panda
 
+    Args:
+        fer_or_fr3 (str, optional): Which Franka to load, both with the Franka Hand.
+            "fr3": Franka Research 3. "fer": Franka Emika Robot (the original Panda).
+            The kinematics are the same but there are very minor differences in
+            inertias and joint limits. Defaults to "fr3".
+
+    Returns:
+        Manipulator: The robot model
+    """
+    assert fer_or_fr3 in {"fer", "fr3"}
     return Manipulator(
-        FRANKA_ASSETS_DIR / "panda.urdf",
+        FRANKA_ASSETS_DIR / f"{fer_or_fr3}.urdf",
         ee_offset=np.block(
             [
                 [Rz(-np.pi / 4), np.reshape(np.array([0.0, 0.0, 0.212]), (-1, 1))],
