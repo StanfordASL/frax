@@ -215,15 +215,16 @@ def preprocess(human_poses: Array, rot_offsets: np.ndarray = ROT_OFFSETS) -> dic
     The hip center and feet scale about the origin by LEG_SCALE. The pelvis
     sits above the hip center by PELVIS_OFFSET, and the upper body scales about
     the hip center by UPPER_SCALE. The feet move out by FOOT_SPREAD, along
-    their own level lateral axes, so planted feet stay put. All targets then
-    drop by FLOOR_OFFSET"""
+    their own lateral axes projected level, so planted feet stay put. All
+    targets then drop by FLOOR_OFFSET"""
     pos = human_poses[:, :3]
     rmats = jax.vmap(quat_wxyz_to_rmat)(human_poses[:, 3:]) @ rot_offsets
     hips = jnp.mean(pos[_HIPS], axis=0)
     targets = LEG_SCALE * hips + UPPER_SCALE * (pos - hips)
     targets = targets.at[0].set(LEG_SCALE * hips + rmats[0] @ PELVIS_OFFSET)
+    # Not normalized: the offset shrinks as a foot rolls onto its side, where
+    # the level lateral axis is ill-defined and would flip in a single frame
     lateral = rmats[_FEET][:, :, 1].at[:, 2].set(0.0)
-    lateral = lateral / jnp.linalg.norm(lateral, axis=-1, keepdims=True)
     targets = targets.at[_FEET].set(
         LEG_SCALE * pos[_FEET] + (_SIDES * FOOT_SPREAD)[:, None] * lateral
     )
