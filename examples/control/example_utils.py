@@ -100,7 +100,7 @@ class ManipulatorEnv:
         if robot == "panda":
             # TODO: unify location structure as iiwa
             # TODO: Define the des_rot elsewhere
-            xml_path = repo_path / "examples" / "xml" / "panda.xml"
+            xml_path = repo_path / "examples" / "xml" / "fr3.xml"
             self.q_init = panda_default_q
             self.des_rot = np.array([[1, 0, 0], [0, -1, 0], [0, 0, -1]])
         elif robot == "iiwa":
