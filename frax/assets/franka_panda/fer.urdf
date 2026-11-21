@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 <!-- Franka Emika Robot (FER) with Franka Hand -->
 <!-- See the following links for details: -->
-<!-- Inertias: https://github.com/frankarobotics/franka_description/blob/7aeeddc449edf8d62b594f9e36a81da53e7796f9/robots/fer/inertials.yaml -->
+<!-- Arm inertias: same as fr3.urdf, see https://github.com/frankarobotics/franka_description/issues/3 -->
 <!-- Joint limits: https://github.com/frankarobotics/franka_description/blob/7aeeddc449edf8d62b594f9e36a81da53e7796f9/robots/fer/joint_limits.yaml -->
 <!-- Kinematics: https://github.com/frankarobotics/franka_description/blob/7aeeddc449edf8d62b594f9e36a81da53e7796f9/robots/fer/kinematics.yaml -->
 <!-- Hand + finger frames: https://github.com/frankarobotics/franka_description/blob/7aeeddc449edf8d62b594f9e36a81da53e7796f9/end_effectors/common/franka_hand.xacro -->
@@ -31,9 +31,9 @@
   </link>
   <link name="panda_link1">
     <inertial>
-      <origin rpy="0 0 0" xyz="0.00033 -0.02204 -0.04762"/>
-      <mass value="2.7907"/>
-      <inertia ixx="0.01564782655" ixy="5.31236e-06" ixz="-3.676721e-05" iyy="0.01439883526" iyz="-0.00248480843" izz="0.00500443991"/>
+      <origin rpy="0 0 0" xyz="0.0000004128 -0.0181251324 -0.0386035970"/>
+      <mass value="2.9274653454"/>
+      <inertia ixx="0.023927316485107913" ixy="1.3317903455714081e-05" ixz="-0.00011404774918616684" iyy="0.0224821613275756" iyz="-0.0019950320628240115" izz="0.006350098258530016"/>
     </inertial>
     <visual>
       <geometry>
@@ -57,9 +57,9 @@
   </joint>
   <link name="panda_link2">
     <inertial>
-      <origin rpy="0 0 0" xyz="0.00038 -0.09211 0.01908"/>
-      <mass value="2.542"/>
-      <inertia ixx="0.01662427728" ixy="3.086077e-05" ixz="8.3594e-06" iyy="0.00462501261" iyz="0.0035589983" izz="0.01545124526"/>
+      <origin rpy="0 0 0" xyz="0.0031828864 -0.0743221644 0.0088146084"/>
+      <mass value="2.9355370338"/>
+      <inertia ixx="0.041938946257609425" ixy="0.00020257331521090626" ixz="0.004077784227179924" iyy="0.02514514885014724" iyz="-0.0042252158006570156" izz="0.06170214472888839"/>
     </inertial>
     <visual>
       <geometry>
@@ -83,9 +83,9 @@
   </joint>
   <link name="panda_link3">
     <inertial>
-      <origin rpy="0 0 0" xyz="0.05152 0.01696 -0.02971"/>
-      <mass value="2.2513"/>
-      <inertia ixx="0.00631741992" ixy="0.00097309955" ixz="0.00292525834" iyy="0.00866285493" iyz="0.00093469224" izz="0.00657804051"/>
+      <origin rpy="0 0 0" xyz="0.0407015686 -0.0048200565 -0.0289730823"/>
+      <mass value="2.2449013699"/>
+      <inertia ixx="0.02410142547240885" ixy="0.002404694559042109" ixz="-0.002856269270114313" iyy="0.01974053266708178" iyz="-0.002104212683891874" izz="0.019044494482244823"/>
     </inertial>
     <visual>
       <geometry>
@@ -110,9 +110,9 @@
   </joint>
   <link name="panda_link4">
     <inertial>
-      <origin rpy="0 0 0" xyz="-0.05113 0.05825 0.01698"/>
-      <mass value="2.2037"/>
-      <inertia ixx="0.00784585566" ixy="-0.00339591957" ixz="0.00158704074" iyy="0.00649543136" iyz="-0.00181477884" izz="0.01003079917"/>
+      <origin rpy="0 0 0" xyz="-0.0459100965 0.0630492960 -0.0085187868"/>
+      <mass value="2.6155955791"/>
+      <inertia ixx="0.03452998321913202" ixy="0.01322552265982813" ixz="0.01015142998484113" iyy="0.028881621933049058" iyz="-0.0009762833870704552" izz="0.04125471171146641"/>
     </inertial>
     <visual>
       <geometry>
@@ -136,9 +136,9 @@
   </joint>
   <link name="panda_link5">
     <inertial>
-      <origin rpy="0 0 0" xyz="-0.00005 0.03730 -0.09280"/>
-      <mass value="2.2855"/>
-      <inertia ixx="0.02297014781" ixy="-9.49345e-06" ixz="-2.063156e-05" iyy="0.02095060919" iyz="0.00382345782" izz="0.00430606551"/>
+      <origin rpy="0 0 0" xyz="-0.0016039605 0.0292536262 -0.0972965990"/>
+      <mass value="2.3271207594"/>
+      <inertia ixx="0.051610278463662895" ixy="-0.005715173387783472" ixz="-0.0035673167625872135" iyy="0.04787729713371481" iyz="0.010673985108535986" izz="0.016423625579357254"/>
     </inertial>
     <visual>
       <geometry>
@@ -162,9 +162,9 @@
   </joint>
   <link name="panda_link6">
     <inertial>
-      <origin rpy="0 0 0" xyz="0.06572 -0.00371 0.00153"/>
-      <mass value="1.353"/>
-      <inertia ixx="0.00087964522" ixy="-0.00021487814" ixz="-0.00011911662" iyy="0.00277796968" iyz="1.274322e-05" izz="0.00286701969"/>
+      <origin rpy="0 0 0" xyz="0.0597131221 -0.0410294666 -0.0101692726"/>
+      <mass value="1.8170376524"/>
+      <inertia ixx="0.005412333594383447" ixy="0.006193456360285834" ixz="0.0014219289306117652" iyy="0.014058329545509979" iyz="-0.0013140753741120031" izz="0.016080817924212554"/>
     </inertial>
     <visual>
       <geometry>
@@ -188,9 +188,9 @@
   </joint>
   <link name="panda_link7">
     <inertial>
-      <origin rpy="0 0 0" xyz="0.00089 -0.00044 0.05491"/>
-      <mass value="0.35973"/>
-      <inertia ixx="0.00019541063" ixy="1.65231e-06" ixz="1.48826e-06" iyy="0.00019210361" iyz="-1.31132e-06" izz="0.00017936256"/>
+      <origin rpy="0 0 0" xyz="0.0045225817 0.0086261921 -0.0161633251"/>
+      <mass value="0.6271432862"/>
+      <inertia ixx="0.00021092389150104718" ixy="-2.433299114461931e-05" ixz="4.564480393778983e-05" iyy="0.00017718568002411474" iyz="8.744070223226438e-05" izz="5.993190599659971e-05"/>
     </inertial>
     <visual>
       <geometry>
