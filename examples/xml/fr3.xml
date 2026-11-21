@@ -129,16 +129,16 @@
       <geom mesh="link0_c" class="collision"/>
       <body name="link1" pos="0 0 0.333">
         <inertial mass="2.9274653454" pos="0.0000004128 -0.0181251324 -0.0386035970" fullinertia="0.023927316485107913 0.0224821613275756 0.006350098258530016 1.3317903455714081e-05 -0.00011404774918616684 -0.0019950320628240115"/>
-        <joint name="joint1" range="-2.7501 2.7501"/>
+        <joint name="joint1" range="-2.9007 2.9007"/>
         <geom material="white" mesh="link1" class="visual"/>
         <geom mesh="link1_c" class="collision"/>
         <body name="link2" quat="1 -1 0 0">
           <inertial mass="2.9355370338" pos="0.0031828864 -0.0743221644 0.0088146084" fullinertia="0.041938946257609425 0.02514514885014724 0.06170214472888839 0.00020257331521090626 0.004077784227179924 -0.0042252158006570156"/>
-          <joint name="joint2" range="-1.7918 1.7918"/>
+          <joint name="joint2" range="-1.8361 1.8361"/>
           <geom material="white" mesh="link2" class="visual"/>
           <geom mesh="link2_c" class="collision"/>
           <body name="link3" pos="0 -0.316 0" quat="1 1 0 0">
-            <joint name="joint3" range="-2.9065 2.9065"/>
+            <joint name="joint3" range="-2.9007 2.9007"/>
             <inertial mass="2.2449013699" pos="0.0407015686 -0.0048200565 -0.0289730823" fullinertia="0.02410142547240885 0.01974053266708178 0.019044494482244823 0.002404694559042109 -0.002856269270114313 -0.002104212683891874"/>
             <geom mesh="link3_0" material="white" class="visual"/>
             <geom mesh="link3_1" material="white" class="visual"/>
@@ -147,7 +147,7 @@
             <geom mesh="link3_c" class="collision"/>
             <body name="link4" pos="0.0825 0 0" quat="1 1 0 0">
               <inertial mass="2.6155955791" pos="-0.0459100965 0.0630492960 -0.0085187868" fullinertia="0.03452998321913202 0.028881621933049058 0.04125471171146641 0.01322552265982813 0.01015142998484113 -0.0009762833870704552"/>
-              <joint name="joint4" range="-3.0481 -0.1458"/>
+              <joint name="joint4" range="-3.0770 -0.1169"/>
               <geom mesh="link4_0" material="white" class="visual"/>
               <geom mesh="link4_1" material="white" class="visual"/>
               <geom mesh="link4_2" material="black" class="visual"/>
@@ -155,7 +155,7 @@
               <geom mesh="link4_c" class="collision"/>
               <body name="link5" pos="-0.0825 0.384 0" quat="1 -1 0 0">
                 <inertial mass="2.3271207594" pos="-0.0016039605 0.0292536262 -0.0972965990" fullinertia="0.051610278463662895 0.04787729713371481 0.016423625579357254 -0.005715173387783472 -0.0035673167625872135 0.010673985108535986"/>
-                <joint name="joint5" range="-2.8101 2.8101"/>
+                <joint name="joint5" range="-2.8763 2.8763"/>
                 <geom mesh="link5_0" material="black" class="visual"/>
                 <geom mesh="link5_1" material="white" class="visual"/>
                 <geom mesh="link5_2" material="white" class="visual"/>
@@ -164,7 +164,7 @@
                 <geom mesh="link5_c2" class="collision"/>
                 <body name="link6" quat="1 1 0 0">
                   <inertial mass="1.8170376524" pos="0.0597131221 -0.0410294666 -0.0101692726" fullinertia="0.005412333594383447 0.014058329545509979 0.016080817924212554 0.006193456360285834 0.0014219289306117652 -0.0013140753741120031"/>
-                  <joint name="joint6" range="0.54092 4.5205"/>
+                  <joint name="joint6" range="0.4398 4.6216"/>
                   <geom mesh="link6_0" material="off_white" class="visual"/>
                   <geom mesh="link6_1" material="white" class="visual"/>
                   <geom mesh="link6_2" material="black" class="visual"/>
@@ -185,7 +185,7 @@
                   <geom mesh="link6_c" class="collision"/>
                   <body name="link7" pos="0.088 0 0" quat="1 1 0 0">
                     <inertial mass="0.6271432862" pos="0.0045225817 0.0086261921 -0.0161633251" fullinertia="0.00021092389150104718 0.00017718568002411474 5.993190599659971e-05 -2.433299114461931e-05 4.564480393778983e-05 8.744070223226438e-05"/>
-                    <joint name="joint7" range="-3.0196 3.0196"/>
+                    <joint name="joint7" range="-3.0508 3.0508"/>
                     <geom mesh="link7_0" material="white" class="visual"/>
                     <geom mesh="link7_1" material="black" class="visual"/>
                     <geom mesh="link7_2" material="black" class="visual"/>
