@@ -16,7 +16,7 @@ def robot():
 
 @pytest.fixture(scope="module")
 def pin_model_and_data():
-    model = pin.buildModelFromUrdf(FRANKA_ASSETS_DIR / "panda.urdf")
+    model = pin.buildModelFromUrdf(FRANKA_ASSETS_DIR / "fr3.urdf")
     return model, pin.Data(model)
 
 
