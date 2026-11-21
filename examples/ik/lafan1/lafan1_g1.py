@@ -168,7 +168,7 @@ LEG_DAMPING = 100.0
 ARM_ABDUCTION = 0.2
 # Backward lean (rad) added to the torso's target, about its own lateral axis:
 # LAFAN1's chest is tilted slightly forward of upright
-TORSO_LEAN = np.radians(2.0)
+TORSO_LEAN = np.radians(6.0)
 # Weight of a posture task pulling the shoulders toward SHOULDER_POSTURE, so
 # raised arms don't drift into G1's flipped shoulder solution (as in
 # seed_g1.py). 0 to not use one
