@@ -35,7 +35,7 @@ from frax.ik import (
     SphereObstacles,
 )
 
-PANDA_URDF = FRANKA_ASSETS_DIR / "panda.urdf"
+PANDA_URDF = FRANKA_ASSETS_DIR / "fr3.urdf"
 DT = 0.01
 OBSTACLE_POS = np.array([0.2, 0.2, 0.55])
 OBSTACLE_RADIUS = 0.1

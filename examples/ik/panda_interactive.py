@@ -27,7 +27,7 @@ from frax.assets import FRANKA_ASSETS_DIR
 from frax.ik import DiffIKSolver, EETask, JointLimits, JointTask
 from frax.utils.rotation_utils import quat_wxyz_to_rmat, rmat_to_quat_wxyz
 
-PANDA_URDF = FRANKA_ASSETS_DIR / "panda.urdf"
+PANDA_URDF = FRANKA_ASSETS_DIR / "fr3.urdf"
 
 DT = 0.01
 DAMPING = 1e-3

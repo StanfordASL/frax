@@ -318,7 +318,7 @@ def visualize_collision_model(
 def panda_main():
     robot = load_panda()
     q = robot.default_configuration
-    urdf_path = FRANKA_ASSETS_DIR / "panda.urdf"
+    urdf_path = FRANKA_ASSETS_DIR / "fr3.urdf"
     visualize_collision_model(urdf_path, robot, q)
 
 

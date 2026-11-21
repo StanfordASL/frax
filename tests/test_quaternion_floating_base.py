@@ -11,7 +11,6 @@ which implies M_frax = T^T M_pin T, and tau_frax = T^T tau_pin.
 Note that T depends on the state, so T_dot @ v must be accounted for in the accelerations.
 """
 
-
 import jax
 import jax.numpy as jnp
 import mujoco
@@ -194,7 +193,7 @@ class TestVsPinocchio:
 
 def test_floating_manipulator_vs_pinocchio():
     """A free-floating manipulator is a pure kinematic chain, which uses the scanned FK path"""
-    urdf = str(FRANKA_ASSETS_DIR / "panda.urdf")
+    urdf = str(FRANKA_ASSETS_DIR / "fr3.urdf")
     model = pin.buildModelFromUrdf(urdf, pin.JointModelFreeFlyer())
     data = pin.Data(model)
     robot = Manipulator(urdf, floating_base="quaternion")
@@ -370,7 +369,7 @@ class TestVsEuler:
         np.testing.assert_array_equal(q_euler[3:6], [0, 0, 0])
         np.testing.assert_array_equal(q_quat[7:], q_euler[6:])
         # If unspecified: identity base pose at the origin, zero joints
-        urdf = str(FRANKA_ASSETS_DIR / "panda.urdf")
+        urdf = str(FRANKA_ASSETS_DIR / "fr3.urdf")
         np.testing.assert_array_equal(
             Manipulator(urdf, floating_base="quaternion").default_configuration,
             np.r_[0, 0, 0, 1, np.zeros(10)],
@@ -477,6 +476,4 @@ def test_dynamics_invariant_to_base_translation(robot):
             q_shifted = q.copy()
             q_shifted[:3] += offset
             np.testing.assert_allclose(robot.mass_matrix(q_shifted), M, atol=1e-8)
-            np.testing.assert_allclose(
-                rnea(q_shifted, v, a, g, fext), tau, atol=1e-8
-            )
+            np.testing.assert_allclose(rnea(q_shifted, v, a, g, fext), tau, atol=1e-8)

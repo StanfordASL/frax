@@ -7,7 +7,7 @@ import pytest
 from frax.assets import FRANKA_ASSETS_DIR
 from frax.core.manipulator import Manipulator
 
-URDF = FRANKA_ASSETS_DIR / "panda.urdf"
+URDF = FRANKA_ASSETS_DIR / "fr3.urdf"
 
 
 @pytest.fixture(scope="module")
