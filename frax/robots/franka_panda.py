@@ -33,7 +33,8 @@ panda_sc_data = (
     ("panda_link5", 3, "panda_link1", 2, 0.0),
 )
 
-default_q = np.array([0.0, -np.pi / 6, 0.0, -3 * np.pi / 4, 0.0, 5 * np.pi / 9, 0.0])
+# Standard Franka "ready" pose
+default_q = np.array([0.0, -np.pi / 4, 0.0, -3 * np.pi / 4, 0.0, np.pi / 2, np.pi / 4])
 
 
 def load_panda(fer_or_fr3: str = "fr3") -> Manipulator:
